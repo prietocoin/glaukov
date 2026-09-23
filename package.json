@@ -1,0 +1,24 @@
+{
+  "name": "glaukov-engine",
+  "version": "1.0.0",
+  "description": "Motor modular de notificación de tasas y renderizado HTML-to-Image",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "bullmq": "^5.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "handlebars": "^4.7.8",
+    "ioredis": "^5.4.1",
+    "pg": "^8.12.0",
+    "puppeteer": "^22.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
