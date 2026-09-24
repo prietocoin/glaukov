@@ -1,109 +1,161 @@
-// 1. Cargar Comprobantes procesados directamente de comprobantes_raw
-async cargarComprobantes() {
-  const params = new URLSearchParams();
-  if (this.filtroSocio) params.append('socio', this.filtroSocio);
-  if (this.filtroReporteRol) params.append('rol', this.filtroReporteRol);
-  if (this.filtroFecha) params.append('fechaInicio', this.filtroFecha);
-  if (this.filtroFechaFin) params.append('fechaFin', this.filtroFechaFin);
-  if (this.filtroHash) params.append('hash', this.filtroHash);
-  params.append('soloDuplicados', this.soloDuplicados ? 'true' : 'false');
-
-  try {
-    const res = await fetch(`/api/v1/atenea/comprobantes?${params.toString()}`);
-    if (res.ok) {
-      this.comprobantes = await res.json();
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atenea Panel - Glaukov Engine</title>
+  
+  <link rel="icon" type="image/svg+xml" href="/logo-fundablock.png">
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>[x-cloak] { display: none !important; }</style>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { brand: { dark: '#0d0f1d', card: '#16192b', border: '#262a42', accent: '#8b5cf6' } }
+        }
+      }
     }
-  } catch (err) {
-    console.error("[Glaukov UI ❌] Error cargando comprobantes desde comprobantes_raw:", err);
-  }
-},
+  </script>
+</head>
+<body class="bg-[#0b0d19] text-slate-200 font-sans antialiased min-h-screen" x-data="app()" x-init="init()">
 
-// 2. Cargar Directorio de nombres_fb
-async cargarDirectorio() {
-  try {
-    const res = await fetch('/api/v1/atenea/directorio');
-    if (res.ok) this.directorio = await res.json();
-  } catch (err) {
-    console.error("[Glaukov UI ❌] Error cargando directorio:", err);
-  }
-},
+  <div class="flex flex-col md:flex-row min-h-screen">
+    
+    <!-- BARRA LATERAL NAV -->
+    <aside class="w-full md:w-64 bg-[#111322] border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0">
+      <div>
+        <div class="flex items-center gap-3 px-2 py-3 mb-6 border-b border-slate-800">
+          <div class="w-10 h-10 rounded-xl border border-purple-500/40 bg-[#16192b] p-1 flex items-center justify-center shadow-lg shrink-0">
+            <img src="/logo-fundablock.png" alt="Fundablock Logo" class="w-full h-full object-contain">
+          </div>
+          <div>
+            <h1 class="font-extrabold text-white text-base tracking-wide">FUNDABLOCK</h1>
+            <p class="text-[10px] text-purple-400 font-semibold uppercase tracking-wider">Glaukov Engine</p>
+          </div>
+        </div>
 
-// 3. Cargar Lista de Socios para dropdowns
-async cargarSocios() {
-  try {
-    const res = await fetch('/api/v1/atenea/socios');
-    if (res.ok) this.socios = await res.json();
-  } catch (err) {
-    console.error("[Glaukov UI ❌] Error cargando lista de socios:", err);
-  }
-},
+        <nav class="space-y-1">
+          <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Auditoría en Vivo</p>
+          <button @click="vistaActiva = 'comprobantes'" :class="vistaActiva === 'comprobantes' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50 shadow-lg' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-xs transition-all">
+            📄 Comprobantes
+          </button>
+          <button @click="vistaActiva = 'directorio'" :class="vistaActiva === 'directorio' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50 shadow-lg' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-xs transition-all">
+            👥 Directorio Socios
+          </button>
+        </nav>
+      </div>
+    </aside>
 
-// 4. Guardar Configuración de Socio en nombres_fb
-async guardarConfigSocio() {
-  if (!this.socioConfigEdit.nombre) return;
-  this.guardandoConfig = true;
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-1 p-4 md:p-6 overflow-x-hidden">
+      
+      <!-- VISTA COMPROBANTES -->
+      <template x-if="vistaActiva === 'comprobantes'">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-white">Gestión de Comprobantes (Remithub Raw)</h2>
+              <p class="text-xs text-slate-400">Auditoría en tiempo real conectada al motor Glaukov</p>
+            </div>
+            <button @click="cargarComprobantes()" class="px-3 py-1.5 bg-purple-600 text-white font-bold rounded-xl text-xs hover:bg-purple-500">
+              🔄 Actualizar
+            </button>
+          </div>
 
-  try {
-    const payload = {
-      ...this.socioConfigEdit,
-      saldo_anterior: parseFloat(this.socioConfigEdit.saldo_anterior) || 0,
-      cartelera_paises: this.carteleraPaisesEdit.map((p, idx) => ({
-        pais: p.nombrePais,
-        moneda: p.code,
-        activo: p.activo,
-        orden: idx + 1
-      }))
-    };
+          <div class="bg-[#131525] rounded-xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead class="bg-[#171a2e] text-slate-400 uppercase font-bold text-[10px]">
+                <tr>
+                  <th class="px-3 py-2.5">HASH</th>
+                  <th class="px-3 py-2.5">MONTO & MONEDA</th>
+                  <th class="px-3 py-2.5">BANCO / TITULAR</th>
+                  <th class="px-3 py-2.5">SOCIOS & TASAS</th>
+                  <th class="px-3 py-2.5">REFERENCIA</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                <template x-for="item in comprobantes" :key="item.hash_largo">
+                  <tr class="hover:bg-slate-800/30">
+                    <td class="px-3 py-2 font-mono font-bold text-purple-300" x-text="item.hash_corto"></td>
+                    <td class="px-3 py-2 font-bold text-emerald-400" x-text="item.monto + ' ' + item.moneda"></td>
+                    <td class="px-3 py-2">
+                      <p class="font-bold text-white uppercase" x-text="item.banco || '-'"></p>
+                      <p class="text-[10px] text-slate-400 uppercase" x-text="item.titular || '-'"></p>
+                    </td>
+                    <td class="px-3 py-2">
+                      <p class="text-purple-300 font-bold" x-text="item.nombre_socio_1 + ' (T1: ' + item.tasa_1 + ')'"></p>
+                      <template x-if="item.nombre_socio_2">
+                        <p class="text-pink-300 font-bold" x-text="item.nombre_socio_2 + ' (T2: ' + item.tasa_2 + ')'"></p>
+                      </template>
+                    </td>
+                    <td class="px-3 py-2 font-mono text-slate-400" x-text="item.referencia || '-'"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
 
-    const res = await fetch('/api/v1/atenea/socios/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+      <!-- VISTA DIRECTORIO -->
+      <template x-if="vistaActiva === 'directorio'">
+        <div class="space-y-4">
+          <h2 class="text-lg font-bold text-white">Directorio de Socios (nombres_fb)</h2>
+          <div class="bg-[#131525] rounded-xl border border-slate-800 p-4">
+            <template x-for="d in directorio" :key="d.nombre">
+              <div class="flex items-center justify-between border-b border-slate-800 py-2">
+                <span class="font-bold text-purple-300" x-text="d.nombre"></span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold" :class="d.activo ? 'bg-emerald-950 text-emerald-300' : 'bg-rose-950 text-rose-300'" x-text="d.activo ? 'ACTIVO' : 'INACTIVO'"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
 
-    if (res.ok) {
-      this.modalConfigSocioAbierto = false;
-      await this.cargarDirectorio();
-      await this.cargarSocios();
-      await this.cargarComprobantes();
+    </main>
+  </div>
+
+  <script>
+    function app() {
+      return {
+        vistaActiva: 'comprobantes',
+        comprobantes: [],
+        directorio: [],
+        socios: [],
+        filtroSocio: '',
+        filtroReporteRol: '',
+        filtroFecha: '',
+        filtroFechaFin: '',
+        filtroHash: '',
+        soloDuplicados: false,
+
+        async init() {
+          await this.cargarComprobantes();
+          await this.cargarDirectorio();
+        },
+
+        async cargarComprobantes() {
+          try {
+            const res = await fetch('/api/v1/atenea/comprobantes');
+            if (res.ok) this.comprobantes = await res.json();
+          } catch (err) {
+            console.error("[Glaukov UI ❌] Error cargando comprobantes:", err);
+          }
+        },
+
+        async cargarDirectorio() {
+          try {
+            const res = await fetch('/api/v1/atenea/directorio');
+            if (res.ok) this.directorio = await res.json();
+          } catch (err) {
+            console.error("[Glaukov UI ❌] Error cargando directorio:", err);
+          }
+        }
+      };
     }
-  } catch (err) {
-    console.error("[Glaukov UI ❌] Error guardando socio:", err);
-  } finally {
-    this.guardandoConfig = false;
-  }
-},
-
-// 5. Guardar Edición Manual de un Comprobante en comprobantes_raw
-async guardarCambios() {
-  if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
-  try {
-    const res = await fetch(`/api/v1/atenea/comprobantes/${encodeURIComponent(this.itemEdicion.hash_largo)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.itemEdicion)
-    });
-    if (res.ok) {
-      this.modalAbierto = false;
-      await this.cargarComprobantes();
-    }
-  } catch (err) {
-    console.error("[Glaukov UI ❌] Error al actualizar comprobante:", err);
-  }
-},
-
-// 6. Descartar Comprobante
-async eliminarComprobante(hashLargo) {
-  if (!hashLargo || !confirm('¿Deseas descartar este comprobante?')) return;
-  try {
-    const res = await fetch(`/api/v1/atenea/comprobantes/${encodeURIComponent(hashLargo)}`, { 
-      method: 'DELETE' 
-    });
-    if (res.ok) {
-      this.modalAbierto = false;
-      await this.cargarComprobantes();
-    }
-  } catch (err) {
-    console.error("[Glaukov UI ❌] Error al descartar comprobante:", err);
-  }
-}
+  </script>
+</body>
+</html>
