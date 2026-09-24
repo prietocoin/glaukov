@@ -14,7 +14,7 @@ export const AteneaAPI = {
 
   async getSocios() {
     const res = await fetch('/api/v1/atenea/socios');
-    if (!res.ok) throw new Error('Error al obtener lista de socios');
+    if (!res.ok) throw new Error('Error al obtener socios');
     return await res.json();
   },
 
