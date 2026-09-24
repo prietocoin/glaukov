@@ -4,7 +4,7 @@ const cors = require('cors');
 const path = require('path');
 
 // 1. Inicializar Worker de Tasas (Consumidor BullMQ para WhatsApp)
-require('./src/workers/tasas.worker');
+require('./src/jobs/tasas.worker'); // ✅ Ruta corregida a src/jobs/
 
 // 2. Cargar enrutador modular de Atenea
 const ateneaRoutes = require('./src/modules/atenea/routes/atenea.routes');
