@@ -1,6 +1,6 @@
 const comprobantesService = require('../services/comprobantes.service');
 const directorioService = require('../services/directorio.service');
-const ateneaService = require('../services/atenea.service');
+const tasasService = require('../services/tasas.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
 
 // ==========================================
@@ -133,7 +133,7 @@ async function deleteSocio(req, res) {
 async function previewData(req, res) {
   try {
     const filtroSocio = req.query.socio || null;
-    const socios = await ateneaService.obtenerSociosYProcesarTasas(filtroSocio);
+    const socios = await tasasService.obtenerSociosYProcesarTasas(filtroSocio);
     res.json({
       success: true,
       total_socios: socios.length,
@@ -152,10 +152,10 @@ async function previewImage(req, res) {
 
     if (!isNaN(idParam)) {
       const index = parseInt(idParam, 10);
-      const socios = await ateneaService.obtenerSociosYProcesarTasas();
+      const socios = await tasasService.obtenerSociosYProcesarTasas();
       socioTarget = socios[index];
     } else {
-      const socios = await ateneaService.obtenerSociosYProcesarTasas(idParam);
+      const socios = await tasasService.obtenerSociosYProcesarTasas(idParam);
       socioTarget = socios[0];
     }
 
@@ -175,7 +175,7 @@ async function previewImage(req, res) {
 async function dispararWhatsApp(req, res) {
   try {
     const filtroSocio = req.query.socio || req.body?.socio || null;
-    const resultado = await ateneaService.encolarNotificacionesTasas(filtroSocio);
+    const resultado = await tasasService.encolarNotificacionesTasas(filtroSocio);
     res.json({ success: true, ...resultado });
   } catch (err) {
     console.error('[Atenea Controller ❌] Error en dispararWhatsApp:', err.message);
