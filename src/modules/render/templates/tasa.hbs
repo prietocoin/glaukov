@@ -14,23 +14,28 @@
 
         body {
             font-family: 'Inter', 'Noto Color Emoji', sans-serif;
-            background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
-            width: 1080px; 
-            height: 1350px; 
-            padding: 50px;
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            overflow: hidden;
+            background-color: #02120d;
+            margin: 0;
+            padding: 0;
+            width: 1080px;
         }
 
-        /* HEADER */
+        /* CONTENEDOR PRINCIPAL CON ALTURA DINÁMICA */
+        #app-container {
+            width: 1080px;
+            background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        /* CABECERA */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 120px;
+            margin-bottom: 35px;
         }
 
         .brand-title {
@@ -40,6 +45,7 @@
             text-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
             display: flex;
             align-items: center;
+            white-space: nowrap;
         }
 
         .brand-divider {
@@ -54,8 +60,8 @@
         }
 
         .logo-container {
-            width: 140px;
-            height: 120px;
+            width: 130px;
+            height: 110px;
             display: flex;
             align-items: center;
             justify-content: flex-end;
@@ -68,14 +74,12 @@
             filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5));
         }
 
-        /* GRID CENTRAL */
+        /* GRID DE TARJETAS */
         .grid-tasas {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             grid-gap: 25px 35px;
-            margin: 20px 0;
-            flex-grow: 1;
-            align-content: center;
+            margin-bottom: 40px;
         }
 
         .card-tasa {
@@ -84,11 +88,11 @@
             border-top: 4px solid #10b981;
             border-radius: 20px;
             box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-            padding: 16px 24px;
+            padding: 20px 26px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 175px;
+            height: 180px;
         }
 
         .card-header {
@@ -98,14 +102,14 @@
         }
 
         .bandera {
-            font-size: 42px;
+            font-size: 40px;
             line-height: 1;
             font-family: 'Noto Color Emoji', 'Inter', sans-serif;
+            flex-shrink: 0;
         }
 
-        /* NOMBRE DEL PAÍS EN TAMAÑO GIGANTE (38px) */
         .nombre-pais {
-            font-size: 38px !important;
+            font-size: 34px !important;
             font-weight: 900 !important;
             color: #ffffff !important;
             letter-spacing: -0.5px;
@@ -119,7 +123,7 @@
             justify-content: space-between;
             align-items: center;
             border-top: 1px solid rgba(6, 78, 59, 0.8);
-            padding-top: 10px;
+            padding-top: 12px;
         }
 
         .col-precio {
@@ -152,11 +156,11 @@
 
         .divider-vertical {
             width: 1px;
-            height: 45px;
+            height: 48px;
             background-color: rgba(6, 78, 59, 0.8);
         }
 
-        /* FOOTER */
+        /* PIE DE PÁGINA */
         .footer {
             display: flex;
             justify-content: space-between;
@@ -191,53 +195,55 @@
 </head>
 <body>
 
-    <!-- CABECERA -->
-    <div class="header">
-        <div class="brand-title">
-            FUNDABLOCK <span class="brand-divider">|</span> 
-            <span class="socio-name">{{nombre_socio}}</span>
-        </div>
-        
-        <div class="logo-container">
-            {{#if logo_src}}
-                <img src="{{logo_src}}" class="logo-img" alt="FUNDABLOCK">
-            {{else}}
-                <span style="font-size: 48px; font-weight: 900; color: #34d399;">FB</span>
-            {{/if}}
-        </div>
-    </div>
-
-    <!-- CUERPO CENTRAL -->
-    <div class="grid-tasas">
-        {{#each tarjetas_paises}}
-        <div class="card-tasa">
-            <div class="card-header">
-                <div class="bandera">{{this.bandera}}</div>
-                <div class="nombre-pais">{{this.nombre_pais}}</div>
+    <div id="app-container">
+        <!-- CABECERA -->
+        <div class="header">
+            <div class="brand-title">
+                FUNDABLOCK <span class="brand-divider">|</span> 
+                <span class="socio-name">{{nombre_socio}}</span>
             </div>
-            <div class="card-body">
-                <div class="col-precio">
-                    <p class="label-operacion">Comprar</p>
-                    <p class="val-compra">{{this.compra}}</p>
-                </div>
-                <div class="divider-vertical"></div>
-                <div class="col-precio" style="text-align: right;">
-                    <p class="label-operacion">Vender</p>
-                    <p class="val-venta">{{this.venta}}</p>
-                </div>
+            
+            <div class="logo-container">
+                {{#if logo_src}}
+                    <img src="{{logo_src}}" class="logo-img" alt="FUNDABLOCK">
+                {{else}}
+                    <span style="font-size: 48px; font-weight: 900; color: #34d399;">FB</span>
+                {{/if}}
             </div>
         </div>
-        {{/each}}
-    </div>
 
-    <!-- PIE DE IMAGEN -->
-    <div class="footer">
-        <div class="footer-texto">
-            Tasa base referencial: <span class="tasa-ref">{{tasa_base_ref}}</span> • Glaukov Engine
+        <!-- CUERPO CENTRAL DE TARJETAS -->
+        <div class="grid-tasas">
+            {{#each tarjetas_paises}}
+            <div class="card-tasa">
+                <div class="card-header">
+                    <div class="bandera">{{this.bandera}}</div>
+                    <div class="nombre-pais">{{this.nombre_pais}}</div>
+                </div>
+                <div class="card-body">
+                    <div class="col-precio">
+                        <p class="label-operacion">Comprar</p>
+                        <p class="val-compra">{{this.compra}}</p>
+                    </div>
+                    <div class="divider-vertical"></div>
+                    <div class="col-precio" style="text-align: right;">
+                        <p class="label-operacion">Vender</p>
+                        <p class="val-venta">{{this.venta}}</p>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
         </div>
 
-        <div class="badge-actualizado">
-            Actualizado: <span class="time-val">{{hora_actualizacion}}</span>
+        <!-- PIE DE IMAGEN -->
+        <div class="footer">
+            <div class="footer-texto">
+                Tasa base referencial: <span class="tasa-ref">{{tasa_base_ref}}</span> • Glaukov Engine
+            </div>
+
+            <div class="badge-actualizado">
+                Actualizado: <span class="time-val">{{hora_actualizacion}}</span>
+            </div>
         </div>
     </div>
 
