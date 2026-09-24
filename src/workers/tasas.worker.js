@@ -3,23 +3,24 @@ const axios = require('axios');
 const redisConnection = require('../config/redis');
 const { generarImagenTasa } = require('../modules/render/services/puppeteer.service');
 
-// Declaración de la cola para añadir tareas desde triggers
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
 /**
- * Función auxiliar para enviar imágenes en Base64 mediante Evolution API
+ * Envía la imagen renderizada por WhatsApp a través de Evolution API
  */
 async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
   const evolutionUrl = process.env.EVOLUTION_API_URL;
-  const apiKey = process.env.EVOLUTION_API_KEY;
+  // Soporta tanto EVOLUTION_API_KEY como AUTHENTICATION_API_KEY de EasyPanel
+  const apiKey = process.env.EVOLUTION_API_KEY || process.env.AUTHENTICATION_API_KEY;
   const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'Jairo';
 
   if (!evolutionUrl || !apiKey) {
-    console.warn('[Glaukov Worker ⚠️] EVOLUTION_API_URL o EVOLUTION_API_KEY no configuradas.');
+    console.warn('[Glaukov Worker ⚠️] EVOLUTION_API_URL o API Key no configuradas en las variables de entorno.');
     return;
   }
 
-  const base64Image = imageBuffer.toString('base64');
+  // Formatear Base64 con prefijo MIME
+  const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
 
   const payload = {
     number: remoteJid,
@@ -28,16 +29,20 @@ async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
     caption: caption || 'Actualización de tasa 📊'
   };
 
-  await axios.post(
-    `${evolutionUrl}/message/sendMedia/${instanceName}`,
-    payload,
-    {
+  const urlFinal = `${evolutionUrl.replace(/\/$/, '')}/message/sendMedia/${instanceName}`;
+
+  try {
+    const response = await axios.post(urlFinal, payload, {
       headers: {
         'apikey': apiKey,
         'Content-Type': 'application/json'
-      }
-    }
-  );
+      },
+      timeout: 30000
+    });
+    console.log(`[Glaukov Worker 🟢] Mensaje enviado a ${remoteJid}: Status ${response.status}`);
+  } catch (error) {
+    console.error(`[Glaukov Worker ❌] Error enviando a Evolution API (${remoteJid}):`, error.response?.data || error.message);
+  }
 }
 
 // Inicialización del Worker de BullMQ
@@ -56,7 +61,7 @@ const tasasWorker = new Worker(
       await enviarImagenWhatsApp(
         datosSocio.remoteJid,
         imageBuffer,
-        `Hola 👋 ${datosSocio.nombre_socio}. Actualización de la tasa 📊.`
+        `Hola 👋 *${datosSocio.nombre_socio}*. Adjunto la actualización de tasas 📊.`
       );
     } else {
       console.log(`[Glaukov Worker ℹ️] ${datosSocio.nombre_socio} no posee remoteJid asignado.`);
@@ -66,7 +71,7 @@ const tasasWorker = new Worker(
   },
   {
     connection: redisConnection,
-    concurrency: 2 // Renderiza hasta 2 imágenes en paralelo para cuidar memoria RAM
+    concurrency: 2
   }
 );
 
