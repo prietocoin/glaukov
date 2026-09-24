@@ -1,6 +1,7 @@
 const { Worker, Queue } = require('bullmq');
 const redisConnection = require('../config/redis');
-const { generarImagenTasa } = require('../render/services/puppeteer.service');
+// ✅ Ruta corregida apuntando a modules/render:
+const { generarImagenTasa } = require('../modules/render/services/puppeteer.service');
 
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
