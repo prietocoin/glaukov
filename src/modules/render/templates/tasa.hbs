@@ -47,30 +47,17 @@
             border-top: 3.5px solid #10b981;
             border-radius: 22px;
             box-shadow: 0 12px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
-            padding: 18px 26px;
+            padding: 18px 24px;
             display: flex;
             flex-direction: column;
             justify-content: space-between; 
             height: 100%;
         }
 
-        /* Título de país balanceado para encajar perfectamente sin cortarse */
-        h2 { 
-            font-size: 2.2rem; 
-            font-weight: 800; 
-            letter-spacing: -0.01em;
-            color: #ffffff;
-            line-height: 1.2;
-        }
-        
-        .val-num { font-size: 2.65rem; }
-        
         .icono-bandera { 
-            font-size: 2.5rem; 
+            font-size: 3rem !important; 
             font-family: 'Noto Color Emoji', 'Inter', sans-serif;
         }
-        
-        .text-label { font-size: 1rem; }
     </style>
 </head>
 <body>
@@ -84,8 +71,8 @@
             </h1>
         </div>
         
-        <!-- LOGO LIBRE SIN CAJA -->
-        <div class="w-36 h-36 flex items-center justify-center shrink-0 mr-2">
+        <!-- LOGO -->
+        <div class="w-32 h-32 flex items-center justify-center shrink-0 mr-2">
             {{#if logo_src}}
                 <img src="{{logo_src}}" class="w-full h-full object-contain drop-shadow-2xl" alt="FUNDABLOCK">
             {{else}}
@@ -101,17 +88,20 @@
             <div class="card-tasa">
                 <div class="flex items-center gap-3 mb-1">
                     <div class="icono-bandera leading-none shrink-0">{{this.bandera}}</div>
-                    <h2 class="text-white tracking-wide whitespace-nowrap overflow-hidden text-ellipsis">{{this.nombre_pais}}</h2>
+                    <!-- TÍTULO DEL PAÍS CON TAMAÑO FORZADO INLINE (36px) -->
+                    <div style="font-size: 36px !important; font-weight: 900 !important; color: #ffffff !important; line-height: 1.1; letter-spacing: -0.02em;" class="truncate">
+                        {{this.nombre_pais}}
+                    </div>
                 </div>
                 <div class="flex justify-between items-center border-t border-emerald-900/60 pt-2">
                     <div class="w-1/2 pr-2">
-                        <p class="text-label text-white font-bold tracking-widest uppercase mb-1">Comprar</p>
-                        <p class="font-extrabold text-emerald-400 val-num leading-none">{{this.compra}}</p>
+                        <p style="font-size: 18px !important; font-weight: 800 !important; color: #ffffff !important;" class="tracking-widest uppercase mb-1">Comprar</p>
+                        <p style="font-size: 42px !important; font-weight: 900 !important;" class="text-emerald-400 leading-none">{{this.compra}}</p>
                     </div>
                     <div class="w-[1px] h-12 bg-emerald-900/50 mx-2"></div>
                     <div class="w-1/2 pl-2 text-right">
-                        <p class="text-label text-white font-bold tracking-widest uppercase mb-1">Vender</p>
-                        <p class="font-extrabold text-rose-400 val-num leading-none">{{this.venta}}</p>
+                        <p style="font-size: 18px !important; font-weight: 800 !important; color: #ffffff !important;" class="tracking-widest uppercase mb-1">Vender</p>
+                        <p style="font-size: 42px !important; font-weight: 900 !important;" class="text-rose-400 leading-none">{{this.venta}}</p>
                     </div>
                 </div>
             </div>
@@ -121,13 +111,13 @@
 
     <!-- PIE DE IMAGEN -->
     <div class="shrink-0 flex justify-between items-center pt-2">
-        <div class="text-white text-xl font-semibold tracking-wide">
+        <div style="font-size: 22px !important; color: #ffffff !important; font-weight: 700 !important;">
             Tasa base referencial: <span class="text-emerald-300 font-bold">{{tasa_base_ref}}</span> • Glaukov Engine
         </div>
 
         <div class="bg-emerald-950/90 border border-emerald-700 px-6 py-2.5 rounded-full shadow-lg">
-            <span class="text-lg font-semibold text-gray-200">
-                Actualizado: <span class="text-white font-bold">{{hora_actualizacion}}</span>
+            <span style="font-size: 20px !important; color: #ffffff !important; font-weight: 700 !important;">
+                Actualizado: <span class="text-emerald-400 font-bold">{{hora_actualizacion}}</span>
             </span>
         </div>
     </div>
