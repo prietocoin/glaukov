@@ -3,95 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atenea Panel - Glaukov Engine</title>
-  
-  <link rel="icon" type="image/svg+xml" href="/logo-fundablock.png">
+  <title>Glaukov Engine - Atenea</title>
+  <link rel="icon" type="image/png" href="/logo-fundablock.png">
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="/js/app.js"></script>
   <style>[x-cloak] { display: none !important; }</style>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: { brand: { dark: '#0d0f1d', card: '#16192b', border: '#262a42', accent: '#8b5cf6' } }
-        }
-      }
-    }
-  </script>
 </head>
-<body class="bg-[#0b0d19] text-slate-200 font-sans antialiased min-h-screen" x-data="app()" x-init="init()">
+<body class="bg-[#0b0d19] text-slate-200 min-h-screen" x-data="app()">
 
   <div class="flex flex-col md:flex-row min-h-screen">
     
-    <!-- BARRA LATERAL NAV -->
-    <aside class="w-full md:w-64 bg-[#111322] border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0">
-      <div>
-        <div class="flex items-center gap-3 px-2 py-3 mb-6 border-b border-slate-800">
-          <div class="w-10 h-10 rounded-xl border border-purple-500/40 bg-[#16192b] p-1 flex items-center justify-center shadow-lg shrink-0">
-            <img src="/logo-fundablock.png" alt="Fundablock Logo" class="w-full h-full object-contain">
-          </div>
-          <div>
-            <h1 class="font-extrabold text-white text-base tracking-wide">FUNDABLOCK</h1>
-            <p class="text-[10px] text-purple-400 font-semibold uppercase tracking-wider">Glaukov Engine</p>
-          </div>
-        </div>
-
-        <nav class="space-y-1">
-          <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Auditoría en Vivo</p>
-          <button @click="vistaActiva = 'comprobantes'" :class="vistaActiva === 'comprobantes' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50 shadow-lg' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-xs transition-all">
-            📄 Comprobantes
-          </button>
-          <button @click="vistaActiva = 'directorio'" :class="vistaActiva === 'directorio' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50 shadow-lg' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-xs transition-all">
-            👥 Directorio Socios
-          </button>
-        </nav>
-      </div>
+    <!-- LATERAL -->
+    <aside class="w-full md:w-64 bg-[#101221] border-r border-slate-800 p-4 space-y-4">
+      <div class="font-extrabold text-white text-base">FUNDABLOCK</div>
+      <nav class="space-y-1">
+        <button @click="vistaActiva = 'comprobantes'" :class="vistaActiva === 'comprobantes' ? 'bg-purple-600/30 text-purple-300' : 'text-slate-400'" class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold">📄 Comprobantes</button>
+        <button @click="vistaActiva = 'directorio'" :class="vistaActiva === 'directorio' ? 'bg-purple-600/30 text-purple-300' : 'text-slate-400'" class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold">👥 Directorio Socios</button>
+      </nav>
     </aside>
 
-    <!-- CONTENIDO PRINCIPAL -->
-    <main class="flex-1 p-4 md:p-6 overflow-x-hidden">
+    <!-- MAIN -->
+    <main class="flex-1 p-6">
       
-      <!-- VISTA COMPROBANTES -->
+      <!-- COMPONENT: COMPROBANTES -->
       <template x-if="vistaActiva === 'comprobantes'">
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-lg font-bold text-white">Gestión de Comprobantes (Remithub Raw)</h2>
-              <p class="text-xs text-slate-400">Auditoría en tiempo real conectada al motor Glaukov</p>
-            </div>
-            <button @click="cargarComprobantes()" class="px-3 py-1.5 bg-purple-600 text-white font-bold rounded-xl text-xs hover:bg-purple-500">
-              🔄 Actualizar
-            </button>
+        <div class="space-y-4" x-data="comprobantes">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-bold text-white">Comprobantes Raw</h2>
+            <button @click="cargar()" class="px-3 py-1 bg-purple-600 text-white rounded-xl text-xs font-bold">🔄 Actualizar</button>
           </div>
 
           <div class="bg-[#131525] rounded-xl border border-slate-800 overflow-hidden">
-            <table class="w-full text-xs text-left border-collapse">
-              <thead class="bg-[#171a2e] text-slate-400 uppercase font-bold text-[10px]">
+            <table class="w-full text-xs text-left">
+              <thead class="bg-[#171a2e] text-slate-400 font-bold">
                 <tr>
-                  <th class="px-3 py-2.5">HASH</th>
-                  <th class="px-3 py-2.5">MONTO & MONEDA</th>
-                  <th class="px-3 py-2.5">BANCO / TITULAR</th>
-                  <th class="px-3 py-2.5">SOCIOS & TASAS</th>
-                  <th class="px-3 py-2.5">REFERENCIA</th>
+                  <th class="p-3">HASH</th>
+                  <th class="p-3">FECHA</th>
+                  <th class="p-3">MONTO</th>
+                  <th class="p-3">TITULAR</th>
+                  <th class="p-3">SOCIO</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-800/60">
-                <template x-for="item in comprobantes" :key="item.hash_largo">
+              <tbody class="divide-y divide-slate-800">
+                <template x-for="item in items" :key="item.hash_largo">
                   <tr class="hover:bg-slate-800/30">
-                    <td class="px-3 py-2 font-mono font-bold text-purple-300" x-text="item.hash_corto"></td>
-                    <td class="px-3 py-2 font-bold text-emerald-400" x-text="item.monto + ' ' + item.moneda"></td>
-                    <td class="px-3 py-2">
-                      <p class="font-bold text-white uppercase" x-text="item.banco || '-'"></p>
-                      <p class="text-[10px] text-slate-400 uppercase" x-text="item.titular || '-'"></p>
-                    </td>
-                    <td class="px-3 py-2">
-                      <p class="text-purple-300 font-bold" x-text="item.nombre_socio_1 + ' (T1: ' + item.tasa_1 + ')'"></p>
-                      <template x-if="item.nombre_socio_2">
-                        <p class="text-pink-300 font-bold" x-text="item.nombre_socio_2 + ' (T2: ' + item.tasa_2 + ')'"></p>
-                      </template>
-                    </td>
-                    <td class="px-3 py-2 font-mono text-slate-400" x-text="item.referencia || '-'"></td>
+                    <td class="p-3 font-mono text-purple-300 font-bold" x-text="item.hash_corto"></td>
+                    <td class="p-3 text-slate-400" x-text="formatearFecha(item.fecha_hora_comprobante)"></td>
+                    <td class="p-3 text-emerald-400 font-bold" x-text="item.monto + ' ' + item.moneda"></td>
+                    <td class="p-3 text-white uppercase" x-text="item.titular"></td>
+                    <td class="p-3 text-purple-300 font-bold" x-text="item.nombre_socio_1"></td>
                   </tr>
                 </template>
               </tbody>
@@ -100,15 +61,18 @@
         </div>
       </template>
 
-      <!-- VISTA DIRECTORIO -->
+      <!-- COMPONENT: DIRECTORIO -->
       <template x-if="vistaActiva === 'directorio'">
-        <div class="space-y-4">
-          <h2 class="text-lg font-bold text-white">Directorio de Socios (nombres_fb)</h2>
-          <div class="bg-[#131525] rounded-xl border border-slate-800 p-4">
-            <template x-for="d in directorio" :key="d.nombre">
-              <div class="flex items-center justify-between border-b border-slate-800 py-2">
-                <span class="font-bold text-purple-300" x-text="d.nombre"></span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold" :class="d.activo ? 'bg-emerald-950 text-emerald-300' : 'bg-rose-950 text-rose-300'" x-text="d.activo ? 'ACTIVO' : 'INACTIVO'"></span>
+        <div class="space-y-4" x-data="directorio">
+          <h2 class="text-lg font-bold text-white">Directorio de Socios</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <template x-for="s in filtrados" :key="s.nombre">
+              <div class="bg-[#131525] p-4 rounded-xl border border-slate-800 flex justify-between items-center">
+                <div>
+                  <h3 class="font-bold text-white" x-text="s.nombre"></h3>
+                  <p class="text-[10px] text-slate-400" x-text="s.roles"></p>
+                </div>
+                <button @click="toggleEstado(s)" :class="s.activo ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'" class="px-2 py-1 rounded text-[10px] font-bold" x-text="s.activo ? 'ACTIVO' : 'INACTIVO'"></button>
               </div>
             </template>
           </div>
@@ -117,45 +81,5 @@
 
     </main>
   </div>
-
-  <script>
-    function app() {
-      return {
-        vistaActiva: 'comprobantes',
-        comprobantes: [],
-        directorio: [],
-        socios: [],
-        filtroSocio: '',
-        filtroReporteRol: '',
-        filtroFecha: '',
-        filtroFechaFin: '',
-        filtroHash: '',
-        soloDuplicados: false,
-
-        async init() {
-          await this.cargarComprobantes();
-          await this.cargarDirectorio();
-        },
-
-        async cargarComprobantes() {
-          try {
-            const res = await fetch('/api/v1/atenea/comprobantes');
-            if (res.ok) this.comprobantes = await res.json();
-          } catch (err) {
-            console.error("[Glaukov UI ❌] Error cargando comprobantes:", err);
-          }
-        },
-
-        async cargarDirectorio() {
-          try {
-            const res = await fetch('/api/v1/atenea/directorio');
-            if (res.ok) this.directorio = await res.json();
-          } catch (err) {
-            console.error("[Glaukov UI ❌] Error cargando directorio:", err);
-          }
-        }
-      };
-    }
-  </script>
 </body>
 </html>
