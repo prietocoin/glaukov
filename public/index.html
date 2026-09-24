@@ -5,28 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Glaukov Engine - Atenea</title>
   <link rel="icon" type="image/png" href="/logo-fundablock.png">
+  
+  <script type="module" src="/js/app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script type="module" src="/js/app.js"></script>
+  
   <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="bg-[#0b0d19] text-slate-200 min-h-screen" x-data="app()">
 
   <div class="flex flex-col md:flex-row min-h-screen">
     
-    <!-- LATERAL -->
+    <!-- BARRA LATERAL -->
     <aside class="w-full md:w-64 bg-[#101221] border-r border-slate-800 p-4 space-y-4">
       <div class="font-extrabold text-white text-base">FUNDABLOCK</div>
       <nav class="space-y-1">
-        <button @click="vistaActiva = 'comprobantes'" :class="vistaActiva === 'comprobantes' ? 'bg-purple-600/30 text-purple-300' : 'text-slate-400'" class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold">📄 Comprobantes</button>
-        <button @click="vistaActiva = 'directorio'" :class="vistaActiva === 'directorio' ? 'bg-purple-600/30 text-purple-300' : 'text-slate-400'" class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold">👥 Directorio Socios</button>
+        <button @click="vistaActiva = 'comprobantes'" 
+                :class="vistaActiva === 'comprobantes' ? 'bg-purple-600/30 text-purple-300' : 'text-slate-400'" 
+                class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all">
+          📄 Comprobantes
+        </button>
+        <button @click="vistaActiva = 'directorio'" 
+                :class="vistaActiva === 'directorio' ? 'bg-purple-600/30 text-purple-300' : 'text-slate-400'" 
+                class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all">
+          👥 Directorio Socios
+        </button>
       </nav>
     </aside>
 
-    <!-- MAIN -->
+    <!-- CONTENIDO -->
     <main class="flex-1 p-6">
       
-      <!-- COMPONENT: COMPROBANTES -->
+      <!-- COMPONENTE: COMPROBANTES -->
       <template x-if="vistaActiva === 'comprobantes'">
         <div class="space-y-4" x-data="comprobantes">
           <div class="flex justify-between items-center">
@@ -61,7 +71,7 @@
         </div>
       </template>
 
-      <!-- COMPONENT: DIRECTORIO -->
+      <!-- COMPONENTE: DIRECTORIO -->
       <template x-if="vistaActiva === 'directorio'">
         <div class="space-y-4" x-data="directorio">
           <h2 class="text-lg font-bold text-white">Directorio de Socios</h2>
@@ -72,7 +82,11 @@
                   <h3 class="font-bold text-white" x-text="s.nombre"></h3>
                   <p class="text-[10px] text-slate-400" x-text="s.roles"></p>
                 </div>
-                <button @click="toggleEstado(s)" :class="s.activo ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'" class="px-2 py-1 rounded text-[10px] font-bold" x-text="s.activo ? 'ACTIVO' : 'INACTIVO'"></button>
+                <button @click="toggleEstado(s)" 
+                        :class="s.activo ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'" 
+                        class="px-2 py-1 rounded text-[10px] font-bold" 
+                        x-text="s.activo ? 'ACTIVO' : 'INACTIVO'">
+                </button>
               </div>
             </template>
           </div>
