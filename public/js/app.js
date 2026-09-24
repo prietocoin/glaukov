@@ -2,8 +2,8 @@ import { comprobantesView } from './views/comprobantes.js';
 import { directorioView } from './views/directorio.js';
 import { AteneaAPI } from './api.js';
 
-document.addEventListener('alpine:init', () => {
-  Alpine.data('app', () => ({
+window.app = function() {
+  return {
     vistaActiva: 'comprobantes',
     listaSocios: [],
     comprobantes: comprobantesView(),
@@ -18,5 +18,5 @@ document.addEventListener('alpine:init', () => {
       await this.comprobantes.cargar();
       await this.directorio.cargar();
     }
-  }));
-});
+  };
+};
