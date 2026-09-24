@@ -36,6 +36,7 @@ function parseCartelera(rawInput) {
 }
 
 async function obtenerSociosYProcesarTasas(filtroNombre = null) {
+  // Extrae de forma dinámica el correlativo de id_tasa o id de mercado_tasas
   const sql = `
     SELECT 
         f.*,
@@ -48,9 +49,10 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
             ) t
         ) AS tasas_mercado,
         COALESCE(
-            (SELECT id_tasa FROM mercado_tasas ORDER BY id DESC LIMIT 1), 
+            (SELECT id_tasa::text FROM mercado_tasas WHERE id_tasa IS NOT NULL AND id_tasa != '' ORDER BY id DESC LIMIT 1),
+            (SELECT 'T' || id::text FROM mercado_tasas ORDER BY id DESC LIMIT 1),
             'T360'
-        ) || ' ' || TO_CHAR(NOW(), 'DD/MM/YYYY HH24:MI:SS') AS "TASA"
+        ) AS correlativo_tasa
     FROM nombres_fb f
     WHERE COALESCE(f.activo, TRUE) = TRUE;
   `;
@@ -66,11 +68,10 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const labelSocio = socioData.socio || nombre;
     const whatsappJid = extractJid(socioData.whatsapp || socioData.id_grupo || socioData.id_grupo1);
 
-    const stringTasa = String(socioData.tasa || "");
-    const partesTasa = stringTasa.split(" ");
-    const valorTasa = partesTasa[0] || "T360";
-    const valorFecha = partesTasa[1] || timeVE.fechaStr;
-    const valorHora = partesTasa[2] || timeVE.horaStr;
+    // Usa el correlativo dinámico calculado directamente desde la DB
+    const valorTasa = socioData.correlativo_tasa || socioData.id_tasa || "T360";
+    const valorFecha = timeVE.fechaStr;
+    const valorHora = timeVE.horaStr;
 
     const monedaExtraida = String(socioData.monedasocio || "USDT").toUpperCase();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
@@ -151,7 +152,6 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     });
   }
 
-  // Filtrar si se pasó un nombre específico
   if (filtroNombre) {
     const busqueda = filtroNombre.trim().toLowerCase();
     listaSociosProcesados = listaSociosProcesados.filter(s => 
