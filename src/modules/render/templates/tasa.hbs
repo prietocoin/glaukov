@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Color+Emoji&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Color+Emoji&display=swap');
         
         body {
             font-family: 'Inter', 'Noto Color Emoji', sans-serif;
-            background: linear-gradient(135deg, #091e2b 0%, #0d2b39 50%, #0b1a24 100%);
+            /* OPCIÓN DE FONDO ACTUAL: Gradient Deep Tech (Modificable en la sección de fondos) */
+            background: radial-gradient(circle at 50% 0%, #112d42 0%, #081722 60%, #040c12 100%);
             width: 1080px; 
             height: 1350px; 
             margin: 0;
-            padding: 50px;
+            padding: 55px;
             color: #ffffff;
             box-sizing: border-box;
             display: flex;
@@ -21,14 +22,14 @@
             overflow: hidden;
         }
 
-        .marca-glow { text-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        .marca-glow { text-shadow: 0 0 25px rgba(59, 130, 246, 0.4); }
 
         #contenedor-central {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             width: 100%;
-            margin: 30px 0;
+            margin: 25px 0;
         }
 
         .grid-tasas {
@@ -36,50 +37,65 @@
             grid-template-columns: repeat(2, 1fr);
             grid-auto-rows: 175px;
             align-content: space-evenly;
-            column-gap: 40px;
+            column-gap: 35px;
             width: 100%;
             height: 100%;
         }
 
+        /* CARDS MEJORADAS CON MARCO DESTELLO SUPERIOR */
         .card-tasa {
-            background-color: #141d2e; 
-            border: 1px solid #23314a;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            padding: 24px 30px;
+            background: linear-gradient(160deg, #132235 0%, #0d1724 100%);
+            border: 1.5px solid #243852;
+            border-top: 3.5px solid #3b82f6; /* Borde de marco llamativo */
+            border-radius: 22px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+            padding: 22px 28px;
             display: flex;
             flex-direction: column;
             justify-content: space-between; 
             height: 100%;
         }
 
-        h2 { font-size: 1.6rem; }
-        .val-num { font-size: 2.6rem; }
+        /* Títulos de País y Monedas más grandes */
+        h2 { 
+            font-size: 2.1rem; 
+            font-weight: 800; 
+            letter-spacing: -0.02em;
+        }
+        
+        .val-num { font-size: 2.65rem; }
+        
         .icono-bandera { 
-            font-size: 2.2rem; 
+            font-size: 2.6rem; 
             font-family: 'Noto Color Emoji', 'Inter', sans-serif;
         }
-        .text-label { font-size: 0.85rem; }
+        
+        .text-label { font-size: 0.95rem; }
     </style>
 </head>
 <body>
 
-    <!-- CABECERA -->
+    <!-- CABECERA DE MARCA -->
     <div class="flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-5xl font-extrabold tracking-tight marca-glow text-gray-100 flex items-center whitespace-nowrap">
-                TuMarca <span class="text-blue-500 mx-4">|</span> 
-                <span class="text-4xl font-semibold text-gray-400">{{nombre_socio}}</span>
+            <h1 class="text-5xl font-black tracking-tight marca-glow text-white flex items-center whitespace-nowrap">
+                FUNDABLOCK <span class="text-blue-500 mx-4">|</span> 
+                <span class="text-4xl font-semibold text-gray-300">{{nombre_socio}}</span>
             </h1>
         </div>
         <div class="flex items-center gap-6 shrink-0">
-            <div class="bg-[#1e293b]/80 border border-slate-700 px-6 py-3 rounded-full shadow-lg">
+            <div class="bg-[#1e293b]/90 border border-slate-700 px-6 py-3 rounded-full shadow-lg">
                 <span class="text-xl font-semibold text-gray-300">
                     Actualizado: <span class="text-white">{{hora_actualizacion}}</span>
                 </span>
             </div>
-            <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-600 shadow-xl overflow-hidden">
-                <span class="text-3xl icono-bandera">🦉</span>
+            
+            <!-- CONTENEDOR DE LOGO (Imagen o Insignia) -->
+            <div class="w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center border-2 border-blue-500/50 shadow-xl overflow-hidden p-2">
+                <!-- Puedes usar una etiqueta img con el enlace público a tu logo o Base64:
+                <img src="https://tu-dominio.com/logo.png" class="w-full h-full object-contain" alt="Logo"> 
+                -->
+                <span class="text-2xl font-black text-blue-400">FB</span>
             </div>
         </div>
     </div>
@@ -89,23 +105,23 @@
         <div class="grid-tasas">
             {{#each tarjetas_paises}}
             <div class="card-tasa">
-                <div class="flex items-center gap-4 mb-2">
+                <div class="flex items-center gap-4 mb-1">
                     <div class="icono-bandera leading-none">{{this.bandera}}</div>
-                    <h2 class="font-bold text-gray-100 tracking-wide">{{this.nombre_pais}}</h2>
+                    <h2 class="text-gray-100 tracking-wide">{{this.nombre_pais}}</h2>
                 </div>
-                <div class="flex justify-between items-center border-t border-slate-700/60 pt-3">
+                <div class="flex justify-between items-center border-t border-slate-700/80 pt-3">
                     <div class="w-1/2 pr-2">
-                        <p class="text-label text-slate-400 font-semibold tracking-widest uppercase mb-1">Comprar</p>
+                        <p class="text-label text-slate-400 font-bold tracking-widest uppercase mb-1">Comprar</p>
                         <p class="font-extrabold text-emerald-400 val-num leading-none">{{this.compra}}</p>
                     </div>
-                    <div class="w-[1px] h-10 bg-slate-700/50 mx-4"></div>
+                    <div class="w-[1px] h-12 bg-slate-700/80 mx-2"></div>
                     <div class="w-1/2 pl-2 text-right">
-                        <p class="text-label text-slate-400 font-semibold tracking-widest uppercase mb-1">Vender</p>
+                        <p class="text-label text-slate-400 font-bold tracking-widest uppercase mb-1">Vender</p>
                         <p class="font-extrabold text-rose-400 val-num leading-none">{{this.venta}}</p>
                     </div>
                 </div>
             </div>
-            {{/each}}
+            {{#each}}
         </div>
     </div>
 
