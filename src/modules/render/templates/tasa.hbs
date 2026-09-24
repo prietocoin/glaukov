@@ -127,6 +127,7 @@
 
         .col-precio { width: 48%; }
 
+        /* ETIQUETAS DE COMPRAR Y VENDER */
         .label-operacion {
             font-size: 18px !important;
             font-weight: 800 !important;
@@ -158,31 +159,31 @@
         }
 
         /* =========================================
-           ESTILOS DE TENDENCIA MAGICA (INDICADORES)
+           INDICADORES SUTILES JUNTO A LAS ETIQUETAS
            ========================================= */
         .trend-up::after {
             content: '▲';
-            font-size: 20px;
-            color: #10b981; /* Verde brillante */
-            margin-left: 6px;
-            vertical-align: top;
-            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+            font-size: 16px; /* Más pequeño para combinar con el label */
+            color: #10b981; 
+            margin-left: 5px;
+            vertical-align: baseline;
+            text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
         }
 
         .trend-down::after {
             content: '▼';
-            font-size: 20px;
-            color: #f43f5e; /* Rojo resplandeciente */
-            margin-left: 6px;
-            vertical-align: top;
-            text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+            font-size: 16px;
+            color: #f43f5e; 
+            margin-left: 5px;
+            vertical-align: baseline;
+            text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
         }
 
         .trend-stable::after {
             content: '➖';
-            font-size: 14px;
-            color: #64748b; /* Gris sutil */
-            margin-left: 6px;
+            font-size: 13px;
+            color: #64748b; 
+            margin-left: 5px;
             vertical-align: middle;
         }
 
@@ -200,9 +201,7 @@
             color: #ffffff;
         }
 
-        .tasa-ref {
-            color: #6ee7b7;
-        }
+        .tasa-ref { color: #6ee7b7; }
 
         .badge-actualizado {
             background-color: rgba(2, 44, 34, 0.9);
@@ -246,15 +245,15 @@
                 </div>
                 <div class="card-body">
                     <div class="col-precio">
-                        <p class="label-operacion">Comprar</p>
-                        <!-- APLICAMOS LA CLASE DINÁMICA DE TENDENCIA -->
-                        <p class="val-compra trend-{{this.trend_compra}}">{{this.compra}}</p>
+                        <!-- LA CLASE TREND SE MUEVE AL LADO DE COMPRAR -->
+                        <p class="label-operacion trend-{{this.trend_compra}}">Comprar</p>
+                        <p class="val-compra">{{this.compra}}</p>
                     </div>
                     <div class="divider-vertical"></div>
                     <div class="col-precio" style="text-align: right;">
-                        <p class="label-operacion">Vender</p>
-                        <!-- APLICAMOS LA CLASE DINÁMICA DE TENDENCIA -->
-                        <p class="val-venta trend-{{this.trend_venta}}">{{this.venta}}</p>
+                        <!-- LA CLASE TREND SE MUEVE AL LADO DE VENDER -->
+                        <p class="label-operacion trend-{{this.trend_venta}}">Vender</p>
+                        <p class="val-venta">{{this.venta}}</p>
                     </div>
                 </div>
             </div>
