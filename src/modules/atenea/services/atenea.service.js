@@ -6,10 +6,6 @@ const redisConnection = require('../../../config/redis');
 
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
-/**
- * Parsea cualquier formato de cartelera de países desde la DB
- * (Soporta JSON string, Postgres Array "{COP,PEN}", Array JS o comas)
- */
 function parseCartelera(rawInput) {
   if (!rawInput) return [];
   if (Array.isArray(rawInput)) return rawInput;
@@ -19,19 +15,16 @@ function parseCartelera(rawInput) {
     const str = rawInput.trim();
     if (!str) return [];
 
-    // 1. Sintaxis JSON nativa
     if (str.startsWith('[') || (str.startsWith('{') && str.includes('"'))) {
       try { return JSON.parse(str); } catch (e) {}
     }
 
-    // 2. Sintaxis de arreglo de PostgreSQL "{COP,PEN,ARS}"
     if (str.startsWith('{') && str.endsWith('}')) {
       const limpio = str.slice(1, -1).trim();
       if (!limpio) return [];
       return limpio.split(',').map(s => s.replace(/^"|"$/g, '').trim());
     }
 
-    // 3. Cadena separada por comas "COP, PEN, ARS"
     if (str.includes(',')) {
       return str.split(',').map(s => s.trim());
     }
@@ -42,7 +35,7 @@ function parseCartelera(rawInput) {
   return [];
 }
 
-async function obtenerSociosYProcesarTasas() {
+async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   const sql = `
     SELECT 
         f.*,
@@ -64,7 +57,7 @@ async function obtenerSociosYProcesarTasas() {
 
   const { rows } = await db.query(sql);
   const timeVE = obtenerFechaHoraVE();
-  const listaSociosProcesados = [];
+  let listaSociosProcesados = [];
 
   for (const socioData of rows) {
     const nombre = socioData.nombre || "SOCIO";
@@ -82,7 +75,6 @@ async function obtenerSociosYProcesarTasas() {
     const monedaExtraida = String(socioData.monedasocio || "USDT").toUpperCase();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
 
-    // Buscar en todas las columnas posibles de cartelera
     const rawCartelera = socioData.cartelerapaises || 
                          socioData.cartelera_paises || 
                          socioData.paises || 
@@ -91,7 +83,6 @@ async function obtenerSociosYProcesarTasas() {
 
     const carteleraParseada = parseCartelera(rawCartelera);
 
-    // Normalizar a objetos
     let paisesNormalizados = [];
     if (Array.isArray(carteleraParseada)) {
       paisesNormalizados = carteleraParseada.map(p => (typeof p === 'string' ? { moneda: p, activo: true } : p));
@@ -102,7 +93,6 @@ async function obtenerSociosYProcesarTasas() {
       });
     }
 
-    // Filtrar activos
     const paisesActivos = paisesNormalizados.filter(p => {
       if (!p) return false;
       if (p.activo === false || p.activo === 'false' || p.activo === 0 || p.activo === '0') return false;
@@ -161,12 +151,20 @@ async function obtenerSociosYProcesarTasas() {
     });
   }
 
+  // Filtrar si se pasó un nombre específico
+  if (filtroNombre) {
+    const busqueda = filtroNombre.trim().toLowerCase();
+    listaSociosProcesados = listaSociosProcesados.filter(s => 
+      s.nombre_socio.toLowerCase().includes(busqueda)
+    );
+  }
+
   return listaSociosProcesados;
 }
 
-async function encolarNotificacionesTasas() {
-  const socios = await obtenerSociosYProcesarTasas();
-  console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socios para renderizado...`);
+async function encolarNotificacionesTasas(filtroNombre = null) {
+  const socios = await obtenerSociosYProcesarTasas(filtroNombre);
+  console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
 
   for (const socio of socios) {
     await tasasQueue.add('render-tasa-socio', socio, {
@@ -175,7 +173,7 @@ async function encolarNotificacionesTasas() {
     });
   }
 
-  return { totalEncolados: socios.length };
+  return { totalEncolados: socios.length, socios: socios.map(s => s.nombre_socio) };
 }
 
 module.exports = {
