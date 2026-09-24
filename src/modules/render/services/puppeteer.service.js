@@ -14,7 +14,6 @@ function getTemplate() {
   return compiledTemplate;
 }
 
-// Convierte la imagen del logo local a Base64 para Puppeteer
 function getLogoBase64() {
   try {
     const logoPath = path.join(process.cwd(), 'public', 'logo-fundablock.png');
@@ -48,13 +47,15 @@ async function generarImagenTasa(datosSocio) {
 
   try {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1080, height: 1350 });
+    // Ancho fijo de 1080px y altura inicial flexible
+    await page.setViewport({ width: 1080, height: 800 });
     await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    const imageBuffer = await page.screenshot({
+    // Captura dinámica del alto exacto del contenedor
+    const container = await page.$('#app-container');
+    const imageBuffer = await container.screenshot({
       type: 'jpeg',
-      quality: 90,
-      clip: { x: 0, y: 0, width: 1080, height: 1350 }
+      quality: 90
     });
 
     return imageBuffer;
