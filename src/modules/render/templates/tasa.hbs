@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #091e2b 0%, #0d2b39 50%, #0b1a24 100%);
+            width: 1080px; 
+            height: 1350px; 
+            margin: 0;
+            padding: 50px;
+            color: #ffffff;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .marca-glow { text-shadow: 0 0 20px rgba(255,255,255,0.1); }
+
+        #contenedor-central {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin: 30px 0;
+        }
+
+        .grid-tasas {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: 175px;
+            align-content: space-evenly;
+            column-gap: 40px;
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-tasa {
+            background-color: #141d2e; 
+            border: 1px solid #23314a;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 24px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; 
+            height: 100%;
+        }
+
+        h2 { font-size: 1.6rem; }
+        .val-num { font-size: 2.6rem; }
+        .icono-bandera { font-size: 2.2rem; }
+        .text-label { font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <!-- CABECERA -->
+    <div class="flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-4">
+            <h1 class="text-5xl font-extrabold tracking-tight marca-glow text-gray-100 flex items-center whitespace-nowrap">
+                TuMarca <span class="text-blue-500 mx-4">|</span> 
+                <span class="text-4xl font-semibold text-gray-400">{{nombre_socio}}</span>
+            </h1>
+        </div>
+        <div class="flex items-center gap-6 shrink-0">
+            <div class="bg-[#1e293b]/80 border border-slate-700 px-6 py-3 rounded-full shadow-lg">
+                <span class="text-xl font-semibold text-gray-300">
+                    Actualizado: <span class="text-white">{{hora_actualizacion}}</span>
+                </span>
+            </div>
+            <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-600 shadow-xl overflow-hidden">
+                <span class="text-3xl">🦉</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUERPO CENTRAL -->
+    <div id="contenedor-central">
+        <div class="grid-tasas">
+            {{#each tarjetas_paises}}
+            <div class="card-tasa">
+                <div class="flex items-center gap-4 mb-2">
+                    <div class="icono-bandera leading-none">{{this.bandera}}</div>
+                    <h2 class="font-bold text-gray-100 tracking-wide">{{this.nombre_pais}}</h2>
+                </div>
+                <div class="flex justify-between items-center border-t border-slate-700/60 pt-3">
+                    <div class="w-1/2 pr-2">
+                        <p class="text-label text-slate-400 font-semibold tracking-widest uppercase mb-1">Comprar</p>
+                        <p class="font-extrabold text-emerald-400 val-num leading-none">{{this.compra}}</p>
+                    </div>
+                    <div class="w-[1px] h-10 bg-slate-700/50 mx-4"></div>
+                    <div class="w-1/2 pl-2 text-right">
+                        <p class="text-label text-slate-400 font-semibold tracking-widest uppercase mb-1">Vender</p>
+                        <p class="font-extrabold text-rose-400 val-num leading-none">{{this.venta}}</p>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+    </div>
+
+    <!-- PIE DE IMAGEN -->
+    <div class="shrink-0 text-center text-slate-500 text-xl font-medium">
+        Tasa base referencial: <span class="text-slate-400">{{tasa_base_ref}}</span> • Generado por Glaukov Engine
+    </div>
+
+</body>
+</html>
