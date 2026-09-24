@@ -161,8 +161,85 @@ async function obtenerComprobantesAuditados(filtros = {}) {
   }
 }
 
-async function actualizarComprobante(hashLargo, datos) { return { success: true }; }
-async function eliminarComprobante(hashLargo) { return { success: true }; }
+/**
+ * Actualiza los campos auditables de un comprobante en comprobantes_raw
+ */
+async function actualizarComprobante(hashLargo, datos) {
+  if (!hashLargo) throw new Error('El hash largo es obligatorio.');
+
+  const {
+    monto,
+    moneda,
+    banco,
+    titular,
+    referencia,
+    procesado_ia,
+    fecha_hora_comprobante,
+    timestamp
+  } = datos;
+
+  let fechaSql = null;
+  if (timestamp) {
+    fechaSql = new Date(timestamp * 1000);
+  } else if (fecha_hora_comprobante) {
+    fechaSql = new Date(fecha_hora_comprobante);
+  }
+
+  const sql = `
+    UPDATE comprobantes_raw
+    SET
+      monto = COALESCE($1, monto),
+      moneda = COALESCE($2, moneda),
+      banco = COALESCE($3, banco),
+      titular = COALESCE($4, titular),
+      referencia = COALESCE($5, referencia),
+      procesado_ia = COALESCE($6, procesado_ia),
+      creado_en = COALESCE($7, creado_en)
+    WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($8))
+    RETURNING *;
+  `;
+
+  const { rows } = await db.query(sql, [
+    monto !== undefined ? parseFloat(monto) : null,
+    moneda ? moneda.toUpperCase().trim() : null,
+    banco ? banco.trim() : null,
+    titular ? titular.trim() : null,
+    referencia ? referencia.trim() : null,
+    procesado_ia !== undefined ? Boolean(procesado_ia) : null,
+    fechaSql && !isNaN(fechaSql.getTime()) ? fechaSql : null,
+    hashLargo.trim()
+  ]);
+
+  if (rows.length === 0) {
+    throw new Error('Comprobante no encontrado para actualizar.');
+  }
+
+  return rows[0];
+}
+
+/**
+ * Elimina un comprobante de comprobantes_raw e impactos_raw
+ */
+async function eliminarComprobante(hashLargo) {
+  if (!hashLargo) throw new Error('El hash largo es obligatorio.');
+
+  // Limpieza en cascada manual de la tabla de impactos
+  await db.query(
+    `DELETE FROM impactos_raw WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));`,
+    [hashLargo.trim()]
+  );
+
+  const { rows } = await db.query(
+    `DELETE FROM comprobantes_raw WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1)) RETURNING hash_largo;`,
+    [hashLargo.trim()]
+  );
+
+  if (rows.length === 0) {
+    throw new Error('Comprobante no encontrado para eliminar.');
+  }
+
+  return { success: true, message: 'Comprobante e impactos eliminados correctamente.' };
+}
 
 module.exports = {
   obtenerComprobantesAuditados,
