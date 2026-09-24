@@ -20,16 +20,16 @@ async function obtenerDirectorio() {
 
 /**
  * Obtiene la lista simplificada de nombres de socios activos para dropdowns
+ * Corregido: Lee exclusivamente de nombres_fb para evitar columnas inexistentes en comprobantes_raw
  */
 async function obtenerListaSocios() {
   const sql = `
-    SELECT DISTINCT nombre FROM (
-      SELECT nombre_socio_1 AS nombre FROM comprobantes_raw WHERE nombre_socio_1 IS NOT NULL AND nombre_socio_1 != ''
-      UNION
-      SELECT nombre_socio_2 AS nombre FROM comprobantes_raw WHERE nombre_socio_2 IS NOT NULL AND nombre_socio_2 != ''
-      UNION
-      SELECT nombre FROM nombres_fb WHERE roles IN ('SOCIO', 'MATRIZ_GENERAL', 'ASESOR', 'GRUPO', 'COMPRAS')
-    ) s ORDER BY nombre ASC;
+    SELECT DISTINCT TRIM(nombre) AS nombre 
+    FROM nombres_fb 
+    WHERE nombre IS NOT NULL 
+      AND TRIM(nombre) != '' 
+      AND roles IN ('SOCIO', 'MATRIZ_GENERAL', 'ASESOR', 'GRUPO', 'COMPRAS')
+    ORDER BY nombre ASC;
   `;
   const { rows } = await db.query(sql);
   return rows.map(r => r.nombre);
