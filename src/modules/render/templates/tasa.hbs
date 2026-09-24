@@ -3,122 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Color+Emoji&display=swap');
         
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: 'Inter', 'Noto Color Emoji', sans-serif;
             background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
             width: 1080px; 
             height: 1350px; 
-            margin: 0;
             padding: 50px;
             color: #ffffff;
-            box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             overflow: hidden;
         }
 
-        .marca-glow { text-shadow: 0 0 25px rgba(16, 185, 129, 0.4); }
-
-        #contenedor-central {
-            flex-grow: 1;
+        /* HEADER */
+        .header {
             display: flex;
-            flex-direction: column;
-            width: 100%;
-            margin: 20px 0;
+            justify-content: space-between;
+            align-items: center;
+            height: 120px;
         }
 
+        .brand-title {
+            font-size: 48px;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+            display: flex;
+            align-items: center;
+        }
+
+        .brand-divider {
+            color: #10b981;
+            margin: 0 15px;
+        }
+
+        .socio-name {
+            font-size: 38px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .logo-container {
+            width: 140px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .logo-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5));
+        }
+
+        /* GRID CENTRAL */
         .grid-tasas {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            grid-auto-rows: 180px;
-            align-content: space-evenly;
-            column-gap: 35px;
-            width: 100%;
-            height: 100%;
+            grid-gap: 25px 35px;
+            margin: 20px 0;
+            flex-grow: 1;
+            align-content: center;
         }
 
         .card-tasa {
             background: linear-gradient(160deg, #022c22 0%, #02120d 100%);
             border: 1.5px solid #064e3b;
-            border-top: 3.5px solid #10b981;
-            border-radius: 22px;
-            box-shadow: 0 12px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
-            padding: 18px 24px;
+            border-top: 4px solid #10b981;
+            border-radius: 20px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+            padding: 16px 24px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between; 
-            height: 100%;
+            justify-content: space-between;
+            height: 175px;
         }
 
-        .icono-bandera { 
-            font-size: 3rem !important; 
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .bandera {
+            font-size: 42px;
+            line-height: 1;
             font-family: 'Noto Color Emoji', 'Inter', sans-serif;
+        }
+
+        /* NOMBRE DEL PAÍS EN TAMAÑO GIGANTE (38px) */
+        .nombre-pais {
+            font-size: 38px !important;
+            font-weight: 900 !important;
+            color: #ffffff !important;
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(6, 78, 59, 0.8);
+            padding-top: 10px;
+        }
+
+        .col-precio {
+            width: 48%;
+        }
+
+        .label-operacion {
+            font-size: 18px !important;
+            font-weight: 800 !important;
+            color: #ffffff !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        .val-compra {
+            font-size: 42px !important;
+            font-weight: 900 !important;
+            color: #34d399 !important;
+            line-height: 1;
+        }
+
+        .val-venta {
+            font-size: 42px !important;
+            font-weight: 900 !important;
+            color: #fb7185 !important;
+            line-height: 1;
+            text-align: right;
+        }
+
+        .divider-vertical {
+            width: 1px;
+            height: 45px;
+            background-color: rgba(6, 78, 59, 0.8);
+        }
+
+        /* FOOTER */
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+        }
+
+        .footer-texto {
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .tasa-ref {
+            color: #6ee7b7;
+        }
+
+        .badge-actualizado {
+            background-color: rgba(2, 44, 34, 0.9);
+            border: 1px solid #047857;
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .time-val {
+            color: #34d399;
         }
     </style>
 </head>
 <body>
 
     <!-- CABECERA -->
-    <div class="flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-4">
-            <h1 class="text-5xl font-black tracking-tight marca-glow text-white flex items-center whitespace-nowrap">
-                FUNDABLOCK <span class="text-emerald-500 mx-4">|</span> 
-                <span class="text-4xl font-semibold text-gray-200">{{nombre_socio}}</span>
-            </h1>
+    <div class="header">
+        <div class="brand-title">
+            FUNDABLOCK <span class="brand-divider">|</span> 
+            <span class="socio-name">{{nombre_socio}}</span>
         </div>
         
-        <!-- LOGO -->
-        <div class="w-32 h-32 flex items-center justify-center shrink-0 mr-2">
+        <div class="logo-container">
             {{#if logo_src}}
-                <img src="{{logo_src}}" class="w-full h-full object-contain drop-shadow-2xl" alt="FUNDABLOCK">
+                <img src="{{logo_src}}" class="logo-img" alt="FUNDABLOCK">
             {{else}}
-                <span class="text-5xl font-black text-emerald-400 drop-shadow-lg">FB</span>
+                <span style="font-size: 48px; font-weight: 900; color: #34d399;">FB</span>
             {{/if}}
         </div>
     </div>
 
     <!-- CUERPO CENTRAL -->
-    <div id="contenedor-central">
-        <div class="grid-tasas">
-            {{#each tarjetas_paises}}
-            <div class="card-tasa">
-                <div class="flex items-center gap-3 mb-1">
-                    <div class="icono-bandera leading-none shrink-0">{{this.bandera}}</div>
-                    <!-- TÍTULO DEL PAÍS CON TAMAÑO FORZADO INLINE (36px) -->
-                    <div style="font-size: 36px !important; font-weight: 900 !important; color: #ffffff !important; line-height: 1.1; letter-spacing: -0.02em;" class="truncate">
-                        {{this.nombre_pais}}
-                    </div>
+    <div class="grid-tasas">
+        {{#each tarjetas_paises}}
+        <div class="card-tasa">
+            <div class="card-header">
+                <div class="bandera">{{this.bandera}}</div>
+                <div class="nombre-pais">{{this.nombre_pais}}</div>
+            </div>
+            <div class="card-body">
+                <div class="col-precio">
+                    <p class="label-operacion">Comprar</p>
+                    <p class="val-compra">{{this.compra}}</p>
                 </div>
-                <div class="flex justify-between items-center border-t border-emerald-900/60 pt-2">
-                    <div class="w-1/2 pr-2">
-                        <p style="font-size: 18px !important; font-weight: 800 !important; color: #ffffff !important;" class="tracking-widest uppercase mb-1">Comprar</p>
-                        <p style="font-size: 42px !important; font-weight: 900 !important;" class="text-emerald-400 leading-none">{{this.compra}}</p>
-                    </div>
-                    <div class="w-[1px] h-12 bg-emerald-900/50 mx-2"></div>
-                    <div class="w-1/2 pl-2 text-right">
-                        <p style="font-size: 18px !important; font-weight: 800 !important; color: #ffffff !important;" class="tracking-widest uppercase mb-1">Vender</p>
-                        <p style="font-size: 42px !important; font-weight: 900 !important;" class="text-rose-400 leading-none">{{this.venta}}</p>
-                    </div>
+                <div class="divider-vertical"></div>
+                <div class="col-precio" style="text-align: right;">
+                    <p class="label-operacion">Vender</p>
+                    <p class="val-venta">{{this.venta}}</p>
                 </div>
             </div>
-            {{/each}}
         </div>
+        {{/each}}
     </div>
 
     <!-- PIE DE IMAGEN -->
-    <div class="shrink-0 flex justify-between items-center pt-2">
-        <div style="font-size: 22px !important; color: #ffffff !important; font-weight: 700 !important;">
-            Tasa base referencial: <span class="text-emerald-300 font-bold">{{tasa_base_ref}}</span> • Glaukov Engine
+    <div class="footer">
+        <div class="footer-texto">
+            Tasa base referencial: <span class="tasa-ref">{{tasa_base_ref}}</span> • Glaukov Engine
         </div>
 
-        <div class="bg-emerald-950/90 border border-emerald-700 px-6 py-2.5 rounded-full shadow-lg">
-            <span style="font-size: 20px !important; color: #ffffff !important; font-weight: 700 !important;">
-                Actualizado: <span class="text-emerald-400 font-bold">{{hora_actualizacion}}</span>
-            </span>
+        <div class="badge-actualizado">
+            Actualizado: <span class="time-val">{{hora_actualizacion}}</span>
         </div>
     </div>
 
