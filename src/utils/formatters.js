@@ -1,66 +1,93 @@
 /**
- * Trunca la tasa según las reglas de precisión del sistema
+ * Regla exclusiva de truncado estricto para Tasas
  */
-function truncarTasaOficial(valor, ancho = 0) {
-  const num = parseFloat(valor);
-  let formateado = "-";
+function aplicarReglaPrecisionTasa(val) {
+  if (val === null || val === undefined || isNaN(val) || val === 0) return 0;
+  const num = parseFloat(val);
+  if (num === 0) return 0;
 
-  if (!isNaN(num) && num > 0) {
-    let puntoCorte = (num >= 100) ? 0 : (num >= 1) ? 2 : (-Math.floor(Math.log10(num)) + 2);
-    const mult = Math.pow(10, puntoCorte);
-    const truncado = Math.trunc(Math.round(num * mult * 1e9) / 1e9) / mult;
-    formateado = (puntoCorte === 0) ? Math.trunc(truncado).toString() : truncado.toFixed(puntoCorte).replace(/\.?0+$/, "");
-  } else if (num === 0) {
-    formateado = "0";
+  const signo = num < 0 ? -1 : 1;
+  const v = Math.abs(num);
+  const vRound = Math.round(v * 1e8) / 1e8;
+
+  let res = 0;
+  if (vRound > 99.99) {
+    res = Math.trunc(vRound);
+  } else if (vRound >= 10.0) {
+    res = Math.trunc((vRound + 0.0000001) * 100) / 100;
+  } else {
+    const magnitud = Math.floor(Math.log10(vRound));
+    const factor = Math.pow(10, 2 - magnitud);
+    res = Math.trunc((vRound + 0.0000001) * factor) / factor;
   }
-  
-  if (ancho === 0) return formateado.toString();
-  
-  const espacios = Math.max(0, ancho - formateado.length);
-  const izq = Math.floor(espacios / 2);
-  return (" ".repeat(izq) + formateado + " ".repeat(espacios - izq)).toString();
+
+  return signo * res;
 }
 
 /**
- * Obtiene fecha y hora formateadas en zona horaria de Caracas (America/Caracas)
+ * Regla exclusiva para Montos (Conserva exactamente 2 decimales)
+ */
+function aplicarPrecisionMonto(val) {
+  if (val === null || val === undefined || isNaN(val) || val === 0) return 0;
+  const num = parseFloat(val);
+  if (num === 0) return 0;
+
+  const signo = num < 0 ? -1 : 1;
+  const v = Math.abs(num);
+  const vRound = Math.round(v * 1e8) / 1e8;
+
+  return signo * (Math.trunc((vRound + 0.0000001) * 100) / 100);
+}
+
+/**
+ * Convierte un valor de tasa a su representación en string truncada
+ */
+function truncarTasaOficial(val) {
+  const num = aplicarReglaPrecisionTasa(val);
+  if (num === 0) return "0";
+  
+  const absNum = Math.abs(num);
+  if (absNum > 99.99) {
+    return num.toLocaleString('en-US');
+  }
+  return num.toString();
+}
+
+/**
+ * Obtener Fecha y Hora formateadas en zona horaria de Venezuela (GMT-4)
  */
 function obtenerFechaHoraVE() {
   const ahora = new Date();
-  let fechaStr = "";
-  let horaStr = "";
-  try {
-    fechaStr = ahora.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' });
-    horaStr = ahora.toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  } catch (err) {
-    fechaStr = ahora.toLocaleDateString();
-    horaStr = ahora.toLocaleTimeString();
-  }
-  return { fechaStr, horaStr };
+  const opcionesFecha = { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' };
+  const opcionesHora = { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+
+  const fechaStr = ahora.toLocaleDateString('es-VE', opcionesFecha);
+  const horaStr = ahora.toLocaleTimeString('es-VE', opcionesHora);
+
+  return { fechaStr, horaStr, timestamp: Math.floor(ahora.getTime() / 1000) };
 }
 
 /**
- * Normaliza y extrae un identificador JID de WhatsApp
+ * Normaliza números de teléfono o IDs a formato WhatsApp Remote JID
  */
-const extractJid = (val) => {
-  if (!val) return "";
-  if (typeof val === 'string') {
-    try {
-      const parsed = JSON.parse(val);
-      if (typeof parsed === 'object' && parsed !== null) {
-        return String(parsed.id || parsed.jid || parsed.value || parsed.chatId || Object.values(parsed)[0] || "");
-      }
-    } catch(e) {
-      return val;
-    }
-    return val;
+function extractJid(rawInput) {
+  if (!rawInput) return null;
+  const str = String(rawInput).trim();
+  if (!str) return null;
+
+  if (str.includes('@g.us') || str.includes('@s.whatsapp.net')) {
+    return str;
   }
-  if (typeof val === 'object' && val !== null) {
-    return String(val.id || val.jid || val.value || val.chatId || Object.values(val)[0] || "");
-  }
-  return String(val);
-};
+
+  const limpio = str.replace(/\D/g, '');
+  if (!limpio) return null;
+
+  return `${limpio}@s.whatsapp.net`;
+}
 
 module.exports = {
+  aplicarReglaPrecisionTasa,
+  aplicarPrecisionMonto,
   truncarTasaOficial,
   obtenerFechaHoraVE,
   extractJid
