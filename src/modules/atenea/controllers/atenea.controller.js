@@ -1,6 +1,9 @@
 const comprobantesService = require('../services/comprobantes.service');
 const directorioService = require('../services/directorio.service');
 const tasasService = require('../services/tasas.service');
+const mercadoService = require('../services/mercado.service');
+const reportesService = require('../services/reportes.service');
+const adminService = require('../services/admin.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
 
 // ==========================================
@@ -134,11 +137,7 @@ async function previewData(req, res) {
   try {
     const filtroSocio = req.query.socio || null;
     const socios = await tasasService.obtenerSociosYProcesarTasas(filtroSocio);
-    res.json({
-      success: true,
-      total_socios: socios.length,
-      data: socios
-    });
+    res.json({ success: true, total_socios: socios.length, data: socios });
   } catch (err) {
     console.error('[Atenea Controller ❌] Error en previewData:', err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -183,6 +182,127 @@ async function dispararWhatsApp(req, res) {
   }
 }
 
+// ==========================================
+// 4. MERCADO & INTEGRACIÓN HOO API
+// ==========================================
+
+async function getUltimasTasas(req, res) {
+  try {
+    const resultado = await mercadoService.obtenerUltimasTasas();
+    res.json(resultado);
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en getUltimasTasas:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function postN8nWebhook(req, res) {
+  try {
+    const borrador = mercadoService.guardarBorradorTasas(req.body);
+    res.json({ success: true, message: 'Borrador cargado en memoria', rates: borrador });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en postN8nWebhook:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function fetchHoo(req, res) {
+  try {
+    const borrador = mercadoService.obtenerBorradorTasas();
+    if (!borrador) {
+      return res.status(404).json({ success: false, msg: 'No se ha recibido un borrador de n8n o Hoo recientemente.' });
+    }
+    res.json({ success: true, rates: borrador });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en fetchHoo:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function publicarTasa(req, res) {
+  try {
+    const { id_tasa, tasas } = req.body;
+    const resultado = await mercadoService.publicarTasaOficial(id_tasa, tasas);
+    res.json({ success: true, ...resultado, message: `Tasa ${resultado.id_tasa} publicada a producción correctamente.` });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en publicarTasa:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function reenviarTasa(req, res) {
+  try {
+    const { id_tasa } = req.body;
+    const resultado = await mercadoService.reenviarTasa(id_tasa);
+    res.json({ success: true, ...resultado, message: `Reenvío activado para la tasa ${resultado.id_tasa}` });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en reenviarTasa:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ==========================================
+// 5. REPORTES & WHATSAPP
+// ==========================================
+
+async function enviarWhatsAppReporte(req, res) {
+  try {
+    const resultado = await reportesService.enviarReporteWhatsApp(req.body);
+    res.json({ success: true, message: 'Reporte enviado a WhatsApp exitosamente.', ...resultado });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en enviarWhatsAppReporte:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function getFiltrosReportes(req, res) {
+  try {
+    const filtros = await reportesService.obtenerFiltrosReportes(req.query.rol);
+    res.json({ success: true, ...filtros });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en getFiltrosReportes:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ==========================================
+// 6. ADMINISTRACIÓN DE COLA (RAW)
+// ==========================================
+
+async function getColaAdmin(req, res) {
+  try {
+    const claveAdmin = req.headers['x-admin-key'];
+    const cola = await adminService.obtenerColaAdmin(claveAdmin);
+    res.json({ success: true, data: cola });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en getColaAdmin:', err.message);
+    res.status(401).json({ success: false, error: err.message });
+  }
+}
+
+async function putColaAdmin(req, res) {
+  try {
+    const { hashLargo } = req.params;
+    const resultado = await adminService.actualizarItemColaAdmin(hashLargo, req.body);
+    res.json({ success: true, ...resultado, message: 'Registro de cola actualizado correctamente.' });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en putColaAdmin:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function deleteColaAdmin(req, res) {
+  try {
+    const { hashLargo } = req.params;
+    const claveAdmin = req.headers['x-admin-key'] || req.body?.adminKey;
+    const resultado = await adminService.eliminarItemColaAdmin(hashLargo, claveAdmin);
+    res.json({ success: true, ...resultado, message: 'Registro eliminado permanentemente de todas las tablas.' });
+  } catch (err) {
+    console.error('[Atenea Controller ❌] Error en deleteColaAdmin:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 module.exports = {
   getComprobantes,
   updateComprobante,
@@ -197,5 +317,15 @@ module.exports = {
   deleteSocio,
   previewData,
   previewImage,
-  dispararWhatsApp
+  dispararWhatsApp,
+  getUltimasTasas,
+  postN8nWebhook,
+  fetchHoo,
+  publicarTasa,
+  reenviarTasa,
+  enviarWhatsAppReporte,
+  getFiltrosReportes,
+  getColaAdmin,
+  putColaAdmin,
+  deleteColaAdmin
 };
