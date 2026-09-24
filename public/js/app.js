@@ -8,6 +8,7 @@ if (!window.Alpine) {
     directorio: [],
     socios: [],
 
+    // Filtros
     filtroSocio: '',
     filtroReporteRol: '',
     filtroFecha: '',
@@ -15,16 +16,32 @@ if (!window.Alpine) {
     filtroHash: '',
     busquedaDirectorio: '',
 
+    // Modales
     modalImagenAbierto: false,
     itemSeleccionado: null,
+    timerPolling: null,
 
     async init() {
       await this.cargarSocios();
       await this.cargarComprobantes();
       await this.cargarDirectorio();
+
+      // Inicia la sincronización automática en segundo plano
+      this.iniciarAutoSync();
     },
 
-    async cargarComprobantes() {
+    iniciarAutoSync() {
+      if (this.timerPolling) clearInterval(this.timerPolling);
+      
+      // Consulta en vivo cada 5 segundos
+      this.timerPolling = setInterval(() => {
+        if (this.vistaActiva === 'comprobantes') {
+          this.cargarComprobantes(true);
+        }
+      }, 5000);
+    },
+
+    async cargarComprobantes(silencioso = false) {
       try {
         const params = {};
         if (this.filtroSocio) params.socio = this.filtroSocio;
@@ -33,9 +50,14 @@ if (!window.Alpine) {
         if (this.filtroFechaFin) params.fechaFin = this.filtroFechaFin;
         if (this.filtroHash) params.hash = this.filtroHash;
 
-        this.comprobantes = await AteneaAPI.getComprobantes(params);
+        const nuevosDatos = await AteneaAPI.getComprobantes(params);
+        
+        // Reemplazo transparente en memoria (Alpine actualiza solo las filas cambiadas)
+        this.comprobantes = nuevosDatos;
       } catch (err) {
-        console.error('[Glaukov UI ❌]', err);
+        if (!silencioso) {
+          console.error('[Glaukov UI ❌] Error al cargar comprobantes:', err);
+        }
       }
     },
 
@@ -43,7 +65,7 @@ if (!window.Alpine) {
       try {
         this.directorio = await AteneaAPI.getDirectorio();
       } catch (err) {
-        console.error('[Glaukov UI ❌]', err);
+        console.error('[Glaukov UI ❌] Error al cargar directorio:', err);
       }
     },
 
@@ -51,7 +73,7 @@ if (!window.Alpine) {
       try {
         this.socios = await AteneaAPI.getSocios();
       } catch (err) {
-        console.error('[Glaukov UI ❌]', err);
+        console.error('[Glaukov UI ❌] Error al cargar lista de socios:', err);
       }
     },
 
@@ -71,7 +93,7 @@ if (!window.Alpine) {
         await AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
         socio.activo = nuevoEstado;
       } catch (err) {
-        console.error('[Glaukov UI ❌]', err);
+        console.error('[Glaukov UI ❌] Error al cambiar estado:', err);
       }
     },
 
