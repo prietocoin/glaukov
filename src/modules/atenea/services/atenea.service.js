@@ -10,36 +10,30 @@ function parseCartelera(rawInput) {
   if (!rawInput) return [];
   if (Array.isArray(rawInput)) return rawInput;
   if (typeof rawInput === 'object') return rawInput;
-
   if (typeof rawInput === 'string') {
     const str = rawInput.trim();
     if (!str) return [];
-
     if (str.startsWith('[') || (str.startsWith('{') && str.includes('"'))) {
       try { return JSON.parse(str); } catch (e) {}
     }
-
     if (str.startsWith('{') && str.endsWith('}')) {
       const limpio = str.slice(1, -1).trim();
       if (!limpio) return [];
       return limpio.split(',').map(s => s.replace(/^"|"$/g, '').trim());
     }
-
     if (str.includes(',')) {
       return str.split(',').map(s => s.trim());
     }
-
     return [str];
   }
-
   return [];
 }
 
 async function obtenerSociosYProcesarTasas(filtroNombre = null) {
-  // Extrae de forma dinámica el correlativo de id_tasa o id de mercado_tasas
   const sql = `
     SELECT 
         f.*,
+        -- TASA ACTUAL
         (
             SELECT json_object_agg(moneda, tasa_base) 
             FROM (
@@ -48,6 +42,16 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
                 ORDER BY moneda, id DESC
             ) t
         ) AS tasas_mercado,
+        -- TASA ANTERIOR (Para comparar tendencias)
+        (
+            SELECT json_object_agg(moneda, tasa_base) 
+            FROM (
+                SELECT moneda, tasa_base, 
+                       ROW_NUMBER() OVER(PARTITION BY moneda ORDER BY id DESC) as rn 
+                FROM mercado_tasas
+            ) t2 WHERE rn = 2
+        ) AS tasas_mercado_anterior,
+        -- CORRELATIVO
         COALESCE(
             (SELECT id_tasa::text FROM mercado_tasas WHERE id_tasa IS NOT NULL AND id_tasa != '' ORDER BY id DESC LIMIT 1),
             (SELECT 'T' || id::text FROM mercado_tasas ORDER BY id DESC LIMIT 1),
@@ -68,7 +72,6 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const labelSocio = socioData.socio || nombre;
     const whatsappJid = extractJid(socioData.whatsapp || socioData.id_grupo || socioData.id_grupo1);
 
-    // Usa el correlativo dinámico calculado directamente desde la DB
     const valorTasa = socioData.correlativo_tasa || socioData.id_tasa || "T360";
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
@@ -76,12 +79,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const monedaExtraida = String(socioData.monedasocio || "USDT").toUpperCase();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
 
-    const rawCartelera = socioData.cartelerapaises || 
-                         socioData.cartelera_paises || 
-                         socioData.paises || 
-                         socioData.cartelera || 
-                         socioData.monedas;
-
+    const rawCartelera = socioData.cartelerapaises || socioData.cartelera_paises || socioData.paises || socioData.cartelera || socioData.monedas;
     const carteleraParseada = parseCartelera(rawCartelera);
 
     let paisesNormalizados = [];
@@ -104,8 +102,18 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
 
     const ajustes = typeof socioData.ajustes === 'string' ? JSON.parse(socioData.ajustes || '{}') : (socioData.ajustes || {});
     const tasasMercado = typeof socioData.tasas_mercado === 'string' ? JSON.parse(socioData.tasas_mercado || '{}') : (socioData.tasas_mercado || {});
+    const tasasMercadoAnterior = typeof socioData.tasas_mercado_anterior === 'string' ? JSON.parse(socioData.tasas_mercado_anterior || '{}') : (socioData.tasas_mercado_anterior || {});
 
     const tarjetasPaises = [];
+
+    // Función para comparar tendencias basada en 4 decimales
+    const getTrend = (actualNum, antNum) => {
+      const a = parseFloat(actualNum.toFixed(4));
+      const b = parseFloat(antNum.toFixed(4));
+      if (a > b) return "up";
+      if (a < b) return "down";
+      return "stable";
+    };
 
     for (const itemPais of paisesActivos) {
       const codeP = (itemPais.moneda || itemPais.code || MAPA_MONEDAS[itemPais.pais || itemPais.nombrePais] || "").toUpperCase();
@@ -122,24 +130,37 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       const factorD = Math.abs(parseFloat(rawFactorD) || 0);
       const factorP = Math.abs(parseFloat(rawFactorP) || 0);
 
+      // CÁLCULO ACTUAL
       const tasaBaseDestino = parseFloat(tasasMercado[codeP] || 1.0);
       let tasaBaseSocio = 1.0;
-
-      if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) {
-        tasaBaseSocio = parseFloat(tasasMercado[monedaProcesada] || 1.0);
-      }
+      if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocio = parseFloat(tasasMercado[monedaProcesada] || 1.0);
       if (tasaBaseSocio <= 0) tasaBaseSocio = 1.0;
+      const crossBaseActual = tasaBaseDestino / tasaBaseSocio;
 
-      const crossBase = tasaBaseDestino / tasaBaseSocio;
+      const numCompraActual = crossBaseActual * factorD;
+      const numVentaActual = crossBaseActual * factorP;
 
-      const valCompra = (factorD > 0) ? truncarTasaOficial(crossBase * factorD) : "-";
-      const valVenta = (factorP > 0) ? truncarTasaOficial(crossBase * factorP) : "-";
+      // CÁLCULO ANTERIOR (Para comparar)
+      const tasaBaseDestinoAnt = parseFloat(tasasMercadoAnterior[codeP] || tasaBaseDestino);
+      let tasaBaseSocioAnt = 1.0;
+      if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocioAnt = parseFloat(tasasMercadoAnterior[monedaProcesada] || tasaBaseSocio);
+      if (tasaBaseSocioAnt <= 0) tasaBaseSocioAnt = 1.0;
+      const crossBaseAnt = tasaBaseDestinoAnt / tasaBaseSocioAnt;
+
+      const numCompraAnt = crossBaseAnt * factorD;
+      const numVentaAnt = crossBaseAnt * factorP;
+
+      // FORMATEO FINAL Y ASIGNACIÓN DE TENDENCIAS
+      const valCompraStr = (factorD > 0) ? truncarTasaOficial(numCompraActual) : "-";
+      const valVentaStr = (factorP > 0) ? truncarTasaOficial(numVentaActual) : "-";
 
       tarjetasPaises.push({
         bandera: BANDERAS_MAP[codeP] || '🌐',
         nombre_pais: `${nombreP} (${codeP})`,
-        compra: valCompra,
-        venta: valVenta
+        compra: valCompraStr,
+        venta: valVentaStr,
+        trend_compra: (factorD > 0) ? getTrend(numCompraActual, numCompraAnt) : 'stable',
+        trend_venta: (factorP > 0) ? getTrend(numVentaActual, numVentaAnt) : 'stable'
       });
     }
 
@@ -154,9 +175,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
 
   if (filtroNombre) {
     const busqueda = filtroNombre.trim().toLowerCase();
-    listaSociosProcesados = listaSociosProcesados.filter(s => 
-      s.nombre_socio.toLowerCase().includes(busqueda)
-    );
+    listaSociosProcesados = listaSociosProcesados.filter(s => s.nombre_socio.toLowerCase().includes(busqueda));
   }
 
   return listaSociosProcesados;
@@ -165,18 +184,10 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
 async function encolarNotificacionesTasas(filtroNombre = null) {
   const socios = await obtenerSociosYProcesarTasas(filtroNombre);
   console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
-
   for (const socio of socios) {
-    await tasasQueue.add('render-tasa-socio', socio, {
-      removeOnComplete: true,
-      attempts: 3
-    });
+    await tasasQueue.add('render-tasa-socio', socio, { removeOnComplete: true, attempts: 3 });
   }
-
   return { totalEncolados: socios.length, socios: socios.map(s => s.nombre_socio) };
 }
 
-module.exports = {
-  obtenerSociosYProcesarTasas,
-  encolarNotificacionesTasas
-};
+module.exports = { obtenerSociosYProcesarTasas, encolarNotificacionesTasas };
