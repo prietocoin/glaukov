@@ -1,63 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerSociosYProcesarTasas, encolarNotificacionesTasas } = require('../services/atenea.service');
-const { generarImagenTasa } = require('../../render/services/puppeteer.service');
+const ateneaController = require('../controllers/atenea.controller');
 
-// Preview JSON (acepta ?socio=nelsy)
-router.get('/preview-data', async (req, res) => {
-  try {
-    const filtroSocio = req.query.socio || null;
-    const socios = await obtenerSociosYProcesarTasas(filtroSocio);
-    res.json({
-      success: true,
-      total_socios: socios.length,
-      data: socios
-    });
-  } catch (error) {
-    console.error('[Atenea API ❌] Error procesando datos:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+// ==========================================
+// 1. RUTAS PREVIAS (CONECTADAS AL CONTROLADOR)
+// ==========================================
+// Preview JSON de socios y tasas (?socio=nelsy)
+router.get('/preview-data', ateneaController.previewData);
 
-// Preview de Imagen (acepta índice número o nombre directo: /preview-image/nelsy)
-router.get('/preview-image/:identificador?', async (req, res) => {
-  try {
-    const idParam = req.params.identificador || '0';
-    let socioTarget = null;
+// Preview de imagen formateada (/preview-image/nelsy o /preview-image/0)
+router.get('/preview-image/:identificador?', ateneaController.previewImage);
 
-    if (!isNaN(idParam)) {
-      const index = parseInt(idParam, 10);
-      const socios = await obtenerSociosYProcesarTasas();
-      socioTarget = socios[index];
-    } else {
-      const socios = await obtenerSociosYProcesarTasas(idParam);
-      socioTarget = socios[0];
-    }
+// Disparo de notificaciones por WhatsApp (?socio=nelsy)
+router.all('/disparar', ateneaController.dispararWhatsApp);
 
-    if (!socioTarget) {
-      return res.status(404).json({ success: false, message: 'Socio no encontrado' });
-    }
+// ==========================================
+// 2. AUDITORÍA DE COMPROBANTES (comprobantes_raw)
+// ==========================================
+router.get('/comprobantes', ateneaController.getComprobantes);
+router.put('/comprobantes/:hashLargo', ateneaController.updateComprobante);
+router.delete('/comprobantes/:hashLargo', ateneaController.deleteComprobante);
 
-    const imageBuffer = await generarImagenTasa(socioTarget);
-    
-    res.set('Content-Type', 'image/jpeg');
-    res.send(imageBuffer);
-  } catch (error) {
-    console.error('[Atenea API ❌] Error generando imagen preview:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Disparar por WhatsApp (acepta ?socio=nelsy)
-router.all('/disparar', async (req, res) => {
-  try {
-    const filtroSocio = req.query.socio || req.body?.socio || null;
-    const resultado = await encolarNotificacionesTasas(filtroSocio);
-    res.json({ success: true, ...resultado });
-  } catch (error) {
-    console.error('[Atenea API ❌] Error al disparar tareas:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+// ==========================================
+// 3. DIRECTORIO Y REGLAS DE SOCIOS (nombres_fb)
+// ==========================================
+router.get('/directorio', ateneaController.getDirectorio);
+router.get('/socios', ateneaController.getSocios);
+router.post('/socios/config', ateneaController.postSocioConfig);
+router.patch('/socios/desactivar-todos', ateneaController.patchDesactivarTodos);
+router.post('/socios/guardar-vigentes', ateneaController.postGuardarVigentes);
+router.post('/socios/restaurar-vigentes', ateneaController.postRestaurarVigentes);
+router.patch('/socios/:nombre/estado', ateneaController.patchSocioEstado);
+router.delete('/directorio/:nombre', ateneaController.deleteSocio);
 
 module.exports = router;
