@@ -1,151 +1,109 @@
-<!DOCTYPE html>
-<html lang="es" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Glaukov Engine - Control Panel 🦅</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: { darkBg: '#0b1320', cardBg: '#131e30' }
-          }
-        }
-      }
-    </script>
-</head>
-<body class="bg-darkBg text-gray-100 min-h-screen font-sans flex flex-col">
+// 1. Cargar Comprobantes procesados directamente de comprobantes_raw
+async cargarComprobantes() {
+  const params = new URLSearchParams();
+  if (this.filtroSocio) params.append('socio', this.filtroSocio);
+  if (this.filtroReporteRol) params.append('rol', this.filtroReporteRol);
+  if (this.filtroFecha) params.append('fechaInicio', this.filtroFecha);
+  if (this.filtroFechaFin) params.append('fechaFin', this.filtroFechaFin);
+  if (this.filtroHash) params.append('hash', this.filtroHash);
+  params.append('soloDuplicados', this.soloDuplicados ? 'true' : 'false');
 
-    <!-- Header -->
-    <header class="border-b border-slate-800 bg-cardBg/80 backdrop-blur px-8 py-4 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <span class="text-3xl">🦅</span>
-            <div>
-                <h1 class="text-xl font-bold tracking-wide text-white">Glaukov Engine</h1>
-                <p class="text-xs text-slate-400">Motor de Notificaciones & Renderizado 4:5</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
-            <span class="text-sm font-semibold text-emerald-400">Sistema Online</span>
-        </div>
-    </header>
+  try {
+    const res = await fetch(`/api/v1/atenea/comprobantes?${params.toString()}`);
+    if (res.ok) {
+      this.comprobantes = await res.json();
+    }
+  } catch (err) {
+    console.error("[Glaukov UI ❌] Error cargando comprobantes desde comprobantes_raw:", err);
+  }
+},
 
-    <!-- Main Content -->
-    <main class="flex-grow p-8 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <!-- Left Panel: Controls -->
-        <div class="lg:col-span-5 flex flex-col gap-6">
-            <div class="bg-cardBg border border-slate-800 rounded-2xl p-6 shadow-xl">
-                <h2 class="text-lg font-bold mb-4 text-blue-400 flex items-center gap-2">
-                    <span>🎛️</span> Panel de Control
-                </h2>
+// 2. Cargar Directorio de nombres_fb
+async cargarDirectorio() {
+  try {
+    const res = await fetch('/api/v1/atenea/directorio');
+    if (res.ok) this.directorio = await res.json();
+  } catch (err) {
+    console.error("[Glaukov UI ❌] Error cargando directorio:", err);
+  }
+},
 
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Filtrar por Socio</label>
-                        <input type="text" id="socioInput" placeholder="Ej: nelsy (dejar vacío para TODOS)" 
-                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition">
-                    </div>
+// 3. Cargar Lista de Socios para dropdowns
+async cargarSocios() {
+  try {
+    const res = await fetch('/api/v1/atenea/socios');
+    if (res.ok) this.socios = await res.json();
+  } catch (err) {
+    console.error("[Glaukov UI ❌] Error cargando lista de socios:", err);
+  }
+},
 
-                    <div class="grid grid-cols-2 gap-3 pt-2">
-                        <button onclick="verData()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-xl border border-slate-700 transition flex items-center justify-center gap-2">
-                            <span>📄</span> Ver JSON
-                        </button>
-                        <button onclick="verImagen()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2">
-                            <span>🖼️</span> Previsualizar
-                        </button>
-                    </div>
+// 4. Guardar Configuración de Socio en nombres_fb
+async guardarConfigSocio() {
+  if (!this.socioConfigEdit.nombre) return;
+  this.guardandoConfig = true;
 
-                    <button onclick="dispararWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 text-lg">
-                        <span>🚀</span> Disparar por WhatsApp
-                    </button>
-                </div>
-            </div>
+  try {
+    const payload = {
+      ...this.socioConfigEdit,
+      saldo_anterior: parseFloat(this.socioConfigEdit.saldo_anterior) || 0,
+      cartelera_paises: this.carteleraPaisesEdit.map((p, idx) => ({
+        pais: p.nombrePais,
+        moneda: p.code,
+        activo: p.activo,
+        orden: idx + 1
+      }))
+    };
 
-            <!-- Terminal Logs Box -->
-            <div class="bg-cardBg border border-slate-800 rounded-2xl p-6 shadow-xl flex-grow flex flex-col">
-                <h2 class="text-sm font-bold mb-2 text-slate-400 flex items-center gap-2">
-                    <span>💻</span> Consola de Respuestas
-                </h2>
-                <pre id="logs" class="bg-slate-950 text-slate-300 p-4 rounded-xl font-mono text-xs overflow-x-auto flex-grow max-h-60 border border-slate-800/80">Esperando acción...</pre>
-            </div>
-        </div>
+    const res = await fetch('/api/v1/atenea/socios/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
 
-        <!-- Right Panel: Image Preview -->
-        <div class="lg:col-span-7 flex flex-col">
-            <div class="bg-cardBg border border-slate-800 rounded-2xl p-6 shadow-xl flex-grow flex flex-col items-center justify-center min-h-[500px] relative">
-                <h2 class="text-sm font-bold text-slate-400 absolute top-6 left-6 flex items-center gap-2">
-                    <span>📱</span> Renderizado de Imagen (1080x1350)
-                </h2>
-                
-                <div id="previewContainer" class="w-full flex items-center justify-center py-8">
-                    <p class="text-slate-500 text-sm italic">Haz clic en "Previsualizar" para generar la tarjeta visual de las tasas.</p>
-                </div>
-            </div>
-        </div>
+    if (res.ok) {
+      this.modalConfigSocioAbierto = false;
+      await this.cargarDirectorio();
+      await this.cargarSocios();
+      await this.cargarComprobantes();
+    }
+  } catch (err) {
+    console.error("[Glaukov UI ❌] Error guardando socio:", err);
+  } finally {
+    this.guardandoConfig = false;
+  }
+},
 
-    </main>
+// 5. Guardar Edición Manual de un Comprobante en comprobantes_raw
+async guardarCambios() {
+  if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
+  try {
+    const res = await fetch(`/api/v1/atenea/comprobantes/${encodeURIComponent(this.itemEdicion.hash_largo)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(this.itemEdicion)
+    });
+    if (res.ok) {
+      this.modalAbierto = false;
+      await this.cargarComprobantes();
+    }
+  } catch (err) {
+    console.error("[Glaukov UI ❌] Error al actualizar comprobante:", err);
+  }
+},
 
-    <script>
-        const getSocio = () => document.getElementById('socioInput').value.trim();
-        const logBox = document.getElementById('logs');
-        const previewContainer = document.getElementById('previewContainer');
-
-        function setLog(data) {
-            logBox.innerText = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
-        }
-
-        async function verData() {
-            const socio = getSocio();
-            setLog('Cargando datos...');
-            try {
-                const url = socio ? `/api/v1/atenea/preview-data?socio=${encodeURIComponent(socio)}` : '/api/v1/atenea/preview-data';
-                const res = await fetch(url);
-                const data = await res.json();
-                setLog(data);
-            } catch (err) {
-                setLog({ error: err.message });
-            }
-        }
-
-        function verImagen() {
-            const socio = getSocio() || '0';
-            setLog(`Generando tarjeta visual para: ${socio}...`);
-            previewContainer.innerHTML = '<div class="animate-spin text-4xl">⚙️</div>';
-            
-            const imgUrl = `/api/v1/atenea/preview-image/${encodeURIComponent(socio)}?t=${Date.now()}`;
-            const img = new Image();
-            img.src = imgUrl;
-            img.className = "max-h-[600px] rounded-xl shadow-2xl border border-slate-700 transition";
-            
-            img.onload = () => {
-                previewContainer.innerHTML = '';
-                previewContainer.appendChild(img);
-                setLog(`Imagen renderizada exitosamente para: ${socio}`);
-            };
-            img.onerror = () => {
-                previewContainer.innerHTML = '<p class="text-rose-400 text-sm">Error cargando la imagen de previsualización.</p>';
-                setLog('Error: No se pudo generar la imagen del socio.');
-            };
-        }
-
-        async function dispararWhatsApp() {
-            const socio = getSocio();
-            const msg = socio ? `Disparando envío a: ${socio}...` : 'Disparando envío masivo a TODOS los socios...';
-            setLog(msg);
-            
-            try {
-                const url = socio ? `/api/v1/atenea/disparar?socio=${encodeURIComponent(socio)}` : '/api/v1/atenea/disparar';
-                const res = await fetch(url, { method: 'POST' });
-                const data = await res.json();
-                setLog(data);
-            } catch (err) {
-                setLog({ error: err.message });
-            }
-        }
-    </script>
-</body>
-</html>
+// 6. Descartar Comprobante
+async eliminarComprobante(hashLargo) {
+  if (!hashLargo || !confirm('¿Deseas descartar este comprobante?')) return;
+  try {
+    const res = await fetch(`/api/v1/atenea/comprobantes/${encodeURIComponent(hashLargo)}`, { 
+      method: 'DELETE' 
+    });
+    if (res.ok) {
+      this.modalAbierto = false;
+      await this.cargarComprobantes();
+    }
+  } catch (err) {
+    console.error("[Glaukov UI ❌] Error al descartar comprobante:", err);
+  }
+}
