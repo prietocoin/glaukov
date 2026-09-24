@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerSociosYProcesarTasas } = require('../services/atenea.service');
+const { obtenerSociosYProcesarTasas, encolarNotificacionesTasas } = require('../services/atenea.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
 
-// Endpoint de prueba: Procesa la matriz y retorna el JSON estructurado de los socios
+// Vista previa de datos en JSON
 router.get('/preview-data', async (req, res) => {
   try {
     const socios = await obtenerSociosYProcesarTasas();
@@ -18,7 +18,7 @@ router.get('/preview-data', async (req, res) => {
   }
 });
 
-// Endpoint de prueba: Renderiza la imagen de un socio y la devuelve directamente como JPEG
+// Renderizado directo de la imagen JPEG
 router.get('/preview-image/:index?', async (req, res) => {
   try {
     const socios = await obtenerSociosYProcesarTasas();
@@ -34,6 +34,17 @@ router.get('/preview-image/:index?', async (req, res) => {
     res.send(imageBuffer);
   } catch (error) {
     console.error('[Atenea API ❌] Error generando imagen preview:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Permite tanto GET como POST para disparar las tareas directamente desde el navegador
+router.all('/disparar', async (req, res) => {
+  try {
+    const resultado = await encolarNotificacionesTasas();
+    res.json({ success: true, ...resultado });
+  } catch (error) {
+    console.error('[Atenea API ❌] Error al disparar tareas:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
