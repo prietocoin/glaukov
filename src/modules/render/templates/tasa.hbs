@@ -14,15 +14,16 @@
 
         body {
             font-family: 'Inter', 'Noto Color Emoji', sans-serif;
-            background-color: #02120d;
+            background-color: #040a17;
             margin: 0;
             padding: 0;
             width: 1080px;
         }
 
+        /* CONTENEDOR PRINCIPAL CON FONDO AZUL COBALTO RADIAL */
         #app-container {
             width: 1080px;
-            background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
+            background: radial-gradient(circle at 50% 0%, #1e3a8a 0%, #0f172a 45%, #040a17 100%);
             padding: 50px;
             display: flex;
             flex-direction: column;
@@ -41,14 +42,14 @@
             font-size: 48px;
             font-weight: 900;
             color: #ffffff;
-            text-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+            text-shadow: 0 0 25px rgba(59, 130, 246, 0.4);
             display: flex;
             align-items: center;
             white-space: nowrap;
         }
 
         .brand-divider {
-            color: #10b981;
+            color: #3b82f6;
             margin: 0 15px;
         }
 
@@ -81,10 +82,11 @@
             margin-bottom: 40px;
         }
 
+        /* TARJETAS CON MARCO AZUL Y LUZ SUPERIOR */
         .card-tasa {
-            background: linear-gradient(160deg, #022c22 0%, #02120d 100%);
-            border: 1.5px solid #064e3b;
-            border-top: 4px solid #10b981;
+            background: linear-gradient(160deg, #0f172a 0%, #070d19 100%);
+            border: 1.5px solid #1e3a8a;
+            border-top: 4px solid #3b82f6;
             border-radius: 20px;
             box-shadow: 0 12px 30px rgba(0,0,0,0.6);
             padding: 20px 26px;
@@ -121,13 +123,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-top: 1px solid rgba(6, 78, 59, 0.8);
+            border-top: 1px solid rgba(30, 58, 138, 0.8);
             padding-top: 12px;
         }
 
         .col-precio { width: 48%; }
 
-        /* ETIQUETAS DE COMPRAR Y VENDER */
+        /* ETIQUETAS Y VALORES */
         .label-operacion {
             font-size: 18px !important;
             font-weight: 800 !important;
@@ -140,14 +142,14 @@
         .val-compra {
             font-size: 42px !important;
             font-weight: 900 !important;
-            color: #34d399 !important;
+            color: #38bdf8 !important; /* Cyan / Azul brillante */
             line-height: 1;
         }
 
         .val-venta {
             font-size: 42px !important;
             font-weight: 900 !important;
-            color: #fb7185 !important;
+            color: #fb7185 !important; /* Rosa / Rojo neón */
             line-height: 1;
             text-align: right;
         }
@@ -155,39 +157,38 @@
         .divider-vertical {
             width: 1px;
             height: 48px;
-            background-color: rgba(6, 78, 59, 0.8);
+            background-color: rgba(30, 58, 138, 0.8);
         }
 
-       /* =========================================
-   INDICADORES DE TENDENCIA (VERDE / ROJO / AMARILLO)
-   ========================================= */
-.trend-up::after {
-    content: '▲';
-    font-size: 15px;
-    color: #10b981; /* Verde brillante */
-    margin-left: 5px;
-    vertical-align: baseline;
-    text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-}
+        /* INDICADORES DE TENDENCIA (VERDE / ROJO / AMARILLO) */
+        .trend-up::after {
+            content: '▲';
+            font-size: 15px;
+            color: #10b981;
+            margin-left: 5px;
+            vertical-align: baseline;
+            text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
 
-.trend-down::after {
-    content: '▼';
-    font-size: 15px;
-    color: #f43f5e; /* Rojo vibrante */
-    margin-left: 5px;
-    vertical-align: baseline;
-    text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
-}
+        .trend-down::after {
+            content: '▼';
+            font-size: 15px;
+            color: #f43f5e;
+            margin-left: 5px;
+            vertical-align: baseline;
+            text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
+        }
 
-.trend-stable::after {
-    content: '=';
-    font-size: 17px;
-    font-weight: 900;
-    color: #facc15; /* Amarillo dorado */
-    margin-left: 5px;
-    vertical-align: middle;
-    text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
-}
+        .trend-stable::after {
+            content: '=';
+            font-size: 17px;
+            font-weight: 900;
+            color: #facc15;
+            margin-left: 5px;
+            vertical-align: middle;
+            text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+        }
+
         /* PIE DE PÁGINA */
         .footer {
             display: flex;
@@ -202,11 +203,11 @@
             color: #ffffff;
         }
 
-        .tasa-ref { color: #6ee7b7; }
+        .tasa-ref { color: #93c5fd; }
 
         .badge-actualizado {
-            background-color: rgba(2, 44, 34, 0.9);
-            border: 1px solid #047857;
+            background-color: rgba(15, 23, 42, 0.9);
+            border: 1px solid #1d4ed8;
             padding: 8px 24px;
             border-radius: 50px;
             font-size: 20px;
@@ -214,7 +215,7 @@
             color: #ffffff;
         }
 
-        .time-val { color: #34d399; }
+        .time-val { color: #60a5fa; }
     </style>
 </head>
 <body>
@@ -231,7 +232,7 @@
                 {{#if logo_src}}
                     <img src="{{logo_src}}" class="logo-img" alt="FUNDABLOCK">
                 {{else}}
-                    <span style="font-size: 48px; font-weight: 900; color: #34d399;">FB</span>
+                    <span style="font-size: 48px; font-weight: 900; color: #60a5fa;">FB</span>
                 {{/if}}
             </div>
         </div>
@@ -246,13 +247,11 @@
                 </div>
                 <div class="card-body">
                     <div class="col-precio">
-                        <!-- LA CLASE TREND SE MUEVE AL LADO DE COMPRAR -->
                         <p class="label-operacion trend-{{this.trend_compra}}">Comprar</p>
                         <p class="val-compra">{{this.compra}}</p>
                     </div>
                     <div class="divider-vertical"></div>
                     <div class="col-precio" style="text-align: right;">
-                        <!-- LA CLASE TREND SE MUEVE AL LADO DE VENDER -->
                         <p class="label-operacion trend-{{this.trend_venta}}">Vender</p>
                         <p class="val-venta">{{this.venta}}</p>
                     </div>
