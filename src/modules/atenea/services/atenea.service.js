@@ -1,10 +1,11 @@
 const db = require('../../../config/db');
 const { truncarTasaOficial, obtenerFechaHoraVE, extractJid } = require('../../../utils/formatters');
 const { BANDERAS_MAP, MAPA_MONEDAS, FACTORES_RESPALDO } = require('./mapper.service');
+const { Queue } = require('bullmq');
+const redisConnection = require('../../../config/redis');
 
-/**
- * Consulta la base de datos compartida y construye las estructuras de cada socio
- */
+const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
+
 async function obtenerSociosYProcesarTasas() {
   const sql = `
     SELECT 
@@ -45,13 +46,29 @@ async function obtenerSociosYProcesarTasas() {
     const monedaExtraida = String(socioData.monedasocio || "USDT").toUpperCase();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
 
-    let rawCartelera = socioData.cartelerapaises || socioData.paises || [];
+    // 1. Obtener y parsear raw cartelerapaises de cualquier columna posible
+    let rawCartelera = socioData.cartelerapaises || socioData.paises || socioData.cartelera || socioData.paises_json || [];
     if (typeof rawCartelera === 'string') {
       try { rawCartelera = JSON.parse(rawCartelera); } catch (e) { rawCartelera = []; }
     }
 
-    const paisesActivos = (Array.isArray(rawCartelera) ? rawCartelera : Object.values(rawCartelera))
-      .filter(p => p && typeof p === 'object' && p.activo !== false && p.activo !== 'false');
+    // 2. Normalizar estructura a Array de objetos
+    let paisesNormalizados = [];
+    if (Array.isArray(rawCartelera)) {
+      paisesNormalizados = rawCartelera.map(p => (typeof p === 'string' ? { moneda: p } : p));
+    } else if (typeof rawCartelera === 'object' && rawCartelera !== null) {
+      paisesNormalizados = Object.entries(rawCartelera).map(([key, val]) => {
+        if (typeof val === 'object' && val !== null) return { moneda: key, ...val };
+        return { moneda: key, activo: Boolean(val) };
+      });
+    }
+
+    // 3. Filtrar países activos
+    const paisesActivos = paisesNormalizados.filter(p => {
+      if (!p) return false;
+      if (p.activo === false || p.activo === 'false' || p.activo === 0 || p.activo === '0') return false;
+      return true;
+    });
 
     paisesActivos.sort((a, b) => (Number(a.orden) || 99) - (Number(b.orden) || 99));
 
@@ -61,8 +78,8 @@ async function obtenerSociosYProcesarTasas() {
     const tarjetasPaises = [];
 
     for (const itemPais of paisesActivos) {
-      const nombreP = itemPais.pais || itemPais.nombrePais || "";
-      const codeP = itemPais.moneda || itemPais.code || MAPA_MONEDAS[nombreP];
+      const codeP = (itemPais.moneda || itemPais.code || MAPA_MONEDAS[itemPais.pais || itemPais.nombrePais] || "").toUpperCase();
+      const nombreP = itemPais.pais || itemPais.nombrePais || Object.keys(MAPA_MONEDAS).find(k => MAPA_MONEDAS[k] === codeP) || codeP;
 
       if (!codeP) continue;
 
@@ -108,4 +125,21 @@ async function obtenerSociosYProcesarTasas() {
   return listaSociosProcesados;
 }
 
-module.exports = { obtenerSociosYProcesarTasas };
+async function encolarNotificacionesTasas() {
+  const socios = await obtenerSociosYProcesarTasas();
+  console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socios para renderizado...`);
+
+  for (const socio of socios) {
+    await tasasQueue.add('render-tasa-socio', socio, {
+      removeOnComplete: true,
+      attempts: 3
+    });
+  }
+
+  return { totalEncolados: socios.length };
+}
+
+module.exports = {
+  obtenerSociosYProcesarTasas,
+  encolarNotificacionesTasas
+};
