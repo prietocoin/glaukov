@@ -3,10 +3,11 @@ const router = express.Router();
 const { obtenerSociosYProcesarTasas, encolarNotificacionesTasas } = require('../services/atenea.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
 
-// Vista previa de datos en JSON
+// Preview JSON (acepta ?socio=nelsy)
 router.get('/preview-data', async (req, res) => {
   try {
-    const socios = await obtenerSociosYProcesarTasas();
+    const filtroSocio = req.query.socio || null;
+    const socios = await obtenerSociosYProcesarTasas(filtroSocio);
     res.json({
       success: true,
       total_socios: socios.length,
@@ -18,17 +19,26 @@ router.get('/preview-data', async (req, res) => {
   }
 });
 
-// Renderizado directo de la imagen JPEG
-router.get('/preview-image/:index?', async (req, res) => {
+// Preview de Imagen (acepta índice número o nombre directo: /preview-image/nelsy)
+router.get('/preview-image/:identificador?', async (req, res) => {
   try {
-    const socios = await obtenerSociosYProcesarTasas();
-    const index = parseInt(req.params.index || '0', 10);
-    
-    if (!socios[index]) {
-      return res.status(404).json({ success: false, message: 'Socio no encontrado en el índice' });
+    const idParam = req.params.identificador || '0';
+    let socioTarget = null;
+
+    if (!isNaN(idParam)) {
+      const index = parseInt(idParam, 10);
+      const socios = await obtenerSociosYProcesarTasas();
+      socioTarget = socios[index];
+    } else {
+      const socios = await obtenerSociosYProcesarTasas(idParam);
+      socioTarget = socios[0];
     }
 
-    const imageBuffer = await generarImagenTasa(socios[index]);
+    if (!socioTarget) {
+      return res.status(404).json({ success: false, message: 'Socio no encontrado' });
+    }
+
+    const imageBuffer = await generarImagenTasa(socioTarget);
     
     res.set('Content-Type', 'image/jpeg');
     res.send(imageBuffer);
@@ -38,10 +48,11 @@ router.get('/preview-image/:index?', async (req, res) => {
   }
 });
 
-// Permite tanto GET como POST para disparar las tareas directamente desde el navegador
+// Disparar por WhatsApp (acepta ?socio=nelsy)
 router.all('/disparar', async (req, res) => {
   try {
-    const resultado = await encolarNotificacionesTasas();
+    const filtroSocio = req.query.socio || req.body?.socio || null;
+    const resultado = await encolarNotificacionesTasas(filtroSocio);
     res.json({ success: true, ...resultado });
   } catch (error) {
     console.error('[Atenea API ❌] Error al disparar tareas:', error);
