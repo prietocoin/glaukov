@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 // 1. Inicializar Worker de Tasas (Consumidor BullMQ)
 require('./src/workers/tasas.worker');
@@ -14,20 +15,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Servir archivos estáticos del Dashboard
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Montaje de APIs
 app.use('/api/v1/atenea', ateneaRoutes);
 
-// Estado del servicio
+// Servir la interfaz del Dashboard en la raíz
 app.get('/', (req, res) => {
-  res.json({
-    app: 'Glaukov Engine 🦅',
-    status: 'online',
-    timestamp: new Date().toISOString()
-  });
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Glaukov 🦅] Motor activo en puerto ${PORT}`);
-  console.log(`[Glaukov] 📊 Atenea API: http://localhost:${PORT}/api/v1/atenea`);
+  console.log(`[Glaukov] 📊 Dashboard: http://localhost:${PORT}`);
 });
