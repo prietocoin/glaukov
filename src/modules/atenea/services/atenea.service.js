@@ -6,6 +6,42 @@ const redisConnection = require('../../../config/redis');
 
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
+/**
+ * Parsea cualquier formato de cartelera de países desde la DB
+ * (Soporta JSON string, Postgres Array "{COP,PEN}", Array JS o comas)
+ */
+function parseCartelera(rawInput) {
+  if (!rawInput) return [];
+  if (Array.isArray(rawInput)) return rawInput;
+  if (typeof rawInput === 'object') return rawInput;
+
+  if (typeof rawInput === 'string') {
+    const str = rawInput.trim();
+    if (!str) return [];
+
+    // 1. Sintaxis JSON nativa
+    if (str.startsWith('[') || (str.startsWith('{') && str.includes('"'))) {
+      try { return JSON.parse(str); } catch (e) {}
+    }
+
+    // 2. Sintaxis de arreglo de PostgreSQL "{COP,PEN,ARS}"
+    if (str.startsWith('{') && str.endsWith('}')) {
+      const limpio = str.slice(1, -1).trim();
+      if (!limpio) return [];
+      return limpio.split(',').map(s => s.replace(/^"|"$/g, '').trim());
+    }
+
+    // 3. Cadena separada por comas "COP, PEN, ARS"
+    if (str.includes(',')) {
+      return str.split(',').map(s => s.trim());
+    }
+
+    return [str];
+  }
+
+  return [];
+}
+
 async function obtenerSociosYProcesarTasas() {
   const sql = `
     SELECT 
@@ -46,24 +82,27 @@ async function obtenerSociosYProcesarTasas() {
     const monedaExtraida = String(socioData.monedasocio || "USDT").toUpperCase();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
 
-    // 1. Obtener y parsear raw cartelerapaises de cualquier columna posible
-    let rawCartelera = socioData.cartelerapaises || socioData.paises || socioData.cartelera || socioData.paises_json || [];
-    if (typeof rawCartelera === 'string') {
-      try { rawCartelera = JSON.parse(rawCartelera); } catch (e) { rawCartelera = []; }
-    }
+    // Buscar en todas las columnas posibles de cartelera
+    const rawCartelera = socioData.cartelerapaises || 
+                         socioData.cartelera_paises || 
+                         socioData.paises || 
+                         socioData.cartelera || 
+                         socioData.monedas;
 
-    // 2. Normalizar estructura a Array de objetos
+    const carteleraParseada = parseCartelera(rawCartelera);
+
+    // Normalizar a objetos
     let paisesNormalizados = [];
-    if (Array.isArray(rawCartelera)) {
-      paisesNormalizados = rawCartelera.map(p => (typeof p === 'string' ? { moneda: p } : p));
-    } else if (typeof rawCartelera === 'object' && rawCartelera !== null) {
-      paisesNormalizados = Object.entries(rawCartelera).map(([key, val]) => {
+    if (Array.isArray(carteleraParseada)) {
+      paisesNormalizados = carteleraParseada.map(p => (typeof p === 'string' ? { moneda: p, activo: true } : p));
+    } else if (typeof carteleraParseada === 'object' && carteleraParseada !== null) {
+      paisesNormalizados = Object.entries(carteleraParseada).map(([key, val]) => {
         if (typeof val === 'object' && val !== null) return { moneda: key, ...val };
         return { moneda: key, activo: Boolean(val) };
       });
     }
 
-    // 3. Filtrar países activos
+    // Filtrar activos
     const paisesActivos = paisesNormalizados.filter(p => {
       if (!p) return false;
       if (p.activo === false || p.activo === 'false' || p.activo === 0 || p.activo === '0') return false;
