@@ -20,7 +20,6 @@
             width: 1080px;
         }
 
-        /* CONTENEDOR PRINCIPAL CON ALTURA DINÁMICA */
         #app-container {
             width: 1080px;
             background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
@@ -126,9 +125,7 @@
             padding-top: 12px;
         }
 
-        .col-precio {
-            width: 48%;
-        }
+        .col-precio { width: 48%; }
 
         .label-operacion {
             font-size: 18px !important;
@@ -160,6 +157,35 @@
             background-color: rgba(6, 78, 59, 0.8);
         }
 
+        /* =========================================
+           ESTILOS DE TENDENCIA MAGICA (INDICADORES)
+           ========================================= */
+        .trend-up::after {
+            content: '▲';
+            font-size: 20px;
+            color: #10b981; /* Verde brillante */
+            margin-left: 6px;
+            vertical-align: top;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .trend-down::after {
+            content: '▼';
+            font-size: 20px;
+            color: #f43f5e; /* Rojo resplandeciente */
+            margin-left: 6px;
+            vertical-align: top;
+            text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+        }
+
+        .trend-stable::after {
+            content: '➖';
+            font-size: 14px;
+            color: #64748b; /* Gris sutil */
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
         /* PIE DE PÁGINA */
         .footer {
             display: flex;
@@ -188,9 +214,7 @@
             color: #ffffff;
         }
 
-        .time-val {
-            color: #34d399;
-        }
+        .time-val { color: #34d399; }
     </style>
 </head>
 <body>
@@ -223,12 +247,14 @@
                 <div class="card-body">
                     <div class="col-precio">
                         <p class="label-operacion">Comprar</p>
-                        <p class="val-compra">{{this.compra}}</p>
+                        <!-- APLICAMOS LA CLASE DINÁMICA DE TENDENCIA -->
+                        <p class="val-compra trend-{{this.trend_compra}}">{{this.compra}}</p>
                     </div>
                     <div class="divider-vertical"></div>
                     <div class="col-precio" style="text-align: right;">
                         <p class="label-operacion">Vender</p>
-                        <p class="val-venta">{{this.venta}}</p>
+                        <!-- APLICAMOS LA CLASE DINÁMICA DE TENDENCIA -->
+                        <p class="val-venta trend-{{this.trend_venta}}">{{this.venta}}</p>
                     </div>
                 </div>
             </div>
