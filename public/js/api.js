@@ -24,13 +24,7 @@ export const AteneaAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ activo })
     });
-    if (!res.ok) throw new Error('Error al cambiar estado');
-    return await res.json();
-  },
-
-  async desactivarTodosSocios() {
-    const res = await fetch('/api/v1/atenea/socios/desactivar-todos', { method: 'PATCH' });
-    if (!res.ok) throw new Error('Error al desactivar socios');
+    if (!res.ok) throw new Error('Error al cambiar estado de socio');
     return await res.json();
   }
 };
