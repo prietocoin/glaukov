@@ -7,7 +7,6 @@
   
   <link rel="icon" type="image/png" href="/logo-fundablock.png">
   
-  <!-- Carga limpia de JS Modular (Alpine se importa dentro de app.js) -->
   <script type="module" src="/js/app.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -72,9 +71,12 @@
             <h2 class="text-xl font-extrabold text-white tracking-tight">Gestión de Comprobantes (`comprobantes_raw`)</h2>
             <p class="text-xs text-slate-400">Ingesta OCR/IA en tiempo real desde Remithub procesada por Glaukov Engine</p>
           </div>
-          <button @click="cargarComprobantes()" class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-purple-600/20">
-            🔄 Actualizar Datos
-          </button>
+          
+          <!-- INSIGNIA DE ESTADO EN VIVO -->
+          <div class="inline-flex items-center gap-2 bg-emerald-950/60 border border-emerald-800/50 px-3 py-1.5 rounded-xl text-emerald-400 text-xs font-semibold self-start md:self-auto">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Sincronizando en Vivo</span>
+          </div>
         </div>
 
         <!-- FILTROS -->
