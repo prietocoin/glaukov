@@ -158,35 +158,36 @@
             background-color: rgba(6, 78, 59, 0.8);
         }
 
-        /* =========================================
-           INDICADORES SUTILES JUNTO A LAS ETIQUETAS
-           ========================================= */
-        .trend-up::after {
-            content: '▲';
-            font-size: 16px; /* Más pequeño para combinar con el label */
-            color: #10b981; 
-            margin-left: 5px;
-            vertical-align: baseline;
-            text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-        }
+       /* =========================================
+   INDICADORES DE TENDENCIA (VERDE / ROJO / AMARILLO)
+   ========================================= */
+.trend-up::after {
+    content: '▲';
+    font-size: 15px;
+    color: #10b981; /* Verde brillante */
+    margin-left: 5px;
+    vertical-align: baseline;
+    text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
 
-        .trend-down::after {
-            content: '▼';
-            font-size: 16px;
-            color: #f43f5e; 
-            margin-left: 5px;
-            vertical-align: baseline;
-            text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
-        }
+.trend-down::after {
+    content: '▼';
+    font-size: 15px;
+    color: #f43f5e; /* Rojo vibrante */
+    margin-left: 5px;
+    vertical-align: baseline;
+    text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
+}
 
-        .trend-stable::after {
-            content: '➖';
-            font-size: 13px;
-            color: #64748b; 
-            margin-left: 5px;
-            vertical-align: middle;
-        }
-
+.trend-stable::after {
+    content: '=';
+    font-size: 17px;
+    font-weight: 900;
+    color: #facc15; /* Amarillo dorado */
+    margin-left: 5px;
+    vertical-align: middle;
+    text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+}
         /* PIE DE PÁGINA */
         .footer {
             display: flex;
