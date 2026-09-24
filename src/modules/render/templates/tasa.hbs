@@ -9,7 +9,7 @@
         
         body {
             font-family: 'Inter', 'Noto Color Emoji', sans-serif;
-            /* OPCIÓN DE FONDO ACTUAL: Gradient Deep Tech (Modificable en la sección de fondos) */
+            /* FONDO: Neon Emerald (Efecto Dinero / Financiero) */
             background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
             width: 1080px; 
             height: 1350px; 
@@ -22,7 +22,8 @@
             overflow: hidden;
         }
 
-        .marca-glow { text-shadow: 0 0 25px rgba(59, 130, 246, 0.4); }
+        /* Ajuste de brillo para que combine con el esmeralda */
+        .marca-glow { text-shadow: 0 0 25px rgba(16, 185, 129, 0.4); }
 
         #contenedor-central {
             flex-grow: 1;
@@ -42,13 +43,14 @@
             height: 100%;
         }
 
-        /* CARDS MEJORADAS CON MARCO DESTELLO SUPERIOR */
+        /* CARDS MEJORADAS: Ajustadas para fondo esmeralda */
         .card-tasa {
-            background: linear-gradient(160deg, #132235 0%, #0d1724 100%);
-            border: 1.5px solid #243852;
-            border-top: 3.5px solid #3b82f6; /* Borde de marco llamativo */
+            background: linear-gradient(160deg, #022c22 0%, #02120d 100%);
+            border: 1.5px solid #064e3b;
+            /* Borde superior ahora es verde esmeralda brillante */
+            border-top: 3.5px solid #10b981;
             border-radius: 22px;
-            box-shadow: 0 12px 35px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
             padding: 22px 28px;
             display: flex;
             flex-direction: column;
@@ -56,7 +58,6 @@
             height: 100%;
         }
 
-        /* Títulos de País y Monedas más grandes */
         h2 { 
             font-size: 2.1rem; 
             font-weight: 800; 
@@ -79,23 +80,20 @@
     <div class="flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
             <h1 class="text-5xl font-black tracking-tight marca-glow text-white flex items-center whitespace-nowrap">
-                FUNDABLOCK <span class="text-blue-500 mx-4">|</span> 
+                FUNDABLOCK <span class="text-emerald-500 mx-4">|</span> 
                 <span class="text-4xl font-semibold text-gray-300">{{nombre_socio}}</span>
             </h1>
         </div>
         <div class="flex items-center gap-6 shrink-0">
-            <div class="bg-[#1e293b]/90 border border-slate-700 px-6 py-3 rounded-full shadow-lg">
+            <div class="bg-emerald-950/80 border border-emerald-800 px-6 py-3 rounded-full shadow-lg">
                 <span class="text-xl font-semibold text-gray-300">
-                    Actualizado: <span class="text-white">{{hora_actualizacion}}</span>
+                    Actualizado: <span class="text-emerald-400 font-bold">{{hora_actualizacion}}</span>
                 </span>
             </div>
             
-            <!-- CONTENEDOR DE LOGO (Imagen o Insignia) -->
-            <div class="w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center border-2 border-blue-500/50 shadow-xl overflow-hidden p-2">
-                <!-- Puedes usar una etiqueta img con el enlace público a tu logo o Base64:
-                <img src="https://tu-dominio.com/logo.png" class="w-full h-full object-contain" alt="Logo"> 
-                -->
-                <span class="text-2xl font-black text-blue-400">FB</span>
+            <div class="w-16 h-16 bg-emerald-600/20 rounded-2xl flex items-center justify-center border-2 border-emerald-500/50 shadow-xl overflow-hidden p-2">
+                <!-- Puedes cambiar 'FB' por tu img del logo más adelante -->
+                <span class="text-2xl font-black text-emerald-400">FB</span>
             </div>
         </div>
     </div>
@@ -109,25 +107,25 @@
                     <div class="icono-bandera leading-none">{{this.bandera}}</div>
                     <h2 class="text-gray-100 tracking-wide">{{this.nombre_pais}}</h2>
                 </div>
-                <div class="flex justify-between items-center border-t border-slate-700/80 pt-3">
+                <div class="flex justify-between items-center border-t border-emerald-900/60 pt-3">
                     <div class="w-1/2 pr-2">
-                        <p class="text-label text-slate-400 font-bold tracking-widest uppercase mb-1">Comprar</p>
+                        <p class="text-label text-emerald-600/80 font-bold tracking-widest uppercase mb-1">Comprar</p>
                         <p class="font-extrabold text-emerald-400 val-num leading-none">{{this.compra}}</p>
                     </div>
-                    <div class="w-[1px] h-12 bg-slate-700/80 mx-2"></div>
+                    <div class="w-[1px] h-12 bg-emerald-900/50 mx-2"></div>
                     <div class="w-1/2 pl-2 text-right">
-                        <p class="text-label text-slate-400 font-bold tracking-widest uppercase mb-1">Vender</p>
+                        <p class="text-label text-emerald-600/80 font-bold tracking-widest uppercase mb-1">Vender</p>
                         <p class="font-extrabold text-rose-400 val-num leading-none">{{this.venta}}</p>
                     </div>
                 </div>
             </div>
-            {{#each}}
+            {{/each}}
         </div>
     </div>
 
     <!-- PIE DE IMAGEN -->
-    <div class="shrink-0 text-center text-slate-500 text-xl font-medium">
-        Tasa base referencial: <span class="text-slate-400">{{tasa_base_ref}}</span> • Generado por Glaukov Engine
+    <div class="shrink-0 text-center text-emerald-700/80 text-xl font-medium">
+        Tasa base referencial: <span class="text-emerald-600">{{tasa_base_ref}}</span> • Generado por Glaukov Engine
     </div>
 
 </body>
