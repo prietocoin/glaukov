@@ -9,12 +9,11 @@
         
         body {
             font-family: 'Inter', 'Noto Color Emoji', sans-serif;
-            /* FONDO: Neon Emerald */
             background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
             width: 1080px; 
             height: 1350px; 
             margin: 0;
-            padding: 55px;
+            padding: 50px;
             color: #ffffff;
             box-sizing: border-box;
             display: flex;
@@ -29,39 +28,39 @@
             display: flex;
             flex-direction: column;
             width: 100%;
-            margin: 25px 0;
+            margin: 20px 0;
         }
 
         .grid-tasas {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            grid-auto-rows: 175px;
+            grid-auto-rows: 180px;
             align-content: space-evenly;
             column-gap: 35px;
             width: 100%;
             height: 100%;
         }
 
-        /* CARDS MEJORADAS CON MARCO DESTELLO SUPERIOR */
         .card-tasa {
             background: linear-gradient(160deg, #022c22 0%, #02120d 100%);
             border: 1.5px solid #064e3b;
             border-top: 3.5px solid #10b981;
             border-radius: 22px;
             box-shadow: 0 12px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
-            padding: 20px 28px;
+            padding: 18px 26px;
             display: flex;
             flex-direction: column;
             justify-content: space-between; 
             height: 100%;
         }
 
-        /* Nombres de Países más grandes */
+        /* Nombres de Países más grandes y destacados */
         h2 { 
-            font-size: 2.5rem; 
-            font-weight: 800; 
+            font-size: 2.7rem; 
+            font-weight: 900; 
             letter-spacing: -0.02em;
             color: #ffffff;
+            line-height: 1.1;
         }
         
         .val-num { font-size: 2.65rem; }
@@ -76,7 +75,7 @@
 </head>
 <body>
 
-    <!-- CABECERA DE MARCA Y LOGO (Limpia) -->
+    <!-- CABECERA -->
     <div class="flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
             <h1 class="text-5xl font-black tracking-tight marca-glow text-white flex items-center whitespace-nowrap">
@@ -85,10 +84,14 @@
             </h1>
         </div>
         
-        <!-- ESPACIO DEDICADO PARA EL LOGO -->
-<div class="w-20 h-20 bg-emerald-600/20 rounded-2xl flex items-center justify-center border-2 border-emerald-500/50 shadow-xl overflow-hidden p-1">
-    <img src="/logo-fundablock.png" class="w-full h-full object-contain" alt="FUNDABLOCK">
-</div>
+        <!-- LOGO EN BASE64 -->
+        <div class="w-24 h-24 bg-emerald-950/80 rounded-2xl flex items-center justify-center border-2 border-emerald-500/50 shadow-xl overflow-hidden p-2">
+            {{#if logo_src}}
+                <img src="{{logo_src}}" class="w-full h-full object-contain" alt="FUNDABLOCK">
+            {{else}}
+                <span class="text-3xl font-black text-emerald-400">FB</span>
+            {{/if}}
+        </div>
     </div>
 
     <!-- CUERPO CENTRAL -->
@@ -97,10 +100,10 @@
             {{#each tarjetas_paises}}
             <div class="card-tasa">
                 <div class="flex items-center gap-4 mb-1">
-                    <div class="icono-bandera leading-none">{{this.bandera}}</div>
-                    <h2 class="text-white tracking-wide leading-tight">{{this.nombre_pais}}</h2>
+                    <div class="icono-bandera leading-none shrink-0">{{this.bandera}}</div>
+                    <h2 class="text-white tracking-wide truncate">{{this.nombre_pais}}</h2>
                 </div>
-                <div class="flex justify-between items-center border-t border-emerald-900/60 pt-3">
+                <div class="flex justify-between items-center border-t border-emerald-900/60 pt-2">
                     <div class="w-1/2 pr-2">
                         <p class="text-label text-white font-bold tracking-widest uppercase mb-1">Comprar</p>
                         <p class="font-extrabold text-emerald-400 val-num leading-none">{{this.compra}}</p>
@@ -116,15 +119,14 @@
         </div>
     </div>
 
-    <!-- PIE DE IMAGEN CON ACTUALIZADO ABAJO A LA DERECHA -->
+    <!-- PIE DE IMAGEN EN BLANCO -->
     <div class="shrink-0 flex justify-between items-center pt-2">
-        <div class="text-emerald-700/80 text-xl font-medium">
-            Tasa base referencial: <span class="text-emerald-600 font-semibold">{{tasa_base_ref}}</span> • Glaukov Engine
+        <div class="text-white text-xl font-semibold tracking-wide">
+            Tasa base referencial: <span class="text-emerald-300 font-bold">{{tasa_base_ref}}</span> • Glaukov Engine
         </div>
 
-        <!-- HORA Y ACTUALIZACIÓN REUBICADA ABAJO A LA DERECHA -->
-        <div class="bg-emerald-950/90 border border-emerald-800 px-6 py-2.5 rounded-full shadow-lg">
-            <span class="text-lg font-medium text-gray-300">
+        <div class="bg-emerald-950/90 border border-emerald-700 px-6 py-2.5 rounded-full shadow-lg">
+            <span class="text-lg font-semibold text-gray-200">
                 Actualizado: <span class="text-white font-bold">{{hora_actualizacion}}</span>
             </span>
         </div>
