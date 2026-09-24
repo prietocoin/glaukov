@@ -2,15 +2,14 @@ const db = require('../../../config/db');
 const { aplicarReglaPrecisionTasa, aplicarPrecisionMonto } = require('../../../utils/formatters');
 
 /**
- * Consulta unificada uniendo comprobantes_raw con impactos_raw e identificando
- * al socio por su ID de WhatsApp / Grupo en nombres_fb.
+ * Consulta de comprobantes con garantía de unicidad por hash_largo
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   const { socio, rol, fechaInicio, fechaFin, hash, orden = 'fecha_desc' } = filtros;
   const targetSocio = (socio || '').trim();
 
   let sql = `
-    SELECT 
+    SELECT DISTINCT ON (c.hash_largo)
       c.hash_largo,
       COALESCE(i.hash_corto, SUBSTRING(c.hash_largo FROM 1 FOR 7)) AS hash_corto,
       c.creado_en,
@@ -26,7 +25,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       i.nombre_push,
       i.caption,
 
-      -- Identificación precisa del socio cruzando origen de WhatsApp con nombres_fb
+      -- Prioridad de resolución de socio sin duplicación de filas
       COALESCE(n_grupo.nombre, n_user.nombre, n_titular.nombre, 'GENERAL') AS nombre_socio_1,
       CASE 
         WHEN UPPER(TRIM(COALESCE(n_grupo.moneda_socio, n_user.moneda_socio, n_titular.moneda_socio, 'USDT'))) = 'USD' THEN 'USDT'
@@ -40,11 +39,17 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       ON LOWER(TRIM(c.hash_largo)) = LOWER(TRIM(i.hash_largo)) 
      AND UPPER(TRIM(i.instancia)) = 'JAIRO'
     LEFT JOIN nombres_fb n_grupo 
-      ON LOWER(TRIM(n_grupo.whatsapp)) = LOWER(TRIM(i.grupo_raw)) OR LOWER(TRIM(n_grupo.id_grupo)) = LOWER(TRIM(i.grupo_raw))
+      ON (LOWER(TRIM(n_grupo.whatsapp)) = LOWER(TRIM(i.grupo_raw)) OR LOWER(TRIM(n_grupo.id_grupo)) = LOWER(TRIM(i.grupo_raw)))
+     AND i.grupo_raw IS NOT NULL AND TRIM(i.grupo_raw) != ''
     LEFT JOIN nombres_fb n_user 
       ON LOWER(TRIM(n_user.whatsapp)) = LOWER(TRIM(i.usuario_raw))
+     AND i.usuario_raw IS NOT NULL AND TRIM(i.usuario_raw) != ''
     LEFT JOIN nombres_fb n_titular 
-      ON UPPER(TRIM(c.titular)) ILIKE '%' || UPPER(TRIM(n_titular.nombre)) || '%'
+      ON c.titular IS NOT NULL 
+     AND LENGTH(TRIM(c.titular)) > 2 
+     AND c.titular != '-'
+     AND LENGTH(TRIM(n_titular.nombre)) > 2
+     AND UPPER(TRIM(c.titular)) ILIKE '%' || UPPER(TRIM(n_titular.nombre)) || '%'
 
     WHERE UPPER(TRIM(c.instancia)) = 'JAIRO'
   `;
@@ -90,9 +95,17 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     paramIndex++;
   }
 
-  sql += (orden === 'fecha_asc') ? ` ORDER BY c.creado_en ASC LIMIT 100;` : ` ORDER BY c.creado_en DESC LIMIT 100;`;
+  sql += ` ORDER BY c.hash_largo, c.creado_en DESC;`;
 
-  const { rows } = await db.query(sql, values);
+  // Subconsulta wrapper para ordenar la lista final por fecha real
+  const queryFinal = `
+    WITH unicos AS (${sql})
+    SELECT * FROM unicos 
+    ORDER BY creado_en ${orden === 'fecha_asc' ? 'ASC' : 'DESC'}
+    LIMIT 100;
+  `;
+
+  const { rows } = await db.query(queryFinal, values);
 
   return rows.map(r => {
     const monto = aplicarPrecisionMonto(r.monto);
