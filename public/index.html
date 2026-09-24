@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Glaukov Engine - Atenea Control Panel</title>
+  <title>Fundablock - Glaukov Engine Atenea V2.0</title>
   
   <link rel="icon" type="image/png" href="/logo-fundablock.png">
-  
   <script type="module" src="/js/app.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -16,142 +15,338 @@
       darkMode: 'class',
       theme: {
         extend: {
-          colors: { brand: { dark: '#0b0d19', card: '#131525', border: '#20243a', accent: '#8b5cf6' } }
+          colors: { 
+            glaukov: { 
+              bg: '#030611', 
+              card: '#080e26', 
+              border: '#16224f', 
+              blue: '#2563eb', 
+              neon: '#06b6d4',
+              pink: '#ec4899',
+              green: '#10b981'
+            } 
+          }
         }
       }
     }
   </script>
 </head>
-<body class="bg-[#0b0d19] text-slate-200 font-sans antialiased min-h-screen" x-data="app" x-cloak>
+<body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen" x-data="app" x-cloak>
 
   <div class="flex flex-col md:flex-row min-h-screen">
     
-    <!-- BARRA LATERAL NAV -->
-    <aside class="w-full md:w-64 bg-[#101221] border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0">
+    <!-- BARRA LATERAL NAV AZUL GLOW -->
+    <aside class="w-full md:w-64 bg-[#050b1e] border-r border-blue-900/40 p-4 flex flex-col justify-between shrink-0 shadow-2xl">
       <div>
-        <div class="flex items-center gap-3 px-2 py-3 mb-6 border-b border-slate-800">
-          <div class="w-10 h-10 rounded-xl border border-purple-500/40 bg-[#16192b] p-1 flex items-center justify-center shadow-lg shrink-0">
+        <div class="flex items-center gap-3 px-2 py-3 mb-6 border-b border-blue-900/50">
+          <div class="w-10 h-10 rounded-xl border border-cyan-500/50 bg-[#091333] p-1 flex items-center justify-center shadow-lg shadow-cyan-500/10 shrink-0">
             <img src="/logo-fundablock.png" alt="Logo" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/40?text=FB'">
           </div>
           <div>
-            <h1 class="font-extrabold text-white text-base tracking-wide">FUNDABLOCK</h1>
-            <p class="text-[10px] text-purple-400 font-semibold uppercase tracking-wider">Glaukov Engine</p>
+            <h1 class="font-extrabold text-white text-base tracking-wide flex items-center gap-1.5">
+              FUNDABLOCK
+            </h1>
+            <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">ATENEA PANEL V2.0</p>
           </div>
         </div>
 
-        <nav class="space-y-1.5">
-          <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Auditoría en Vivo</p>
+        <nav class="space-y-2">
+          <p class="px-3 text-[10px] font-bold text-blue-400/70 uppercase tracking-widest mb-1">Auditoría en Vivo</p>
           <button @click="vistaActiva = 'comprobantes'" 
-                  :class="vistaActiva === 'comprobantes' ? 'bg-purple-600/25 text-purple-300 border border-purple-500/40 shadow-lg' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'" 
-                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all">
-            📄 Comprobantes Raw
+                  :class="vistaActiva === 'comprobantes' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white'" 
+                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all">
+            📄 Comprobantes
           </button>
-          
+
+          <button @click="vistaActiva = 'cartelera'" 
+                  :class="vistaActiva === 'cartelera' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white'" 
+                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all">
+            💲 Baúl & Cartelera Tasas
+          </button>
+
+          <p class="px-3 text-[10px] font-bold text-blue-400/70 uppercase tracking-widest mt-6 mb-1">Base de Datos & Matriz</p>
           <button @click="vistaActiva = 'directorio'" 
-                  :class="vistaActiva === 'directorio' ? 'bg-purple-600/25 text-purple-300 border border-purple-500/40 shadow-lg' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'" 
-                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all">
-            👥 Directorio de Socios
+                  :class="vistaActiva === 'directorio' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white'" 
+                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all">
+            👥 Directorio (nombres_fb)
           </button>
         </nav>
       </div>
 
-      <div class="pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 flex justify-between items-center">
-        <span>Instancia: <strong class="text-purple-400">JAIRO</strong></span>
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      <div class="pt-4 border-t border-blue-900/40 text-[11px] text-slate-400 flex justify-between items-center">
+        <span>Instancia: <strong class="text-cyan-400 font-extrabold">JAIRO</strong></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50"></span>
       </div>
     </aside>
 
     <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 p-4 md:p-6 overflow-x-hidden space-y-6">
       
-      <!-- VISTA COMPROBANTES -->
-      <div x-show="vistaActiva === 'comprobantes'" class="space-y-4">
+      <!-- VISTA 1: GESTIÓN DE COMPROBANTES V2.0 -->
+      <div x-show="vistaActiva === 'comprobantes'" class="space-y-5">
+        
+        <!-- HEADER ENCABEZADO -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 class="text-xl font-extrabold text-white tracking-tight">Gestión de Comprobantes (`comprobantes_raw`)</h2>
-            <p class="text-xs text-slate-400">Ingesta OCR/IA en tiempo real desde Remithub procesada por Glaukov Engine</p>
+            <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              Gestión De Comprobantes & IA
+            </h2>
+            <p class="text-xs text-slate-400">Auditoría centralizada con saldos en vivo, tasas editables y filtrado inteligente.</p>
           </div>
-          
-          <!-- INSIGNIA DE ESTADO EN VIVO -->
-          <div class="inline-flex items-center gap-2 bg-emerald-950/60 border border-emerald-800/50 px-3 py-1.5 rounded-xl text-emerald-400 text-xs font-semibold self-start md:self-auto">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Sincronizando en Vivo</span>
-          </div>
-        </div>
-
-        <!-- FILTROS -->
-        <div class="bg-[#131525] p-4 rounded-2xl border border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 shadow-xl">
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Filtrar Socio</label>
-            <select x-model="filtroSocio" @change="cargarComprobantes()" class="w-full bg-[#0b0d19] border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-slate-200">
-              <option value="">-- Todos --</option>
-              <template x-for="s in socios" :key="s">
-                <option :value="s" x-text="s"></option>
-              </template>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Buscar Hash</label>
-            <input type="text" x-model="filtroHash" @input.debounce.400ms="cargarComprobantes()" placeholder="Ej: 42292D..." class="w-full bg-[#0b0d19] border border-slate-700/80 rounded-xl px-3 py-1.5 text-xs text-slate-200">
+          <div class="flex items-center gap-3 self-start md:self-auto">
+            <div class="inline-flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/40 px-3.5 py-1.5 rounded-xl text-emerald-400 text-xs font-extrabold shadow-lg shadow-emerald-500/10">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Sincronizando en Vivo</span>
+            </div>
           </div>
         </div>
 
-        <!-- TABLA COMPROBANTES -->
-        <div class="bg-[#131525] rounded-2xl border border-slate-800/80 overflow-hidden shadow-2xl">
+        <!-- TARJETAS DE MÉTRICAS KPI SUPERIORES -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div class="bg-[#080e26] p-3.5 rounded-2xl border border-blue-900/50 shadow-xl">
+            <p class="text-[10px] font-extrabold text-blue-400/80 uppercase">SUJETO / ENTIDAD AUDITADA</p>
+            <h3 class="text-lg font-black text-white mt-1 truncate" x-text="sujetoAuditado"></h3>
+          </div>
+
+          <div class="bg-[#080e26] p-3.5 rounded-2xl border border-blue-900/50 shadow-xl">
+            <p class="text-[10px] font-extrabold text-blue-400/80 uppercase">COMPROBANTES FILTRADOS</p>
+            <h3 class="text-lg font-black text-cyan-300 mt-1" x-text="comprobantes.length + ' operados'"></h3>
+          </div>
+
+          <div class="bg-[#080e26] p-3.5 rounded-2xl border border-amber-500/30 shadow-xl">
+            <p class="text-[10px] font-extrabold text-amber-400 uppercase">SALDO ANTERIOR (EDITABLE)</p>
+            <div class="flex items-center gap-1.5 mt-1">
+              <input type="number" x-model="saldoAnterior" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-0.5 text-sm font-bold text-amber-300 focus:outline-none">
+              <span class="text-xs font-bold text-slate-400" x-text="monedaSocioDominante"></span>
+            </div>
+          </div>
+
+          <div class="bg-[#080e26] p-3.5 rounded-2xl border border-blue-900/50 shadow-xl">
+            <p class="text-[10px] font-extrabold text-blue-400/80 uppercase">MOVIMIENTO FILTRADO</p>
+            <h3 class="text-lg font-black text-pink-400 mt-1" x-text="movimientoFiltradoTotal.toFixed(2) + ' ' + monedaSocioDominante"></h3>
+          </div>
+
+          <div class="bg-[#080e26] p-3.5 rounded-2xl border border-emerald-500/30 shadow-xl">
+            <p class="text-[10px] font-extrabold text-emerald-400 uppercase">SALDO ACTUAL (TOTAL)</p>
+            <h3 class="text-lg font-black text-emerald-300 mt-1" x-text="saldoActualTotal.toFixed(2) + ' ' + monedaSocioDominante"></h3>
+          </div>
+        </div>
+
+        <!-- BARRA MULTIFILTROS ESTILO ATENEA V2 -->
+        <div class="bg-[#080e26] p-4 rounded-2xl border border-blue-900/50 shadow-2xl space-y-3">
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">1. ROL</label>
+              <select x-model="filtroRol" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-200">
+                <option value="">Todos los Roles</option>
+                <option value="SOCIO">SOCIO</option>
+                <option value="ASESOR">ASESOR</option>
+                <option value="GRUPO">GRUPO</option>
+                <option value="COMPRAS">COMPRAS</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">2. SOCIO / ENTIDAD</label>
+              <select x-model="filtroSocio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-200">
+                <option value="">-- Todos --</option>
+                <template x-for="s in socios" :key="s">
+                  <option :value="s" x-text="s"></option>
+                </template>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">3. FECHA INICIO</label>
+              <input type="date" x-model="filtroFechaInicio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2 py-1 text-xs text-slate-200">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">4. FECHA FIN</label>
+              <input type="date" x-model="filtroFechaFin" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2 py-1 text-xs text-slate-200">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">5. DESDE HASH</label>
+              <input type="text" x-model="filtroDesdeHash" placeholder="NINGUNO" class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2.5 py-1.5 text-xs text-slate-200">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">6. HASTA HASH</label>
+              <input type="text" x-model="filtroHastaHash" placeholder="NINGUNO" class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2.5 py-1.5 text-xs text-slate-200">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">7. ORDENAR POR</label>
+              <select x-model="ordenarPor" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2 py-1.5 text-xs font-bold text-slate-200">
+                <option value="fecha_desc">Recientes primero</option>
+                <option value="fecha_asc">Antiguos primero</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-extrabold text-blue-400/80 uppercase mb-1">BUSCAR HASH</label>
+              <input type="text" x-model="filtroHashBusqueda" @input.debounce.400ms="cargarComprobantes()" placeholder="Buscar..." class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-2.5 py-1.5 text-xs text-slate-200">
+            </div>
+          </div>
+        </div>
+
+        <!-- TABLA COMPROBANTES ENRIQUECIDA -->
+        <div class="bg-[#080e26] rounded-2xl border border-blue-900/50 overflow-hidden shadow-2xl">
           <div class="overflow-x-auto">
             <table class="w-full text-xs text-left border-collapse">
-              <thead class="bg-[#171a2e] text-slate-400 uppercase font-bold text-[10px] border-b border-slate-800">
+              <thead class="bg-[#0c163a] text-blue-300 uppercase font-black text-[10px] tracking-wider border-b border-blue-900/60">
                 <tr>
-                  <th class="px-4 py-3">HASH</th>
-                  <th class="px-4 py-3">FECHA / HORA</th>
+                  <th class="px-4 py-3 text-center">IMAGEN & R2</th>
+                  <th class="px-4 py-3">HASH / ESTADO</th>
                   <th class="px-4 py-3">MONTO & MONEDA</th>
-                  <th class="px-4 py-3">BANCO & TITULAR</th>
-                  <th class="px-4 py-3">SOCIO & TASA</th>
+                  <th class="px-4 py-3">LOTE & TIPO</th>
+                  <th class="px-4 py-3">BANCO / TITULAR</th>
                   <th class="px-4 py-3">REFERENCIA</th>
-                  <th class="px-4 py-3 text-center">ACCIONES</th>
+                  <th class="px-4 py-3">SOCIOS, TASAS & MONTOS</th>
+                  <th class="px-4 py-3">FECHA / HORA</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-800/60 font-medium">
+              <tbody class="divide-y divide-blue-950/60 font-medium">
                 <template x-for="item in comprobantes" :key="item.hash_largo">
-                  <tr class="hover:bg-purple-950/10 transition-colors">
-                    <td class="px-4 py-3 font-mono font-bold text-purple-300" x-text="item.hash_corto || item.hash_largo.substring(0,7)"></td>
-                    <td class="px-4 py-3 text-slate-400 text-[11px]" x-text="formatearFecha(item.fecha_hora_comprobante)"></td>
-                    <td class="px-4 py-3 font-bold text-emerald-400" x-text="item.monto + ' ' + item.moneda"></td>
+                  <tr class="hover:bg-blue-950/30 transition-colors">
+                    
+                    <!-- IMAGEN MINIATURA -->
+                    <td class="px-4 py-3 text-center">
+                      <button @click="verDetalleImagen(item)" class="w-9 h-9 rounded-xl bg-[#030611] border border-blue-800/60 p-0.5 hover:border-cyan-400 transition-all shadow-md inline-flex items-center justify-center overflow-hidden">
+                        <template x-if="item.url_imagen">
+                          <img :src="item.url_imagen" alt="R2" class="w-full h-full object-cover rounded-lg">
+                        </template>
+                        <template x-if="!item.url_imagen">
+                          <span class="text-xs">🖼️</span>
+                        </template>
+                      </button>
+                    </td>
+
+                    <!-- HASH & ESTADO -->
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-mono font-bold text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40" x-text="item.hash_corto || item.hash_largo.substring(0,7)"></span>
+                      </div>
+                      <span class="inline-block mt-1 text-[9px] font-extrabold text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-1.5 py-0.2 rounded">✓ IA OK</span>
+                    </td>
+
+                    <!-- MONTO & MONEDA -->
+                    <td class="px-4 py-3">
+                      <p class="font-black text-emerald-400 text-sm" x-text="item.monto + ' ' + item.moneda"></p>
+                      <p class="text-[10px] text-slate-400 font-mono" x-text="'≈ $' + item.m1_usdt + ' USD'"></p>
+                    </td>
+
+                    <!-- LOTE & TIPO -->
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-1">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-purple-950 text-purple-300 border border-purple-800/50">T039</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-950 text-amber-300 border border-amber-800/50" x-text="item.tipo_op_socio || 'D'"></span>
+                      </div>
+                    </td>
+
+                    <!-- BANCO / TITULAR -->
                     <td class="px-4 py-3">
                       <p class="font-bold text-white uppercase" x-text="item.banco || '-'"></p>
                       <p class="text-[10px] text-slate-400 uppercase" x-text="item.titular || '-'"></p>
                     </td>
-                    <td class="px-4 py-3 font-bold text-purple-200" x-text="item.nombre_socio_1 + ' (T: ' + item.tasa_1 + ')'"></td>
+
+                    <!-- REFERENCIA -->
                     <td class="px-4 py-3 font-mono text-slate-300 text-[11px]" x-text="item.referencia || '-'"></td>
-                    <td class="px-4 py-3 text-center">
-                      <button @click="verDetalleImagen(item)" class="p-1.5 bg-slate-800 hover:bg-purple-600 text-slate-300 hover:text-white rounded-lg transition-all">🖼️</button>
+
+                    <!-- SOCIOS & TASAS -->
+                    <td class="px-4 py-3">
+                      <div class="space-y-1">
+                        <div class="flex items-center justify-between gap-2 bg-[#030611] px-2 py-1 rounded-lg border border-blue-900/40">
+                          <span class="font-extrabold text-cyan-300 uppercase" x-text="item.nombre_socio_1"></span>
+                          <span class="text-[9px] font-bold bg-purple-900/50 text-purple-200 px-1.5 py-0.2 rounded border border-purple-700/40" x-text="'T1: ' + item.tasa_1"></span>
+                        </div>
+                        <p class="text-[10px] text-pink-400 font-bold px-1" x-text="'M1: ' + item.m1_socio + ' ' + item.moneda"></p>
+                      </div>
                     </td>
+
+                    <!-- FECHA / HORA -->
+                    <td class="px-4 py-3 text-slate-400 text-[11px] font-mono" x-text="formatearFecha(item.fecha_hora_comprobante)"></td>
+
                   </tr>
                 </template>
               </tbody>
             </table>
           </div>
         </div>
+
       </div>
 
-      <!-- VISTA DIRECTORIO -->
-      <div x-show="vistaActiva === 'directorio'" class="space-y-4">
-        <h2 class="text-xl font-extrabold text-white tracking-tight">Directorio de Socios (`nombres_fb`)</h2>
+      <!-- VISTA 2: BAÚL & CARTELERA DE TASAS (ESTILO AZUL NEÓN) -->
+      <div x-show="vistaActiva === 'cartelera'" class="space-y-5">
         
-        <div class="bg-[#131525] p-3 rounded-2xl border border-slate-800/80">
-          <input type="text" x-model="busquedaDirectorio" placeholder="Buscar socio por nombre..." class="w-full bg-[#0b0d19] border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        <div class="flex justify-between items-center border-b border-blue-900/50 pb-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-3xl font-black text-white tracking-wide">FUNDABLOCK</h2>
+            <span class="text-2xl text-blue-500 font-light">|</span>
+            <span class="text-xl font-bold text-cyan-300" x-text="filtroSocio || 'MATRIZ GENERAL'"></span>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] text-blue-400 font-bold uppercase">Última Sincronización</p>
+            <p class="text-xs font-mono text-slate-300" x-text="ultimaActualizacion || 'En Vivo'"></p>
+          </div>
+        </div>
+
+        <!-- GRID DE PAÍSES DE LA CARTELERA -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="c in carteleraTasas" :key="c.pais">
+            <div class="bg-[#060c24] rounded-2xl border border-blue-500/30 p-4 space-y-3 shadow-xl hover:border-cyan-400/60 transition-all shadow-blue-900/20">
+              
+              <div class="flex items-center gap-2">
+                <span class="text-2xl" x-text="c.bandera"></span>
+                <h3 class="font-extrabold text-white text-base tracking-wide" x-text="c.pais"></h3>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-blue-900/50">
+                <div class="bg-[#030611] p-2.5 rounded-xl border border-blue-900/40">
+                  <p class="text-[9px] font-extrabold text-slate-400 uppercase flex items-center gap-1">
+                    COMPRAR <span class="text-emerald-400">▲</span>
+                  </p>
+                  <p class="text-xl font-black text-emerald-400 mt-0.5" x-text="c.comprar"></p>
+                </div>
+
+                <div class="bg-[#030611] p-2.5 rounded-xl border border-blue-900/40">
+                  <p class="text-[9px] font-extrabold text-slate-400 uppercase flex items-center gap-1">
+                    VENDER <span class="text-pink-400">▲</span>
+                  </p>
+                  <p class="text-xl font-black text-pink-400 mt-0.5" x-text="c.vender"></p>
+                </div>
+              </div>
+
+            </div>
+          </template>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-4 border-t border-blue-900/40 font-mono">
+          <span>Tasa base referencial: <strong class="text-cyan-400">T039 24/09/2026</strong> • Glaukov Engine</span>
+          <span>Actualizado: <strong class="text-emerald-400" x-text="ultimaActualizacion"></strong></span>
+        </div>
+
+      </div>
+
+      <!-- VISTA 3: DIRECTORIO DE SOCIOS -->
+      <div x-show="vistaActiva === 'directorio'" class="space-y-4">
+        <h2 class="text-xl font-black text-white tracking-tight">Directorio de Socios (`nombres_fb`)</h2>
+        
+        <div class="bg-[#080e26] p-3 rounded-2xl border border-blue-900/50 shadow-xl">
+          <input type="text" x-model="busquedaDirectorio" placeholder="Buscar socio por nombre..." class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-3.5 py-2 text-xs text-slate-200">
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <template x-for="d in directorioFiltrado" :key="d.nombre">
-            <div class="bg-[#131525] rounded-2xl border border-slate-800/80 p-4 flex items-center justify-between shadow-lg">
+            <div class="bg-[#080e26] rounded-2xl border border-blue-900/50 p-4 flex items-center justify-between shadow-xl">
               <div>
                 <h3 class="font-extrabold text-white text-base" x-text="d.nombre"></h3>
-                <p class="text-[10px] text-purple-400 font-bold" x-text="d.roles || 'SOCIO'"></p>
+                <p class="text-[10px] text-cyan-400 font-bold" x-text="d.roles || 'SOCIO'"></p>
               </div>
               <button @click="toggleEstadoSocio(d)" 
                       :class="d.activo ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-rose-500/20 text-rose-400 border-rose-500/50'"
-                      class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold border transition-all"
+                      class="px-3 py-1 rounded-xl text-[10px] font-black border transition-all"
                       x-text="d.activo ? 'ACTIVO' : 'INACTIVO'">
               </button>
             </div>
@@ -162,16 +357,24 @@
     </main>
   </div>
 
-  <!-- MODAL IMAGEN -->
-  <div x-show="modalImagenAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="modalImagenAbierto = false">
-    <div class="bg-[#131525] border border-slate-800 rounded-2xl max-w-2xl w-full p-5 space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-white text-sm" x-text="'Comprobante: ' + (itemSeleccionado?.hash_largo || '')"></h3>
+  <!-- MODAL VISOR R2 / CAPTION -->
+  <div x-show="modalImagenAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" @click.self="modalImagenAbierto = false">
+    <div class="bg-[#080e26] border border-blue-500/40 rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
+        <h3 class="font-black text-white text-sm" x-text="'Comprobante: ' + (itemSeleccionado?.hash_largo || '')"></h3>
         <button @click="modalImagenAbierto = false" class="text-slate-400 hover:text-white font-bold">✕</button>
       </div>
+
       <template x-if="itemSeleccionado?.url_imagen">
-        <div class="max-h-96 overflow-hidden rounded-xl border border-slate-800 flex justify-center bg-black">
-          <img :src="itemSeleccionado.url_imagen" alt="Comprobante" class="max-h-96 object-contain">
+        <div class="max-h-96 overflow-hidden rounded-xl border border-blue-900/60 flex justify-center bg-black">
+          <img :src="itemSeleccionado.url_imagen" alt="Comprobante R2" class="max-h-96 object-contain">
+        </div>
+      </template>
+
+      <template x-if="itemSeleccionado?.caption">
+        <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/60 text-xs font-mono text-cyan-300">
+          <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">WhatsApp Caption:</p>
+          <p x-text="itemSeleccionado.caption"></p>
         </div>
       </template>
     </div>
