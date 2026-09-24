@@ -10,22 +10,23 @@ const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
  */
 async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
   const evolutionUrl = process.env.EVOLUTION_API_URL;
-  // Soporta tanto EVOLUTION_API_KEY como AUTHENTICATION_API_KEY de EasyPanel
   const apiKey = process.env.EVOLUTION_API_KEY || process.env.AUTHENTICATION_API_KEY;
   const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'Jairo';
 
   if (!evolutionUrl || !apiKey) {
-    console.warn('[Glaukov Worker ⚠️] EVOLUTION_API_URL o API Key no configuradas en las variables de entorno.');
+    console.warn('[Glaukov Worker ⚠️] EVOLUTION_API_URL o API Key no configuradas.');
     return;
   }
 
-  // Formatear Base64 con prefijo MIME
-  const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+  // Base64 puro sin encabezado Data URI
+  const rawBase64 = imageBuffer.toString('base64');
 
   const payload = {
     number: remoteJid,
-    media: base64Image,
+    media: rawBase64,
     mediatype: 'image',
+    mimetype: 'image/jpeg',
+    fileName: 'tasa.jpg',
     caption: caption || 'Actualización de tasa 📊'
   };
 
@@ -39,7 +40,7 @@ async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
       },
       timeout: 30000
     });
-    console.log(`[Glaukov Worker 🟢] Mensaje enviado a ${remoteJid}: Status ${response.status}`);
+    console.log(`[Glaukov Worker 🟢] Mensaje enviado exitosamente a ${remoteJid} (Status ${response.status})`);
   } catch (error) {
     console.error(`[Glaukov Worker ❌] Error enviando a Evolution API (${remoteJid}):`, error.response?.data || error.message);
   }
