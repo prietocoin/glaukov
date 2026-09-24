@@ -1,13 +1,11 @@
 const { Worker, Queue } = require('bullmq');
-const axios = require('axios');
 const redisConnection = require('../config/redis');
-// ✅ Ruta corregida (apunta directamente a src/render):
 const { generarImagenTasa } = require('../render/services/puppeteer.service');
 
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
 /**
- * Envía la imagen renderizada por WhatsApp a través de Evolution API
+ * Envía la imagen renderizada por WhatsApp a través de Evolution API (vía fetch nativo)
  */
 async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
   const evolutionUrl = process.env.EVOLUTION_API_URL;
@@ -19,7 +17,6 @@ async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
     return;
   }
 
-  // Base64 puro sin encabezado Data URI
   const rawBase64 = imageBuffer.toString('base64');
 
   const payload = {
@@ -34,16 +31,23 @@ async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
   const urlFinal = `${evolutionUrl.replace(/\/$/, '')}/message/sendMedia/${instanceName}`;
 
   try {
-    const response = await axios.post(urlFinal, payload, {
+    const response = await fetch(urlFinal, {
+      method: 'POST',
       headers: {
         'apikey': apiKey,
         'Content-Type': 'application/json'
       },
-      timeout: 30000
+      body: JSON.stringify(payload)
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
     console.log(`[Glaukov Worker 🟢] Mensaje enviado exitosamente a ${remoteJid} (Status ${response.status})`);
   } catch (error) {
-    console.error(`[Glaukov Worker ❌] Error enviando a Evolution API (${remoteJid}):`, error.response?.data || error.message);
+    console.error(`[Glaukov Worker ❌] Error enviando a Evolution API (${remoteJid}):`, error.message);
   }
 }
 
@@ -54,7 +58,7 @@ const tasasWorker = new Worker(
     const datosSocio = job.data;
     console.log(`[Glaukov Worker ⚙️] Procesando imagen para: ${datosSocio.nombre_socio}`);
 
-    // 1. Renderizar imagen 1080x1350 via Puppeteer
+    // 1. Renderizar imagen 1080x1350 vía Puppeteer
     const imageBuffer = await generarImagenTasa(datosSocio);
 
     // 2. Despachar a WhatsApp si existe un remoteJid válido
