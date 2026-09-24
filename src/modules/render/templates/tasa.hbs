@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Color+Emoji&display=swap');
         
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'Noto Color Emoji', sans-serif;
             background: linear-gradient(135deg, #091e2b 0%, #0d2b39 50%, #0b1a24 100%);
             width: 1080px; 
             height: 1350px; 
@@ -55,7 +55,10 @@
 
         h2 { font-size: 1.6rem; }
         .val-num { font-size: 2.6rem; }
-        .icono-bandera { font-size: 2.2rem; }
+        .icono-bandera { 
+            font-size: 2.2rem; 
+            font-family: 'Noto Color Emoji', 'Inter', sans-serif;
+        }
         .text-label { font-size: 0.85rem; }
     </style>
 </head>
@@ -76,7 +79,7 @@
                 </span>
             </div>
             <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-600 shadow-xl overflow-hidden">
-                <span class="text-3xl">🦉</span>
+                <span class="text-3xl icono-bandera">🦉</span>
             </div>
         </div>
     </div>
