@@ -9,7 +9,7 @@
         
         body {
             font-family: 'Inter', 'Noto Color Emoji', sans-serif;
-            /* FONDO: Neon Emerald (Efecto Dinero / Financiero) */
+            /* FONDO: Neon Emerald */
             background: radial-gradient(circle at 50% 0%, #064e3b 0%, #022c22 40%, #02120d 100%);
             width: 1080px; 
             height: 1350px; 
@@ -22,7 +22,6 @@
             overflow: hidden;
         }
 
-        /* Ajuste de brillo para que combine con el esmeralda */
         .marca-glow { text-shadow: 0 0 25px rgba(16, 185, 129, 0.4); }
 
         #contenedor-central {
@@ -43,58 +42,53 @@
             height: 100%;
         }
 
-        /* CARDS MEJORADAS: Ajustadas para fondo esmeralda */
+        /* CARDS MEJORADAS CON MARCO DESTELLO SUPERIOR */
         .card-tasa {
             background: linear-gradient(160deg, #022c22 0%, #02120d 100%);
             border: 1.5px solid #064e3b;
-            /* Borde superior ahora es verde esmeralda brillante */
             border-top: 3.5px solid #10b981;
             border-radius: 22px;
             box-shadow: 0 12px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
-            padding: 22px 28px;
+            padding: 20px 28px;
             display: flex;
             flex-direction: column;
             justify-content: space-between; 
             height: 100%;
         }
 
+        /* Nombres de Países más grandes */
         h2 { 
-            font-size: 2.1rem; 
+            font-size: 2.5rem; 
             font-weight: 800; 
             letter-spacing: -0.02em;
+            color: #ffffff;
         }
         
         .val-num { font-size: 2.65rem; }
         
         .icono-bandera { 
-            font-size: 2.6rem; 
+            font-size: 2.8rem; 
             font-family: 'Noto Color Emoji', 'Inter', sans-serif;
         }
         
-        .text-label { font-size: 0.95rem; }
+        .text-label { font-size: 1rem; }
     </style>
 </head>
 <body>
 
-    <!-- CABECERA DE MARCA -->
+    <!-- CABECERA DE MARCA Y LOGO (Limpia) -->
     <div class="flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
             <h1 class="text-5xl font-black tracking-tight marca-glow text-white flex items-center whitespace-nowrap">
                 FUNDABLOCK <span class="text-emerald-500 mx-4">|</span> 
-                <span class="text-4xl font-semibold text-gray-300">{{nombre_socio}}</span>
+                <span class="text-4xl font-semibold text-gray-200">{{nombre_socio}}</span>
             </h1>
         </div>
-        <div class="flex items-center gap-6 shrink-0">
-            <div class="bg-emerald-950/80 border border-emerald-800 px-6 py-3 rounded-full shadow-lg">
-                <span class="text-xl font-semibold text-gray-300">
-                    Actualizado: <span class="text-emerald-400 font-bold">{{hora_actualizacion}}</span>
-                </span>
-            </div>
-            
-            <div class="w-16 h-16 bg-emerald-600/20 rounded-2xl flex items-center justify-center border-2 border-emerald-500/50 shadow-xl overflow-hidden p-2">
-                <!-- Puedes cambiar 'FB' por tu img del logo más adelante -->
-                <span class="text-2xl font-black text-emerald-400">FB</span>
-            </div>
+        
+        <!-- ESPACIO DEDICADO PARA EL LOGO -->
+        <div class="w-20 h-20 bg-emerald-600/20 rounded-2xl flex items-center justify-center border-2 border-emerald-500/50 shadow-xl overflow-hidden p-2">
+            <!-- Reemplazar 'FB' por <img src="URL_LOGO" class="w-full h-full object-contain"> -->
+            <span class="text-3xl font-black text-emerald-400">FB</span>
         </div>
     </div>
 
@@ -105,16 +99,16 @@
             <div class="card-tasa">
                 <div class="flex items-center gap-4 mb-1">
                     <div class="icono-bandera leading-none">{{this.bandera}}</div>
-                    <h2 class="text-gray-100 tracking-wide">{{this.nombre_pais}}</h2>
+                    <h2 class="text-white tracking-wide leading-tight">{{this.nombre_pais}}</h2>
                 </div>
                 <div class="flex justify-between items-center border-t border-emerald-900/60 pt-3">
                     <div class="w-1/2 pr-2">
-                        <p class="text-label text-emerald-600/80 font-bold tracking-widest uppercase mb-1">Comprar</p>
+                        <p class="text-label text-white font-bold tracking-widest uppercase mb-1">Comprar</p>
                         <p class="font-extrabold text-emerald-400 val-num leading-none">{{this.compra}}</p>
                     </div>
                     <div class="w-[1px] h-12 bg-emerald-900/50 mx-2"></div>
                     <div class="w-1/2 pl-2 text-right">
-                        <p class="text-label text-emerald-600/80 font-bold tracking-widest uppercase mb-1">Vender</p>
+                        <p class="text-label text-white font-bold tracking-widest uppercase mb-1">Vender</p>
                         <p class="font-extrabold text-rose-400 val-num leading-none">{{this.venta}}</p>
                     </div>
                 </div>
@@ -123,9 +117,18 @@
         </div>
     </div>
 
-    <!-- PIE DE IMAGEN -->
-    <div class="shrink-0 text-center text-emerald-700/80 text-xl font-medium">
-        Tasa base referencial: <span class="text-emerald-600">{{tasa_base_ref}}</span> • Generado por Glaukov Engine
+    <!-- PIE DE IMAGEN CON ACTUALIZADO ABAJO A LA DERECHA -->
+    <div class="shrink-0 flex justify-between items-center pt-2">
+        <div class="text-emerald-700/80 text-xl font-medium">
+            Tasa base referencial: <span class="text-emerald-600 font-semibold">{{tasa_base_ref}}</span> • Glaukov Engine
+        </div>
+
+        <!-- HORA Y ACTUALIZACIÓN REUBICADA ABAJO A LA DERECHA -->
+        <div class="bg-emerald-950/90 border border-emerald-800 px-6 py-2.5 rounded-full shadow-lg">
+            <span class="text-lg font-medium text-gray-300">
+                Actualizado: <span class="text-white font-bold">{{hora_actualizacion}}</span>
+            </span>
+        </div>
     </div>
 
 </body>
