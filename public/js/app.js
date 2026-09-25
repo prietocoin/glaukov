@@ -1,5 +1,3 @@
-import { AteneaAPI } from './api.js';
-
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
     vistaActiva: 'comprobantes',
@@ -62,7 +60,7 @@ function registrarAppAlpine() {
     // ==========================================
     async cargarTasasMercado() {
       try {
-        const res = await AteneaAPI.getUltimasTasas();
+        const res = await window.AteneaAPI.getUltimasTasas();
         if (res) {
           if (res.id_tasa) this.loteActivo = res.id_tasa;
           if (res.tasas) this.tasasProduccion = res.tasas;
@@ -74,7 +72,7 @@ function registrarAppAlpine() {
 
     async conectarHooAPI() {
       try {
-        const res = await AteneaAPI.fetchHoo();
+        const res = await window.AteneaAPI.fetchHoo();
         if (res && res.rates) {
           this.borradorCapturado = res.rates;
           alert('Borrador capturado desde Hoo API con éxito.');
@@ -107,7 +105,7 @@ function registrarAppAlpine() {
       }
       if (!confirm('¿Deseas publicar este borrador como la tasa oficial en producción?')) return;
       try {
-        const res = await AteneaAPI.publicarTasa(null, this.borradorCapturado);
+        const res = await window.AteneaAPI.publicarTasa(null, this.borradorCapturado);
         if (res && res.id_tasa) this.loteActivo = res.id_tasa;
         alert(`Tasa oficial ${res?.id_tasa || ''} publicada correctamente.`);
         await this.cargarTasasMercado();
@@ -124,7 +122,7 @@ function registrarAppAlpine() {
       }
       if (!confirm(`¿Reenviar notificaciones para el lote ${this.loteActivo}?`)) return;
       try {
-        await AteneaAPI.reenviarTasa(this.loteActivo);
+        await window.AteneaAPI.reenviarTasa(this.loteActivo);
         alert(`Reenvío activado para la tasa ${this.loteActivo}.`);
       } catch (err) {
         console.error(err);
@@ -145,7 +143,7 @@ function registrarAppAlpine() {
         if (this.filtroHashBusqueda) params.hash = this.filtroHashBusqueda;
         if (this.ordenarPor) params.orden = this.ordenarPor;
 
-        const res = await AteneaAPI.getComprobantes(params);
+        const res = await window.AteneaAPI.getComprobantes(params);
         this.comprobantes = Array.isArray(res) ? res : [];
       } catch (err) {
         if (!silencioso) console.error('[Glaukov UI ❌]', err);
@@ -155,7 +153,7 @@ function registrarAppAlpine() {
 
     async cargarDirectorio() {
       try {
-        const res = await AteneaAPI.getDirectorio();
+        const res = await window.AteneaAPI.getDirectorio();
         this.directorio = Array.isArray(res) ? res : [];
       } catch (err) {
         console.error('[Glaukov UI ❌]', err);
@@ -164,7 +162,7 @@ function registrarAppAlpine() {
 
     async cargarSocios() {
       try {
-        const res = await AteneaAPI.getSocios();
+        const res = await window.AteneaAPI.getSocios();
         this.socios = Array.isArray(res) ? res : [];
       } catch (err) {
         console.error('[Glaukov UI ❌]', err);
@@ -244,7 +242,7 @@ function registrarAppAlpine() {
           cartelera_paises: carteleraPaises
         };
 
-        await AteneaAPI.guardarSocioConfig(payload);
+        await window.AteneaAPI.guardarSocioConfig(payload);
         this.modalConfigSocioAbierto = false;
         await this.cargarDirectorio();
         await this.cargarSocios();
@@ -257,7 +255,7 @@ function registrarAppAlpine() {
     async toggleEstadoSocio(socio) {
       try {
         const nuevoEstado = !socio.activo;
-        await AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
+        await window.AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
         socio.activo = nuevoEstado;
       } catch (err) {
         console.error('[Glaukov UI ❌]', err);
@@ -267,7 +265,7 @@ function registrarAppAlpine() {
     async apagarTodosSocios() {
       if (!confirm('¿Deseas apagar/desactivar todos los socios?')) return;
       try {
-        await AteneaAPI.desactivarTodosSocios();
+        await window.AteneaAPI.desactivarTodosSocios();
         await this.cargarDirectorio();
       } catch (err) {
         console.error(err);
@@ -276,7 +274,7 @@ function registrarAppAlpine() {
 
     async guardarVigentes() {
       try {
-        await AteneaAPI.guardarVigentes();
+        await window.AteneaAPI.guardarVigentes();
         alert('Plantilla de socios vigentes memorizada.');
       } catch (err) {
         console.error(err);
@@ -285,7 +283,7 @@ function registrarAppAlpine() {
 
     async restaurarVigentes() {
       try {
-        await AteneaAPI.restaurarVigentes();
+        await window.AteneaAPI.restaurarVigentes();
         await this.cargarDirectorio();
         alert('Socios vigentes restaurados.');
       } catch (err) {
@@ -296,7 +294,7 @@ function registrarAppAlpine() {
     async eliminarSocioDirectorio(nombre) {
       if (!confirm(`¿Eliminar permanentemente a ${nombre}?`)) return;
       try {
-        await AteneaAPI.eliminarSocioDirectorio(nombre);
+        await window.AteneaAPI.eliminarSocioDirectorio(nombre);
         await this.cargarDirectorio();
       } catch (err) {
         console.error(err);
@@ -338,7 +336,7 @@ function registrarAppAlpine() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
-        await AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, this.itemEdicion);
+        await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, this.itemEdicion);
         this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
@@ -349,7 +347,7 @@ function registrarAppAlpine() {
     async eliminarComprobante(hashLargo) {
       if (!hashLargo || !confirm('¿Deseas eliminar este comprobante?')) return;
       try {
-        await AteneaAPI.eliminarComprobante(hashLargo);
+        await window.AteneaAPI.eliminarComprobante(hashLargo);
         this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
