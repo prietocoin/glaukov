@@ -57,21 +57,21 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       ) lotes
     )
     SELECT 
-      c.hash_largo,
-      c.hash_corto,
-      c.timestamp AS timestamp_comprobante,
-      to_timestamp(c.timestamp) AS fecha_hora_comprobante,
+      i.hash_largo,
+      i.hash_corto,
+      i.timestamp AS timestamp_comprobante,
+      to_timestamp(i.timestamp) AS fecha_hora_comprobante,
       COALESCE(r.monto, 0) AS monto,
       COALESCE(UPPER(r.moneda), 'USDT') AS moneda,
       r.banco,
       r.titular,
       r.referencia,
       COALESCE(r.procesado_ia, FALSE) AS procesado_ia,
-      c.nombre_socio_1,
-      NULLIF(TRIM(c.nombre_socio_2), '') AS nombre_socio_2,
-      c.url_imagen,
-      COALESCE(c.conteo, 1) AS conteo,
-      COALESCE(c.lote_tasa_manual, lr.id_tasa, (SELECT id_tasa FROM primer_lote), 'T041') AS lote_tasa_asignado,
+      i.nombre_socio_1,
+      NULLIF(TRIM(i.nombre_socio_2), '') AS nombre_socio_2,
+      i.url_imagen,
+      COALESCE(i.conteo, 1) AS conteo,
+      COALESCE(i.lote_tasa_manual, lr.id_tasa, (SELECT id_tasa FROM primer_lote), 'T041') AS lote_tasa_asignado,
 
       COALESCE(n1.roles, 'SOCIO') AS rol_socio_1,
       COALESCE(NULLIF(TRIM(n1.moneda_socio), ''), 'USDT') AS moneda_socio_1,
@@ -81,19 +81,19 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       COALESCE(NULLIF(TRIM(n2.moneda_socio), ''), 'USDT') AS moneda_socio_2,
       n2.ajustes AS ajustes_socio_2
 
-    FROM cola_fb c
-    LEFT JOIN comprobantes_raw r ON TRIM(LOWER(c.hash_largo)) = TRIM(LOWER(r.hash_largo))
-    LEFT JOIN lotes_rangos lr ON c.timestamp >= lr.t_inicio AND (lr.t_fin IS NULL OR c.timestamp < lr.t_fin)
-    LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(c.nombre_socio_1))
-    LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(c.nombre_socio_2))
-    WHERE c.estado != 'DESCARTADO'
+    FROM impactos_raw i
+    LEFT JOIN comprobantes_raw r ON TRIM(LOWER(i.hash_largo)) = TRIM(LOWER(r.hash_largo))
+    LEFT JOIN lotes_rangos lr ON i.timestamp >= lr.t_inicio AND (lr.t_fin IS NULL OR i.timestamp < lr.t_fin)
+    LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(i.nombre_socio_1))
+    LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(i.nombre_socio_2))
+    WHERE COALESCE(i.estado, '') != 'DESCARTADO'
   `;
 
   const values = [];
   let paramIndex = 1;
 
   if (soloDuplicados === 'true') {
-    query += ` AND c.conteo > 1`;
+    query += ` AND i.conteo > 1`;
   }
 
   if (rol && rol.trim() && rol.trim().toUpperCase() !== 'TODOS') {
@@ -103,13 +103,13 @@ async function obtenerComprobantesAuditados(filtros = {}) {
   }
 
   if (targetSocio && targetSocio.toUpperCase() !== 'TODOS') {
-    query += ` AND (UPPER(TRIM(c.nombre_socio_1)) = UPPER(TRIM($${paramIndex})) OR UPPER(TRIM(c.nombre_socio_2)) = UPPER(TRIM($${paramIndex})))`;
+    query += ` AND (UPPER(TRIM(i.nombre_socio_1)) = UPPER(TRIM($${paramIndex})) OR UPPER(TRIM(i.nombre_socio_2)) = UPPER(TRIM($${paramIndex})))`;
     values.push(targetSocio);
     paramIndex++;
   }
 
   if (hash && hash.trim()) {
-    query += ` AND (c.hash_corto ILIKE $${paramIndex} OR c.hash_largo ILIKE $${paramIndex})`;
+    query += ` AND (i.hash_corto ILIKE $${paramIndex} OR i.hash_largo ILIKE $${paramIndex})`;
     values.push(`%${hash.trim()}%`);
     paramIndex++;
   }
@@ -117,7 +117,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
   if (fechaInicio && fechaInicio.trim()) {
     const startTimestamp = Math.floor(new Date(fechaInicio.trim() + 'T00:00:00-04:00').getTime() / 1000);
     if (!isNaN(startTimestamp)) {
-      query += ` AND c.timestamp >= $${paramIndex}`;
+      query += ` AND i.timestamp >= $${paramIndex}`;
       values.push(startTimestamp);
       paramIndex++;
     }
@@ -126,13 +126,13 @@ async function obtenerComprobantesAuditados(filtros = {}) {
   if (fechaFin && fechaFin.trim()) {
     const endTimestamp = Math.floor(new Date(fechaFin.trim() + 'T23:59:59-04:00').getTime() / 1000);
     if (!isNaN(endTimestamp)) {
-      query += ` AND c.timestamp <= $${paramIndex}`;
+      query += ` AND i.timestamp <= $${paramIndex}`;
       values.push(endTimestamp);
       paramIndex++;
     }
   }
 
-  query += ` ORDER BY c.timestamp DESC;`;
+  query += ` ORDER BY i.timestamp DESC;`;
 
   const { rows } = await db.query(query, values);
 
@@ -169,13 +169,16 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     const m1Socio = aplicarPrecisionMonto(m1Raw);
     const m1Usdt = tasaBaseS1 > 0 ? aplicarPrecisionMonto(m1Socio / tasaBaseS1) : m1Socio;
 
-    // Cálculos Socio 2 (si existe en cola_fb)
+    // Cálculos Socio 2
     let m2Socio = 0;
     let m2Usdt = 0;
     let tasa2 = 1;
     let monS2 = 'USDT';
 
-    if (r.nombre_socio_2 && r.nombre_socio_2.trim() !== '') {
+    const s2Name = r.nombre_socio_2 ? String(r.nombre_socio_2).trim() : '';
+    const tieneSocio2 = s2Name !== '' && s2Name !== 'null' && s2Name !== 'undefined';
+
+    if (tieneSocio2) {
       monS2 = (r.moneda_socio_2 || 'USDT').trim().toUpperCase();
       const tasaBaseS2 = getTasaBase(lote, monS2);
       const aj2 = typeof r.ajustes_socio_2 === 'string' ? JSON.parse(r.ajustes_socio_2) : (r.ajustes_socio_2 || {});
@@ -201,7 +204,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       referencia: r.referencia,
       procesado_ia: r.procesado_ia,
       nombre_socio_1: r.nombre_socio_1,
-      nombre_socio_2: r.nombre_socio_2,
+      nombre_socio_2: tieneSocio2 ? s2Name : null,
       url_imagen: r.url_imagen,
       conteo: r.conteo,
       lote_tasa_asignado: lote,
@@ -246,7 +249,7 @@ async function actualizarComprobante(hashLargo, datos) {
   ]);
 
   await db.query(`
-    UPDATE cola_fb 
+    UPDATE impactos_raw 
     SET nombre_socio_1 = $1, 
         nombre_socio_2 = $2,
         lote_tasa_manual = COALESCE($3, lote_tasa_manual),
@@ -267,7 +270,7 @@ async function eliminarComprobante(hashLargo) {
   const targetHash = (hashLargo || '').trim();
 
   await db.query(`DELETE FROM comprobantes_raw WHERE TRIM(LOWER(hash_largo)) = TRIM(LOWER($1));`, [targetHash]);
-  await db.query(`UPDATE cola_fb SET estado = 'DESCARTADO' WHERE TRIM(LOWER(hash_largo)) = TRIM(LOWER($1));`, [targetHash]);
+  await db.query(`UPDATE impactos_raw SET estado = 'DESCARTADO' WHERE TRIM(LOWER(hash_largo)) = TRIM(LOWER($1));`, [targetHash]);
 
   return { success: true };
 }
