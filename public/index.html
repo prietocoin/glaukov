@@ -6,6 +6,9 @@
   <title>Fundablock - Glaukov Engine Atenea V2.0</title>
   
   <link rel="icon" type="image/png" href="/logo-fundablock.png">
+  
+  <!-- CDN ALPINE.JS OBLIGATORIO PARA DESTRABAR X-CLOAK -->
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
   <script type="module" src="/js/app.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -191,7 +194,7 @@
           </div>
         </div>
 
-        <!-- LISTADO DE TARJETAS HORIZONTALES (CLON ATENEA V1 FIEL CON CORRECCIÓN DE SOCIO 2) -->
+        <!-- LISTADO DE TARJETAS HORIZONTALES (ATENEA CARD + IMPACTOS_RAW) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-3.5">
           <template x-for="item in comprobantes" :key="item.hash_largo">
             
@@ -250,7 +253,7 @@
                   <span class="text-xs sm:text-sm font-bold text-slate-200 uppercase" x-text="item.moneda || 'USDT'"></span>
                 </div>
 
-                <!-- FILA 3: CAJA OSCURA DE SOCIOS (SOCIO 1 Y SOCIO 2 CON VALIDACIÓN EXTENDIDA) -->
+                <!-- FILA 3: CAJA OSCURA DE SOCIOS (SOCIO 1 Y SOCIO 2 DE IMPACTOS_RAW) -->
                 <div class="bg-[#030611] rounded-xl border border-blue-900/40 p-2 space-y-1">
                   <!-- SOCIO 1 -->
                   <div class="flex items-center justify-between text-xs">
@@ -261,7 +264,7 @@
                     </div>
                   </div>
 
-                  <!-- SOCIO 2 (VALIDACIÓN ESTRICTA) -->
+                  <!-- SOCIO 2 -->
                   <template x-if="item.nombre_socio_2 && String(item.nombre_socio_2).trim() !== '' && String(item.nombre_socio_2) !== 'null'">
                     <div class="flex items-center justify-between text-xs border-t border-blue-900/40 pt-1">
                       <span class="font-extrabold text-pink-300 uppercase truncate pr-2" x-text="item.nombre_socio_2"></span>
@@ -273,7 +276,7 @@
                   </template>
                 </div>
 
-                <!-- FILA 4: FOOTER DETALLES (TITULAR/BANCO/REF A LA IZQ Y ME0/ME1 A LA DER) -->
+                <!-- FILA 4: FOOTER DETALLES -->
                 <div class="flex items-end justify-between gap-2 pt-0.5">
                   <div class="flex flex-col text-[10px] text-slate-400 font-mono leading-tight space-y-0.5 truncate flex-1 min-w-0">
                     <p class="font-bold text-slate-200 uppercase truncate" x-text="item.titular || '-'"></p>
@@ -374,9 +377,7 @@
     </main>
   </div>
 
-  <!-- ========================================== -->
-  <!-- MODAL 1: AUDITAR Y EDITAR COMPROBANTE      -->
-  <!-- ========================================== -->
+  <!-- MODAL: AUDITAR Y EDITAR COMPROBANTE -->
   <div x-show="modalAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm" x-cloak>
     <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-md p-4 space-y-3 shadow-2xl relative" @click.away="modalAbierto = false">
       
@@ -479,47 +480,7 @@
     </div>
   </div>
 
-  <!-- ========================================== -->
-  <!-- MODAL 2: CONFIGURACIÓN DE SOCIO            -->
-  <!-- ========================================== -->
-  <div x-show="modalConfigSocioAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm" x-cloak>
-    <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-2xl p-4 sm:p-5 space-y-4 shadow-2xl relative" @click.away="modalConfigSocioAbierto = false">
-      <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
-        <h3 class="font-bold text-white text-base" x-text="socioConfigEdit ? 'Configuración de ' + socioConfigEdit.nombre : 'Configuración de Socio'"></h3>
-        <button type="button" @click="modalConfigSocioAbierto = false" class="text-slate-400 hover:text-white text-base font-bold">✕</button>
-      </div>
-
-      <template x-if="socioConfigEdit">
-        <div class="space-y-3 text-xs">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre del Socio</label>
-              <input type="text" x-model="socioConfigEdit.nombre" class="w-full bg-[#030611] border border-blue-900 text-xs text-white font-bold rounded-lg px-2.5 py-2 outline-none">
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rol</label>
-              <select x-model="socioConfigEdit.roles" class="w-full bg-[#030611] border border-blue-900 text-xs text-white rounded-lg px-2.5 py-2 font-bold outline-none">
-                <option value="SOCIO">SOCIO</option>
-                <option value="MATRIZ_GENERAL">MATRIZ_GENERAL</option>
-                <option value="ASESOR">ASESOR</option>
-                <option value="GRUPO">GRUPO</option>
-                <option value="COMPRAS">COMPRAS</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2 border-t border-blue-900/60">
-            <button type="button" @click="modalConfigSocioAbierto = false" class="px-4 py-2 bg-blue-950 text-slate-300 rounded-xl text-xs font-bold border border-blue-900">Cancelar</button>
-            <button type="button" @click="guardarConfigSocio()" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-cyan-600/20 active:scale-95">💾 Guardar</button>
-          </div>
-        </div>
-      </template>
-    </div>
-  </div>
-
-  <!-- ========================================== -->
-  <!-- MODAL 3: VISOR R2 / CAPTION DE IMAGEN      -->
-  <!-- ========================================== -->
+  <!-- MODAL: VISOR R2 / CAPTION DE IMAGEN -->
   <div x-show="modalImagenAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" @click.self="modalImagenAbierto = false" x-cloak>
     <div class="bg-[#080e26] border border-blue-500/40 rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
