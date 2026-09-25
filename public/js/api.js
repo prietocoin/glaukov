@@ -1,7 +1,7 @@
 /**
- * Cliente HTTP unificado para Glaukov / Atenea (Global Window)
+ * Cliente HTTP unificado para Glaukov / Atenea (ES Module)
  */
-window.AteneaAPI = {
+export const AteneaAPI = {
   // 1. COMPROBANTES Y REPORTES
   async getComprobantes(filtros = {}) {
     const params = new URLSearchParams();
