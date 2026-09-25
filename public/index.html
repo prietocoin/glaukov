@@ -191,7 +191,7 @@
           </div>
         </div>
 
-        <!-- LISTADO DE TARJETAS HORIZONTALES (CLON ATENEA V1 CARD CON GLAUKOV DARK SKIN) -->
+        <!-- LISTADO DE TARJETAS HORIZONTALES (CLON ATENEA V1 FIEL CON CORRECCIÓN DE SOCIO 2) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-3.5">
           <template x-for="item in comprobantes" :key="item.hash_largo">
             
@@ -250,24 +250,24 @@
                   <span class="text-xs sm:text-sm font-bold text-slate-200 uppercase" x-text="item.moneda || 'USDT'"></span>
                 </div>
 
-                <!-- FILA 3: CAJA OSCURA DE SOCIOS (SOCIO 1 Y SOCIO 2 ALINEADOS) -->
+                <!-- FILA 3: CAJA OSCURA DE SOCIOS (SOCIO 1 Y SOCIO 2 CON VALIDACIÓN EXTENDIDA) -->
                 <div class="bg-[#030611] rounded-xl border border-blue-900/40 p-2 space-y-1">
                   <!-- SOCIO 1 -->
                   <div class="flex items-center justify-between text-xs">
                     <span class="font-extrabold text-cyan-300 uppercase truncate pr-2" x-text="item.nombre_socio_1 || 'GENERAL'"></span>
                     <div class="flex items-center gap-2 shrink-0 font-mono">
                       <span class="font-bold text-cyan-300" x-text="(typeof formatMonto === 'function' ? formatMonto(item.m1_socio) : (item.m1_socio || '0.00')) + ' ' + (item.moneda_socio_1 || item.moneda || 'USDT')"></span>
-                      <span class="px-1.5 py-0.5 rounded bg-purple-900/80 text-purple-300 font-bold text-[10px] border border-purple-500/40" x-text="'T1:' + (item.tasa_1 !== undefined ? item.tasa_1 : '1')"></span>
+                      <span class="px-1.5 py-0.5 rounded bg-purple-900/80 text-purple-300 font-bold text-[10px] border border-purple-500/40" x-text="'T1:' + (item.tasa_1 !== undefined && item.tasa_1 !== null ? item.tasa_1 : '1')"></span>
                     </div>
                   </div>
 
-                  <!-- SOCIO 2 (SI EXISTE) -->
-                  <template x-if="item.nombre_socio_2">
+                  <!-- SOCIO 2 (VALIDACIÓN ESTRICTA) -->
+                  <template x-if="item.nombre_socio_2 && String(item.nombre_socio_2).trim() !== '' && String(item.nombre_socio_2) !== 'null'">
                     <div class="flex items-center justify-between text-xs border-t border-blue-900/40 pt-1">
                       <span class="font-extrabold text-pink-300 uppercase truncate pr-2" x-text="item.nombre_socio_2"></span>
                       <div class="flex items-center gap-2 shrink-0 font-mono">
                         <span class="font-bold text-pink-300" x-text="(typeof formatMonto === 'function' ? formatMonto(item.m2_socio) : (item.m2_socio || '0.00')) + ' ' + (item.moneda_socio_2 || item.moneda || 'USDT')"></span>
-                        <span class="px-1.5 py-0.5 rounded bg-pink-900/80 text-pink-300 font-bold text-[10px] border border-pink-500/40" x-text="'T2:' + (item.tasa_2 !== undefined ? item.tasa_2 : '1')"></span>
+                        <span class="px-1.5 py-0.5 rounded bg-pink-900/80 text-pink-300 font-bold text-[10px] border border-pink-500/40" x-text="'T2:' + (item.tasa_2 !== undefined && item.tasa_2 !== null ? item.tasa_2 : '1')"></span>
                       </div>
                     </div>
                   </template>
@@ -374,8 +374,153 @@
     </main>
   </div>
 
-  <!-- MODAL VISOR R2 / CAPTION -->
-  <div x-show="modalImagenAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" @click.self="modalImagenAbierto = false">
+  <!-- ========================================== -->
+  <!-- MODAL 1: AUDITAR Y EDITAR COMPROBANTE      -->
+  <!-- ========================================== -->
+  <div x-show="modalAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm" x-cloak>
+    <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-md p-4 space-y-3 shadow-2xl relative" @click.away="modalAbierto = false">
+      
+      <div class="flex items-center justify-between border-b border-blue-900/60 pb-2">
+        <div class="flex items-center gap-2">
+          <h3 class="font-bold text-white text-sm">Auditar Comprobante</h3>
+          <span class="text-xs text-cyan-300 font-mono font-bold bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/50" x-text="itemEdicion ? (itemEdicion.hash_corto || '----') : ''"></span>
+        </div>
+        <button type="button" @click="modalAbierto = false" class="text-slate-400 hover:text-white text-sm font-bold">✕</button>
+      </div>
+
+      <template x-if="itemEdicion">
+        <div class="space-y-3 text-xs">
+          <!-- NÚMERO DE LOTE Y FECHA/HORA -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-0.5">Lote Tasa (Ej: T041)</label>
+              <input type="text" x-model="itemEdicion.lote_tasa_asignado" placeholder="T041" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono font-bold uppercase outline-none focus:border-cyan-400">
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-0.5">Fecha y Hora (VET)</label>
+              <input type="datetime-local" x-model="itemEdicion.fecha_hora_input" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2 py-1.5 text-xs text-slate-200 font-mono outline-none focus:border-cyan-400">
+            </div>
+          </div>
+
+          <!-- MONTO Y MONEDA -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Monto Operado</label>
+              <input type="number" step="0.01" x-model="itemEdicion.monto" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-emerald-400 font-bold outline-none focus:border-cyan-400">
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Moneda ISO</label>
+              <select x-model="itemEdicion.moneda" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-white uppercase outline-none focus:border-cyan-400">
+                <option value="USDT">USDT</option>
+                <option value="ARS">ARS</option>
+                <option value="VES">VES</option>
+                <option value="PEN">PEN</option>
+                <option value="COP">COP</option>
+                <option value="CLP">CLP</option>
+                <option value="BRL">BRL</option>
+                <option value="USD">USD</option>
+                <option value="MXN">MXN</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- SOCIO 1 Y SOCIO 2 -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-0.5">Socio 1</label>
+              <input type="text" x-model="itemEdicion.nombre_socio_1" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-cyan-200 uppercase outline-none focus:border-cyan-400">
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-pink-400 uppercase mb-0.5">Socio 2 (Opcional)</label>
+              <input type="text" x-model="itemEdicion.nombre_socio_2" placeholder="Ej: CHASAN" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-pink-200 uppercase outline-none focus:border-cyan-400">
+            </div>
+          </div>
+
+          <!-- TIPO DE OPERACIÓN Y BANCO -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[9px] font-bold text-amber-400 uppercase mb-0.5">Tipo Op (D/P/A/C)</label>
+              <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/50 text-xs text-amber-300 font-bold rounded-lg px-2.5 py-1.5 uppercase outline-none focus:border-amber-400">
+                <option value="D">D - Depósito</option>
+                <option value="P">P - Pago</option>
+                <option value="A">A - Abono</option>
+                <option value="C">C - Compra / Venta</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Banco / Entidad</label>
+              <input type="text" x-model="itemEdicion.banco" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-white uppercase outline-none focus:border-cyan-400">
+            </div>
+          </div>
+
+          <!-- TITULAR Y REFERENCIA -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Titular Origen</label>
+              <input type="text" x-model="itemEdicion.titular" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-white uppercase outline-none focus:border-cyan-400">
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Referencia</label>
+              <input type="text" x-model="itemEdicion.referencia" class="w-full bg-[#030611] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 outline-none focus:border-cyan-400 font-mono">
+            </div>
+          </div>
+
+          <!-- BOTONES DE ACCIÓN DEL MODAL -->
+          <div class="flex items-center justify-between pt-2 border-t border-blue-900/60">
+            <button type="button" @click="eliminarComprobante(itemEdicion.hash_largo)" class="px-3 py-1.5 bg-rose-950/80 text-rose-300 border border-rose-600/40 rounded-lg text-xs font-bold hover:bg-rose-900 active:scale-95 transition-all">Eliminar</button>
+            <div class="flex gap-2">
+              <button type="button" @click="modalAbierto = false" class="px-3 py-1.5 bg-blue-950 text-slate-300 rounded-lg text-xs font-bold border border-blue-900">Cancelar</button>
+              <button type="button" @click="guardarCambios()" class="px-4 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-bold hover:bg-cyan-500 shadow-lg shadow-cyan-600/20 active:scale-95 transition-all">Guardar Cambios</button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 2: CONFIGURACIÓN DE SOCIO            -->
+  <!-- ========================================== -->
+  <div x-show="modalConfigSocioAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm" x-cloak>
+    <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-2xl p-4 sm:p-5 space-y-4 shadow-2xl relative" @click.away="modalConfigSocioAbierto = false">
+      <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
+        <h3 class="font-bold text-white text-base" x-text="socioConfigEdit ? 'Configuración de ' + socioConfigEdit.nombre : 'Configuración de Socio'"></h3>
+        <button type="button" @click="modalConfigSocioAbierto = false" class="text-slate-400 hover:text-white text-base font-bold">✕</button>
+      </div>
+
+      <template x-if="socioConfigEdit">
+        <div class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre del Socio</label>
+              <input type="text" x-model="socioConfigEdit.nombre" class="w-full bg-[#030611] border border-blue-900 text-xs text-white font-bold rounded-lg px-2.5 py-2 outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rol</label>
+              <select x-model="socioConfigEdit.roles" class="w-full bg-[#030611] border border-blue-900 text-xs text-white rounded-lg px-2.5 py-2 font-bold outline-none">
+                <option value="SOCIO">SOCIO</option>
+                <option value="MATRIZ_GENERAL">MATRIZ_GENERAL</option>
+                <option value="ASESOR">ASESOR</option>
+                <option value="GRUPO">GRUPO</option>
+                <option value="COMPRAS">COMPRAS</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2 border-t border-blue-900/60">
+            <button type="button" @click="modalConfigSocioAbierto = false" class="px-4 py-2 bg-blue-950 text-slate-300 rounded-xl text-xs font-bold border border-blue-900">Cancelar</button>
+            <button type="button" @click="guardarConfigSocio()" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-cyan-600/20 active:scale-95">💾 Guardar</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 3: VISOR R2 / CAPTION DE IMAGEN      -->
+  <!-- ========================================== -->
+  <div x-show="modalImagenAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" @click.self="modalImagenAbierto = false" x-cloak>
     <div class="bg-[#080e26] border border-blue-500/40 rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
         <h3 class="font-black text-white text-sm" x-text="'Comprobante: ' + (itemSeleccionado?.hash_largo || '')"></h3>
