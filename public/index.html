@@ -191,37 +191,37 @@
           </div>
         </div>
 
-        <!-- LISTADO DE TARJETAS HORIZONTALES (REPLICACIÓN EXACTA ATENEA CARD) -->
+        <!-- LISTADO DE TARJETAS HORIZONTALES (CLON ATENEA V1 CARD CON GLAUKOV DARK SKIN) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-3.5">
           <template x-for="item in comprobantes" :key="item.hash_largo">
             
-            <div class="flex flex-row bg-[#080e26] border border-blue-900/40 hover:border-cyan-500/40 rounded-2xl p-3.5 shadow-xl gap-3.5 transition-all hover:bg-[#0a112e] group">
+            <div class="flex flex-row bg-[#080e26] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-3.5 shadow-xl gap-3.5 transition-all hover:bg-[#0b1336]">
               
-              <!-- COLUMNA IZQUIERDA: SÓLO IMAGEN (STRETCHED HEIGHT) -->
+              <!-- COLUMNA IZQUIERDA: IMAGEN COMPLETA DE RECIBO (SIN RECORTES) -->
               <div class="w-28 sm:w-36 shrink-0 self-stretch flex">
-                <button @click="verDetalleImagen(item)" class="relative w-full h-full min-h-[150px] rounded-xl bg-[#030611] border border-blue-800/60 overflow-hidden shadow-sm group-hover:border-cyan-400 transition-colors">
+                <button @click="verDetalleImagen(item)" class="relative w-full h-full min-h-[160px] rounded-xl bg-[#010309] border border-blue-900/60 overflow-hidden shadow-inner group flex items-center justify-center">
                   <template x-if="item.url_imagen">
-                    <img :src="item.url_imagen" class="w-full h-full object-cover transition-transform group-hover:scale-105" alt="Comprobante">
+                    <img :src="item.url_imagen" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105" alt="Comprobante">
                   </template>
                   <template x-if="!item.url_imagen">
                     <div class="w-full h-full flex flex-col items-center justify-center text-slate-600 p-2">
-                      <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                      <span class="text-[9px] font-bold">SIN IMG</span>
+                      <svg class="w-7 h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                      <span class="text-[9px] font-bold">SIN RECIBO</span>
                     </div>
                   </template>
                   <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <span class="text-white text-lg">🔍</span>
+                    <span class="text-white text-base">🔍</span>
                   </div>
                 </button>
               </div>
 
-              <!-- COLUMNA DERECHA: ESTRUCTURA ATENEA DENSIDAD COMPLETA -->
-              <div class="flex-1 flex flex-col justify-between min-w-0 space-y-2">
+              <!-- COLUMNA DERECHA: ESTRUCTURA Y DENSIDAD ATENEA -->
+              <div class="flex-1 flex flex-col justify-between min-w-0 space-y-1.5 py-0.5">
                 
-                <!-- FILA 1: BADGES + ACCIONES -->
+                <!-- FILA 1: INSIGNIAS SUPERIORES + ACCIONES -->
                 <div class="flex items-center justify-between gap-1">
                   <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="px-2 py-0.5 rounded-lg bg-purple-950/80 text-purple-300 font-mono text-xs font-bold border border-purple-500/40 shadow-sm" x-text="item.hash_corto || item.hash_largo.substring(0,7)"></span>
+                    <span class="px-2 py-0.5 rounded-md bg-purple-950/90 text-purple-300 font-mono text-xs font-bold border border-purple-500/40" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : '----')"></span>
                     
                     <template x-if="item.conteo > 1">
                       <span class="px-1.5 py-0.5 rounded-md bg-amber-950/80 text-amber-300 text-[10px] font-bold border border-amber-500/40" x-text="'x' + item.conteo"></span>
@@ -229,73 +229,68 @@
                     
                     <span class="px-1.5 py-0.5 rounded-md bg-emerald-950/80 text-emerald-400 text-[10px] font-bold border border-emerald-500/40">✓ IA</span>
                     
-                    <span class="px-1.5 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 text-[10px] font-bold border border-cyan-500/40 uppercase" x-text="item.tipo_op_socio || 'D'"></span>
+                    <span class="px-1.5 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 text-[10px] font-bold border border-cyan-500/40 uppercase" x-text="item.tipo_op_socio || item.tipo_op || 'D'"></span>
                     
                     <span class="px-1.5 py-0.5 rounded-md bg-purple-950/80 text-purple-300 font-mono text-[10px] font-bold border border-purple-500/40" x-text="item.lote_tasa_asignado || 'T041'"></span>
                   </div>
 
-                  <div class="flex items-center gap-1.5 shrink-0">
+                  <div class="flex items-center gap-1 shrink-0">
                     <button @click="eliminarComprobante(item.hash_largo)" class="text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 p-1 rounded-lg transition-colors" title="Eliminar">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                     <button @click="abrirModal(item)" class="text-purple-400 hover:text-purple-300 hover:bg-purple-950/60 p-1 rounded-lg transition-colors" title="Editar">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     </button>
                   </div>
                 </div>
 
                 <!-- FILA 2: MONTO MONUMENTAL -->
-                <div class="flex items-baseline gap-2">
-                  <span class="text-2xl font-black tracking-tight" :class="parseFloat(item.monto) < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="formatMonto(item.monto)"></span>
-                  <span class="text-sm font-bold text-slate-200 uppercase" x-text="item.moneda"></span>
+                <div class="flex items-baseline gap-1.5 my-0.5">
+                  <span class="text-xl sm:text-2xl font-black tracking-tight" :class="parseFloat(item.monto) < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="typeof formatMonto === 'function' ? formatMonto(item.monto) : (item.monto || '0.00')"></span>
+                  <span class="text-xs sm:text-sm font-bold text-slate-200 uppercase" x-text="item.moneda || 'USDT'"></span>
                 </div>
 
-                <!-- FILA 3: CAJA OSCURA DE SOCIOS (SOCIO 1 & SOCIO 2) -->
-                <div class="bg-[#030611] rounded-xl border border-blue-900/40 p-2 space-y-1.5">
+                <!-- FILA 3: CAJA OSCURA DE SOCIOS (SOCIO 1 Y SOCIO 2 ALINEADOS) -->
+                <div class="bg-[#030611] rounded-xl border border-blue-900/40 p-2 space-y-1">
                   <!-- SOCIO 1 -->
                   <div class="flex items-center justify-between text-xs">
-                    <span class="font-extrabold text-cyan-300 uppercase truncate" x-text="item.nombre_socio_1 || 'GENERAL'"></span>
-                    <div class="flex items-center gap-2 shrink-0">
-                      <span class="font-mono text-cyan-300 font-bold" x-text="formatMonto(item.m1_socio) + ' ' + (item.moneda_socio_1 || item.moneda || 'USDT')"></span>
-                      <span class="px-2 py-0.5 rounded-md bg-purple-900/60 text-purple-300 font-mono text-[10px] font-bold border border-purple-500/40" x-text="'T1:' + (item.tasa_1 || '1')"></span>
+                    <span class="font-extrabold text-cyan-300 uppercase truncate pr-2" x-text="item.nombre_socio_1 || 'GENERAL'"></span>
+                    <div class="flex items-center gap-2 shrink-0 font-mono">
+                      <span class="font-bold text-cyan-300" x-text="(typeof formatMonto === 'function' ? formatMonto(item.m1_socio) : (item.m1_socio || '0.00')) + ' ' + (item.moneda_socio_1 || item.moneda || 'USDT')"></span>
+                      <span class="px-1.5 py-0.5 rounded bg-purple-900/80 text-purple-300 font-bold text-[10px] border border-purple-500/40" x-text="'T1:' + (item.tasa_1 !== undefined ? item.tasa_1 : '1')"></span>
                     </div>
                   </div>
 
                   <!-- SOCIO 2 (SI EXISTE) -->
                   <template x-if="item.nombre_socio_2">
-                    <div class="flex items-center justify-between text-xs border-t border-blue-900/40 pt-1.5">
-                      <span class="font-extrabold text-pink-300 uppercase truncate" x-text="item.nombre_socio_2"></span>
-                      <div class="flex items-center gap-2 shrink-0">
-                        <span class="font-mono text-emerald-400 font-bold" x-text="formatMonto(item.m2_socio) + ' ' + (item.moneda_socio_2 || item.moneda || 'USDT')"></span>
-                        <span class="px-2 py-0.5 rounded-md bg-pink-900/60 text-pink-300 font-mono text-[10px] font-bold border border-pink-500/40" x-text="'T2:' + (item.tasa_2 || '1')"></span>
+                    <div class="flex items-center justify-between text-xs border-t border-blue-900/40 pt-1">
+                      <span class="font-extrabold text-pink-300 uppercase truncate pr-2" x-text="item.nombre_socio_2"></span>
+                      <div class="flex items-center gap-2 shrink-0 font-mono">
+                        <span class="font-bold text-pink-300" x-text="(typeof formatMonto === 'function' ? formatMonto(item.m2_socio) : (item.m2_socio || '0.00')) + ' ' + (item.moneda_socio_2 || item.moneda || 'USDT')"></span>
+                        <span class="px-1.5 py-0.5 rounded bg-pink-900/80 text-pink-300 font-bold text-[10px] border border-pink-500/40" x-text="'T2:' + (item.tasa_2 !== undefined ? item.tasa_2 : '1')"></span>
                       </div>
                     </div>
                   </template>
                 </div>
 
-                <!-- FILA 4: FOOTER ATENEA (TITULAR / BANCO / REF + ME0 & ME1) -->
+                <!-- FILA 4: FOOTER DETALLES (TITULAR/BANCO/REF A LA IZQ Y ME0/ME1 A LA DER) -->
                 <div class="flex items-end justify-between gap-2 pt-0.5">
-                  <div class="flex flex-col text-[10px] text-slate-400 font-mono space-y-0.5 truncate flex-1 min-w-0">
+                  <div class="flex flex-col text-[10px] text-slate-400 font-mono leading-tight space-y-0.5 truncate flex-1 min-w-0">
                     <p class="font-bold text-slate-200 uppercase truncate" x-text="item.titular || '-'"></p>
                     <p class="text-slate-400 uppercase truncate" x-text="item.banco || '-'"></p>
                     <p class="text-slate-500 truncate" x-text="'Ref: ' + (item.referencia || '-')"></p>
                   </div>
 
-                  <!-- ME0 / ME1 CON CÍRCULOS AMARILLOS -->
-                  <div class="flex flex-col items-end shrink-0 text-[10px] font-mono space-y-0.5">
-                    <div class="flex items-center gap-1">
-                      <span class="font-bold text-slate-400 uppercase">ME0</span>
-                      <span class="text-amber-300 font-bold flex items-center gap-1">
-                        <span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-sm"></span>
-                        <span x-text="formatMonto(item.monto_usd_equivalente)"></span>
-                      </span>
+                  <div class="flex flex-col items-end shrink-0 text-[10px] font-mono leading-tight space-y-0.5">
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-bold text-slate-500 uppercase">ME0</span>
+                      <span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-sm"></span>
+                      <span class="text-amber-300 font-bold" x-text="typeof formatMonto === 'function' ? formatMonto(item.monto_usd_equivalente) : (item.monto_usd_equivalente || '0.00')"></span>
                     </div>
-                    <div class="flex items-center gap-1">
-                      <span class="font-bold text-slate-400 uppercase">ME1</span>
-                      <span class="text-amber-300 font-bold flex items-center gap-1">
-                        <span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-sm"></span>
-                        <span x-text="formatMonto(item.m1_usdt)"></span>
-                      </span>
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-bold text-slate-500 uppercase">ME1</span>
+                      <span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-sm"></span>
+                      <span class="text-amber-300 font-bold" x-text="typeof formatMonto === 'function' ? formatMonto(item.m1_usdt) : (item.m1_usdt || '0.00')"></span>
                     </div>
                   </div>
                 </div>
