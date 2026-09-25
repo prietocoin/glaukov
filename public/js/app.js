@@ -7,10 +7,7 @@ function registrarAppAlpine() {
     directorio: [],
     socios: [],
 
-    // Métricas KPI
-    saldoAnterior: 0,
-
-    // Filtros
+    // Filtros Comprobantes
     filtroRol: '',
     filtroSocio: '',
     filtroFechaInicio: '',
@@ -19,21 +16,26 @@ function registrarAppAlpine() {
     filtroHastaHash: '',
     ordenarPor: 'fecha_desc',
     filtroHashBusqueda: '',
+    saldoAnterior: 0,
+
+    // Directorio & Filtros
     busquedaDirectorio: '',
 
-    // Modales y Visor
+    // Modales de Comprobantes
     modalAbierto: false,
     itemEdicion: null,
-    modalConfigSocioAbierto: false,
-    socioConfigEdit: null,
     modalImagenAbierto: false,
     itemSeleccionado: null,
+
+    // Modal Configuración Integral del Socio
+    modalConfigSocioAbierto: false,
+    socioConfigEdit: null,
 
     // Sync
     timerPolling: null,
     ultimaActualizacion: '',
 
-    // Tasas base de mercado para precálculo en vivo
+    // Tasas base de mercado en memoria para precálculo
     tasasMercadoBase: {
       ARS: 1550,
       VES: 960,
@@ -70,9 +72,7 @@ function registrarAppAlpine() {
     iniciarAutoSync() {
       if (this.timerPolling) clearInterval(this.timerPolling);
       this.timerPolling = setInterval(() => {
-        if (this.vistaActiva === 'comprobantes') {
-          this.cargarComprobantes(true);
-        }
+        if (this.vistaActiva === 'comprobantes') this.cargarComprobantes(true);
         this.ultimaActualizacion = new Date().toLocaleTimeString('es-ES');
       }, 5000);
     },
@@ -114,10 +114,11 @@ function registrarAppAlpine() {
     },
 
     // ==========================================
-    // DIRECTORIO & CONFIGURACIÓN INTEGRAL DE SOCIO
+    // LÓGICA DEL DIRECTORIO Y CONFIGURACIÓN DE SOCIOS
     // ==========================================
     abrirConfigSocio(socioObj) {
-      const aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {});
+      let aj = {};
+      try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
       
       const listaPaisesDefault = [
         { code: 'ARS', nombre: 'Argentina', bandera: '🇦🇷', activo: true, factorD: aj['D-ARS'] ?? 1.0, factorP: aj['P-ARS'] ?? -0.95 },
@@ -155,7 +156,6 @@ function registrarAppAlpine() {
       });
     },
 
-    // Precalculadora de Tasa en Vivo para las casillas superiores del Modal
     calcularTasaEnVivo(code, factor, esDeposito = true) {
       const base = this.tasasMercadoBase[code] || 1.0;
       const f = parseFloat(factor) || (esDeposito ? 1.0 : -0.95);
@@ -253,7 +253,6 @@ function registrarAppAlpine() {
       }
     },
 
-    // Helper Talla Visual
     getTallaClass(socioObj) {
       const count = socioObj.cartelera_paises ? socioObj.cartelera_paises.length : 3;
       if (count <= 3) return { label: `Talla: S [${count}]`, color: 'border-cyan-500/40 text-cyan-300 bg-cyan-950/40' };
@@ -261,9 +260,6 @@ function registrarAppAlpine() {
       return { label: `Talla: L [${count}]`, color: 'border-purple-500/40 text-purple-300 bg-purple-950/40' };
     },
 
-    // ==========================================
-    // HELPERS COMPROBANTES & MODALES
-    // ==========================================
     abrirModal(item) {
       if (!item) return;
       let dateInput = '';
@@ -289,9 +285,7 @@ function registrarAppAlpine() {
       try {
         if (this.itemEdicion.fecha_hora_input) {
           const ts = Math.floor(new Date(this.itemEdicion.fecha_hora_input).getTime() / 1000);
-          if (!isNaN(ts) && ts > 0) {
-            this.itemEdicion.timestamp = ts;
-          }
+          if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
         await AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, this.itemEdicion);
@@ -299,7 +293,6 @@ function registrarAppAlpine() {
         await this.cargarComprobantes();
       } catch (err) {
         console.error('Error en guardarCambios:', err);
-        alert('Error guardando cambios: ' + err.message);
       }
     },
 
@@ -311,7 +304,6 @@ function registrarAppAlpine() {
         await this.cargarComprobantes();
       } catch (err) {
         console.error('Error eliminando comprobante:', err);
-        alert('Error eliminando: ' + err.message);
       }
     },
 
@@ -329,12 +321,6 @@ function registrarAppAlpine() {
       const vTrunc = Math.trunc((v + 0.0000001) * 100) / 100;
       const parts = vTrunc.toFixed(2).split('.');
       return `${signoStr}${Number(parts[0]).toLocaleString('en-US')}.${parts[1]}`;
-    },
-
-    formatearFecha(fechaStr) {
-      if (!fechaStr) return '-';
-      const d = new Date(fechaStr);
-      return isNaN(d.getTime()) ? fechaStr : d.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
     },
 
     get sujetoAuditado() {
@@ -367,7 +353,6 @@ function registrarAppAlpine() {
   }));
 }
 
-// Inicialización que evita la carrera de carga de Alpine.js
 if (window.Alpine) {
   registrarAppAlpine();
 } else {
