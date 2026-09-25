@@ -1,6 +1,4 @@
-import { api } from './api.js';
-
-document.addEventListener('alpine:init', () => {
+function registrarAppAlpine() {
   Alpine.data('app', () => ({
     vistaActiva: 'comprobantes',
     comprobantes: [],
@@ -47,10 +45,14 @@ document.addEventListener('alpine:init', () => {
 
         const res = await fetch(`/api/comprobantes?${query.toString()}`);
         if (res.ok) {
-          this.comprobantes = await res.json();
+          const data = await res.json();
+          this.comprobantes = Array.isArray(data) ? data : [];
+        } else {
+          this.comprobantes = [];
         }
       } catch (err) {
         console.error('Error cargando comprobantes:', err);
+        this.comprobantes = [];
       }
     },
 
@@ -59,7 +61,7 @@ document.addEventListener('alpine:init', () => {
         const res = await fetch('/api/socios');
         if (res.ok) {
           const data = await res.json();
-          this.socios = data.map(s => typeof s === 'string' ? s : s.nombre);
+          this.socios = Array.isArray(data) ? data.map(s => typeof s === 'string' ? s : s.nombre) : [];
         }
       } catch (err) {
         console.error('Error cargando socios:', err);
@@ -70,14 +72,17 @@ document.addEventListener('alpine:init', () => {
       try {
         const res = await fetch('/api/directorio');
         if (res.ok) {
-          this.directorio = await res.json();
+          const data = await res.json();
+          this.directorio = Array.isArray(data) ? data : [];
         }
       } catch (err) {
         console.error('Error cargando directorio:', err);
       }
     },
 
+    // MANEJADORES DE MODALES
     abrirModal(item) {
+      if (!item) return;
       let dateInput = '';
       if (item.timestamp) {
         const d = new Date(item.timestamp * 1000);
@@ -167,6 +172,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     get movimientoFiltradoTotal() {
+      if (!Array.isArray(this.comprobantes)) return 0;
       return this.comprobantes.reduce((acc, c) => acc + (parseFloat(c.m1_socio) || 0), 0);
     },
 
@@ -175,9 +181,17 @@ document.addEventListener('alpine:init', () => {
     },
 
     get directorioFiltrado() {
+      if (!Array.isArray(this.directorio)) return [];
       if (!this.busquedaDirectorio) return this.directorio;
       const q = this.busquedaDirectorio.toLowerCase();
-      return this.directorio.filter(d => d.nombre && d.nombre.toLowerCase().includes(q));
+      return this.directorio.filter(d => d && d.nombre && d.nombre.toLowerCase().includes(q));
     }
   }));
-});
+}
+
+// Verificación anti race-condition para Alpine v3
+if (window.Alpine) {
+  registrarAppAlpine();
+} else {
+  document.addEventListener('alpine:init', registrarAppAlpine);
+}
