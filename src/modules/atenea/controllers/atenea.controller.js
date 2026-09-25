@@ -11,7 +11,8 @@ const { generarImagenTasa } = require('../../render/services/puppeteer.service')
 // ==========================================
 async function previewData(req, res) {
   try {
-    const data = await tasasService.obtenerCarteleraConsolidada();
+    const fn = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
+    const data = await fn();
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -20,9 +21,10 @@ async function previewData(req, res) {
 
 async function previewImage(req, res) {
   try {
-    const data = await tasasService.obtenerCarteleraConsolidada();
+    const fn = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
+    const data = await fn();
     const socio = (req.params.identificador || 'GENERAL').toUpperCase();
-    const targetData = data.find(d => d.nombre_socio.toUpperCase() === socio) || data[0];
+    const targetData = data.find(d => d.nombre_socio && d.nombre_socio.toUpperCase() === socio) || data[0];
 
     if (!targetData) {
       return res.status(404).send('No se encontraron datos para generar la imagen.');
@@ -38,7 +40,8 @@ async function previewImage(req, res) {
 
 async function dispararWhatsApp(req, res) {
   try {
-    const resultado = await tasasService.dispararPublicacionCartelera();
+    const fn = tasasService.dispararPublicacionCartelera || tasasService.encolarNotificacionesTasas;
+    const resultado = await fn();
     res.json({ success: true, ...resultado });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
