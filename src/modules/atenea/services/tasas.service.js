@@ -190,4 +190,9 @@ async function encolarNotificacionesTasas(filtroNombre = null) {
   return { totalEncolados: socios.length, socios: socios.map(s => s.nombre_socio) };
 }
 
-module.exports = { obtenerSociosYProcesarTasas, encolarNotificacionesTasas };
+module.exports = { 
+  obtenerSociosYProcesarTasas,
+  obtenerCarteleraConsolidada: obtenerSociosYProcesarTasas, // Alias para previewData / previewImage
+  encolarNotificacionesTasas,
+  dispararPublicacionCartelera: encolarNotificacionesTasas // Alias para dispararWhatsApp
+};
