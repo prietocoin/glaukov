@@ -7,6 +7,14 @@ function registrarAppAlpine() {
     directorio: [],
     socios: [],
 
+    // Estado Mercado & Hoo API
+    loteActivo: '',
+    tasasProduccion: {},
+    borradorCapturado: {},
+    imagenPreviewUrl: '',
+    socioPreviewSeleccionado: 'GENERAL',
+    cargandoPreviewImagen: false,
+
     // Filtros Comprobantes
     filtroRol: '',
     filtroSocio: '',
@@ -21,13 +29,11 @@ function registrarAppAlpine() {
     // Directorio & Filtros
     busquedaDirectorio: '',
 
-    // Modales de Comprobantes
+    // Modales
     modalAbierto: false,
     itemEdicion: null,
     modalImagenAbierto: false,
     itemSeleccionado: null,
-
-    // Modal Configuración Integral del Socio
     modalConfigSocioAbierto: false,
     socioConfigEdit: null,
 
@@ -35,37 +41,11 @@ function registrarAppAlpine() {
     timerPolling: null,
     ultimaActualizacion: '',
 
-    // Tasas base de mercado en memoria para precálculo
-    tasasMercadoBase: {
-      ARS: 1550,
-      VES: 960,
-      PEN: 3.38,
-      COP: 3250,
-      CLP: 950,
-      BRL: 5.15,
-      PYG: 5850,
-      EUR: 0.88,
-      USD: 1.00,
-      MXN: 17.50
-    },
-
-    // Cartelera Tasas Glaukov
-    carteleraTasas: [
-      { pais: 'Argentina (ARS)', bandera: '🇦🇷', code: 'ARS', comprar: 1665, vender: 1536, trendC: 'up', trendV: 'up' },
-      { pais: 'Venezuela (VES)', bandera: '🇻🇪', code: 'VES', comprar: 988, vender: 953, trendC: 'up', trendV: 'up' },
-      { pais: 'Peru (PEN)', bandera: '🇵🇪', code: 'PEN', comprar: 3.48, vender: 3.35, trendC: 'up', trendV: 'up' },
-      { pais: 'Colombia (COP)', bandera: '🇨🇴', code: 'COP', comprar: 3386, vender: 3253, trendC: 'up', trendV: 'up' },
-      { pais: 'Chile (CLP)', bandera: '🇨🇱', code: 'CLP', comprar: 1001, vender: 924, trendC: 'down', trendV: 'down' },
-      { pais: 'Brazil (BRL)', bandera: '🇧🇷', code: 'BRL', comprar: 5.46, vender: 4.94, trendC: 'up', trendV: 'up' },
-      { pais: 'Paraguay (PYG)', bandera: '🇵🇾', code: 'PYG', comprar: 6222, vender: 5629, trendC: 'up', trendV: 'up' },
-      { pais: 'Europa (EUR)', bandera: '🇪🇺', code: 'EUR', comprar: 0.985, vender: 0.774, trendC: 'eq', trendV: 'eq' },
-      { pais: 'EEUU-Zelle (USD)', bandera: '🇺🇸', code: 'USD', comprar: 1.08, vender: 0.95, trendC: 'eq', trendV: 'eq' }
-    ],
-
     async init() {
       await this.cargarSocios();
       await this.cargarComprobantes();
       await this.cargarDirectorio();
+      await this.cargarTasasMercado();
       this.iniciarAutoSync();
     },
 
@@ -77,6 +57,85 @@ function registrarAppAlpine() {
       }, 5000);
     },
 
+    // ==========================================
+    // MERCADO, HOO API & PREVIEW IMAGE
+    // ==========================================
+    async cargarTasasMercado() {
+      try {
+        const res = await AteneaAPI.getUltimasTasas();
+        if (res) {
+          if (res.id_tasa) this.loteActivo = res.id_tasa;
+          if (res.tasas) this.tasasProduccion = res.tasas;
+        }
+      } catch (err) {
+        console.error('[Glaukov UI ❌ Error al cargar tasas mercado]', err);
+      }
+    },
+
+    async conectarHooAPI() {
+      try {
+        const res = await AteneaAPI.fetchHoo();
+        if (res && res.rates) {
+          this.borradorCapturado = res.rates;
+          alert('Borrador capturado desde Hoo API con éxito.');
+        } else {
+          alert('No hay un borrador reciente enviado por n8n / Hoo API.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error conectando con la API de Hoo: ' + err.message);
+      }
+    },
+
+    async generarPreviewImagen(socioNombre = 'GENERAL') {
+      this.cargandoPreviewImagen = true;
+      this.socioPreviewSeleccionado = socioNombre;
+      try {
+        // Llama directamente al endpoint /api/preview-image/:identificador
+        const timestamp = new Date().getTime();
+        this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
+      } catch (err) {
+        console.error('Error generando preview de imagen:', err);
+      } finally {
+        this.cargandoPreviewImagen = false;
+      }
+    },
+
+    async publicarTasaOficial() {
+      if (!this.borradorCapturado || Object.keys(this.borradorCapturado).length === 0) {
+        alert('No hay borrador capturado para publicar.');
+        return;
+      }
+      if (!confirm('¿Deseas publicar este borrador como la tasa oficial en producción?')) return;
+      try {
+        const res = await AteneaAPI.publicarTasa(null, this.borradorCapturado);
+        if (res && res.id_tasa) this.loteActivo = res.id_tasa;
+        alert(`Tasa oficial ${res?.id_tasa || ''} publicada correctamente.`);
+        await this.cargarTasasMercado();
+      } catch (err) {
+        console.error(err);
+        alert('Error al publicar tasa: ' + err.message);
+      }
+    },
+
+    async reenviarTasaActual() {
+      if (!this.loteActivo) {
+        alert('No hay un lote activo cargado.');
+        return;
+      }
+      if (!confirm(`¿Reenviar notificaciones para el lote ${this.loteActivo}?`)) return;
+      try {
+        await AteneaAPI.reenviarTasa(this.loteActivo);
+        alert(`Reenvío activado para la tasa ${this.loteActivo}.`);
+      } catch (err) {
+        console.error(err);
+        alert('Error al reenviar tasa: ' + err.message);
+      }
+    },
+
+    // ==========================================
+    // COMPROBANTES, DIRECTORIO & MODALES
+    // ==========================================
     async cargarComprobantes(silencioso = false) {
       try {
         const params = {};
@@ -113,9 +172,6 @@ function registrarAppAlpine() {
       }
     },
 
-    // ==========================================
-    // LÓGICA DEL DIRECTORIO Y CONFIGURACIÓN DE SOCIOS
-    // ==========================================
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
@@ -147,17 +203,12 @@ function registrarAppAlpine() {
 
     crearNuevoSocio() {
       this.abrirConfigSocio({
-        nombre: '',
-        roles: 'SOCIO',
-        moneda_socio: 'USDT',
-        whatsapp: '',
-        saldo_anterior: 0,
-        activo: true
+        nombre: '', roles: 'SOCIO', moneda_socio: 'USDT', whatsapp: '', saldo_anterior: 0, activo: true
       });
     },
 
     calcularTasaEnVivo(code, factor, esDeposito = true) {
-      const base = this.tasasMercadoBase[code] || 1.0;
+      const base = this.tasasProduccion[code] || 1.0;
       const f = parseFloat(factor) || (esDeposito ? 1.0 : -0.95);
       const res = base * Math.abs(f);
       if (res === 0) return '0';
@@ -274,7 +325,7 @@ function registrarAppAlpine() {
       this.itemEdicion = { 
         ...item,
         tipo_manual: item.tipo_op_socio || item.tipo_op || 'D',
-        lote_tasa_asignado: item.lote_tasa_asignado || 'T041',
+        lote_tasa_asignado: item.lote_tasa_asignado || this.loteActivo || 'T041',
         fecha_hora_input: dateInput
       };
       this.modalAbierto = true;
