@@ -1,9 +1,10 @@
 /**
- * Cliente HTTP unificado para Glaukov / Atenea (ES Module)
+ * Cliente HTTP unificado para Glaukov / Atenea (Global Window)
  */
-export const AteneaAPI = {
+window.AteneaAPI = {
   // 1. COMPROBANTES Y REPORTES
-  async getComprobantes(filtros = {}) {
+  async getComprobantes(filtros) {
+    filtros = filtros || {};
     const params = new URLSearchParams();
     if (filtros.socio) params.append('socio', filtros.socio);
     if (filtros.rol) params.append('rol', filtros.rol);
@@ -14,13 +15,13 @@ export const AteneaAPI = {
     if (filtros.hash) params.append('hash', filtros.hash);
     if (filtros.soloDuplicados) params.append('soloDuplicados', 'true');
 
-    const res = await fetch(`/api/comprobantes?${params.toString()}`);
+    const res = await fetch('/api/comprobantes?' + params.toString());
     if (!res.ok) throw new Error('Error al obtener comprobantes');
     return await res.json();
   },
 
   async actualizarComprobante(hashLargo, payload) {
-    const res = await fetch(`/api/comprobantes/${encodeURIComponent(hashLargo)}`, {
+    const res = await fetch('/api/comprobantes/' + encodeURIComponent(hashLargo), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -30,7 +31,7 @@ export const AteneaAPI = {
   },
 
   async eliminarComprobante(hashLargo) {
-    const res = await fetch(`/api/comprobantes/${encodeURIComponent(hashLargo)}`, {
+    const res = await fetch('/api/comprobantes/' + encodeURIComponent(hashLargo), {
       method: 'DELETE'
     });
     if (!res.ok) throw new Error('Error al eliminar comprobante');
@@ -54,7 +55,7 @@ export const AteneaAPI = {
     const res = await fetch('/api/tasas/publicar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_tasa: idTasa, tasas })
+      body: JSON.stringify({ id_tasa: idTasa, tasas: tasas })
     });
     if (!res.ok) throw new Error('Error al publicar tasa oficial');
     return await res.json();
@@ -70,7 +71,7 @@ export const AteneaAPI = {
     return await res.json();
   },
 
-  // 3. SOCIOS Y DIRECTORIO (nombres_fb)
+  // 3. SOCIOS Y DIRECTORIO
   async getSocios() {
     const res = await fetch('/api/socios');
     if (!res.ok) throw new Error('Error al obtener lista de socios');
@@ -94,10 +95,10 @@ export const AteneaAPI = {
   },
 
   async patchEstadoSocio(nombre, activo) {
-    const res = await fetch(`/api/socios/${encodeURIComponent(nombre)}/estado`, {
+    const res = await fetch('/api/socios/' + encodeURIComponent(nombre) + '/estado', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activo })
+      body: JSON.stringify({ activo: activo })
     });
     if (!res.ok) throw new Error('Error al cambiar estado');
     return await res.json();
@@ -122,14 +123,14 @@ export const AteneaAPI = {
   },
 
   async eliminarSocioDirectorio(nombre) {
-    const res = await fetch(`/api/directorio/${encodeURIComponent(nombre)}`, {
+    const res = await fetch('/api/directorio/' + encodeURIComponent(nombre), {
       method: 'DELETE'
     });
     if (!res.ok) throw new Error('Error al eliminar socio');
     return await res.json();
   },
 
-  // 4. ENVÍO DE REPORTES Y ADMIN
+  // 4. REPORTES Y ADMIN
   async enviarWhatsApp(payload) {
     const res = await fetch('/api/reportes/enviar-whatsapp', {
       method: 'POST',
