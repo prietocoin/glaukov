@@ -1,265 +1,199 @@
 const db = require('../../../config/db');
-
-function aplicarReglaPrecisionTasa(val) {
-  if (val === null || val === undefined || isNaN(val) || val === 0) return 0;
-  const num = parseFloat(val);
-  if (num === 0) return 0;
-
-  const signo = num < 0 ? -1 : 1;
-  const v = Math.abs(num);
-  const vRound = Math.round(v * 1e8) / 1e8;
-
-  let res = 0;
-  if (vRound > 99.99) {
-    res = Math.trunc(vRound);
-  } else if (vRound >= 10.0) {
-    res = Math.trunc((vRound + 0.0000001) * 100) / 100;
-  } else {
-    const magnitud = Math.floor(Math.log10(vRound));
-    const factor = Math.pow(10, 2 - magnitud);
-    res = Math.trunc((vRound + 0.0000001) * factor) / factor;
-  }
-
-  return signo * res;
-}
-
-function aplicarPrecisionMonto(val) {
-  if (val === null || val === undefined || isNaN(val) || val === 0) return 0;
-  const num = parseFloat(val);
-  if (num === 0) return 0;
-
-  const signo = num < 0 ? -1 : 1;
-  const v = Math.abs(num);
-  const vRound = Math.round(v * 1e8) / 1e8;
-
-  return signo * (Math.trunc((vRound + 0.0000001) * 100) / 100);
-}
+const { aplicarReglaPrecisionTasa, aplicarPrecisionMonto } = require('../../../utils/formatters');
 
 async function obtenerComprobantesAuditados(filtros = {}) {
-  const { socio, nombre, fechaInicio, fechaFin, desdeHash, hastaHash, hash, rol, soloDuplicados } = filtros;
-  const targetSocio = (socio || nombre || '').trim();
+  try {
+    const { socio, rol, fechaInicio, fechaFin, hash, orden = 'fecha_desc' } = filtros;
+    const targetSocio = (socio || '').trim();
 
-  let query = `
-    WITH primer_lote AS (
-      SELECT id_tasa, timestamp
-      FROM mercado_tasas
-      ORDER BY timestamp ASC
-      LIMIT 1
-    ),
-    lotes_rangos AS (
+    let whereClauses = ["UPPER(TRIM(c.instancia)) = 'JAIRO'"];
+    const values = [];
+    let paramIndex = 1;
+
+    if (hash && hash.trim()) {
+      whereClauses.push(`(c.hash_largo ILIKE $${paramIndex} OR c.referencia ILIKE $${paramIndex})`);
+      values.push(`%${hash.trim()}%`);
+      paramIndex++;
+    }
+
+    if (fechaInicio && fechaInicio.trim()) {
+      whereClauses.push(`c.creado_en >= $${paramIndex}::timestamp`);
+      values.push(`${fechaInicio.trim()} 00:00:00`);
+      paramIndex++;
+    }
+
+    if (fechaFin && fechaFin.trim()) {
+      whereClauses.push(`c.creado_en <= $${paramIndex}::timestamp`);
+      values.push(`${fechaFin.trim()} 23:59:59`);
+      paramIndex++;
+    }
+
+    const whereSql = whereClauses.join(' AND ');
+    const orderDirection = orden === 'fecha_asc' ? 'ASC' : 'DESC';
+
+    const sqlBase = `
+      WITH impactos_ordenados AS (
+        SELECT 
+          hash_largo,
+          hash_corto,
+          url_imagen,
+          usuario_raw,
+          grupo_raw,
+          caption,
+          ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(hash_largo)) ORDER BY id ASC) AS num_impacto
+        FROM impactos_raw
+        WHERE UPPER(TRIM(instancia)) = 'JAIRO'
+      )
       SELECT 
-        id_tasa,
-        timestamp AS t_inicio,
-        LEAD(timestamp) OVER (ORDER BY timestamp ASC) AS t_fin
-      FROM (
-        SELECT DISTINCT id_tasa, timestamp 
-        FROM mercado_tasas
-      ) lotes
-    )
-    SELECT 
-      i.hash_largo,
-      i.hash_corto,
-      i.timestamp AS timestamp_comprobante,
-      to_timestamp(i.timestamp) AS fecha_hora_comprobante,
-      COALESCE(r.monto, 0) AS monto,
-      COALESCE(UPPER(r.moneda), 'USDT') AS moneda,
-      r.banco,
-      r.titular,
-      r.referencia,
-      COALESCE(r.procesado_ia, FALSE) AS procesado_ia,
-      i.nombre_socio_1,
-      NULLIF(TRIM(i.nombre_socio_2), '') AS nombre_socio_2,
-      i.url_imagen,
-      COALESCE(i.conteo, 1) AS conteo,
-      COALESCE(i.lote_tasa_manual, lr.id_tasa, (SELECT id_tasa FROM primer_lote), 'T041') AS lote_tasa_asignado,
+        c.hash_largo,
+        COALESCE(i1.hash_corto, SUBSTRING(c.hash_largo FROM 1 FOR 7)) AS hash_corto,
+        COALESCE(c.creado_en, NOW()) AS fecha_hora_comprobante,
+        COALESCE(c.monto, 0) AS monto,
+        COALESCE(UPPER(c.moneda), 'USDT') AS moneda,
+        COALESCE(c.banco, '-') AS banco,
+        COALESCE(c.titular, '-') AS titular,
+        COALESCE(c.referencia, '-') AS referencia,
+        COALESCE(c.procesado_ia, FALSE) AS procesado_ia,
+        COALESCE(c.url_r2, i1.url_imagen, '') AS url_imagen,
+        i1.caption,
 
-      COALESCE(n1.roles, 'SOCIO') AS rol_socio_1,
-      COALESCE(NULLIF(TRIM(n1.moneda_socio), ''), 'USDT') AS moneda_socio_1,
-      n1.ajustes AS ajustes_socio_1,
+        -- SOCIO 1 (Del Impacto 1X)
+        COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS nombre_socio_1,
+        
+        -- SOCIO 2 (Del Impacto 2X)
+        COALESCE(n_grupo2.nombre, n_user2.nombre) AS nombre_socio_2,
 
-      COALESCE(n2.roles, 'SOCIO') AS rol_socio_2,
-      COALESCE(NULLIF(TRIM(n2.moneda_socio), ''), 'USDT') AS moneda_socio_2,
-      n2.ajustes AS ajustes_socio_2
+        -- AJUSTES DE TASA Y PERFILES DE SOCIOS DESDE NOMBRES_FB
+        COALESCE(n1.roles, 'SOCIO') AS rol_socio_1,
+        COALESCE(NULLIF(TRIM(n1.moneda_socio), ''), 'USDT') AS moneda_socio_1,
+        COALESCE(n1.ajustes, '{}'::jsonb) AS ajustes_socio_1,
 
-    FROM impactos_raw i
-    LEFT JOIN comprobantes_raw r ON TRIM(LOWER(i.hash_largo)) = TRIM(LOWER(r.hash_largo))
-    LEFT JOIN lotes_rangos lr ON i.timestamp >= lr.t_inicio AND (lr.t_fin IS NULL OR i.timestamp < lr.t_fin)
-    LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(i.nombre_socio_1))
-    LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(i.nombre_socio_2))
-    WHERE COALESCE(i.estado, '') != 'DESCARTADO'
-  `;
+        COALESCE(n2.roles, 'SOCIO') AS rol_socio_2,
+        COALESCE(NULLIF(TRIM(n2.moneda_socio), ''), 'USDT') AS moneda_socio_2,
+        COALESCE(n2.ajustes, '{}'::jsonb) AS ajustes_socio_2
 
-  const values = [];
-  let paramIndex = 1;
+      FROM comprobantes_raw c
 
-  if (soloDuplicados === 'true') {
-    query += ` AND i.conteo > 1`;
-  }
+      LEFT JOIN impactos_ordenados i1 
+        ON LOWER(TRIM(i1.hash_largo)) = LOWER(TRIM(c.hash_largo)) AND i1.num_impacto = 1
 
-  if (rol && rol.trim() && rol.trim().toUpperCase() !== 'TODOS') {
-    query += ` AND (UPPER(TRIM(n1.roles)) = UPPER(TRIM($${paramIndex})) OR UPPER(TRIM(n2.roles)) = UPPER(TRIM($${paramIndex})))`;
-    values.push(rol.trim());
-    paramIndex++;
-  }
+      LEFT JOIN impactos_ordenados i2 
+        ON LOWER(TRIM(i2.hash_largo)) = LOWER(TRIM(c.hash_largo)) AND i2.num_impacto = 2
 
-  if (targetSocio && targetSocio.toUpperCase() !== 'TODOS') {
-    query += ` AND (UPPER(TRIM(i.nombre_socio_1)) = UPPER(TRIM($${paramIndex})) OR UPPER(TRIM(i.nombre_socio_2)) = UPPER(TRIM($${paramIndex})))`;
-    values.push(targetSocio);
-    paramIndex++;
-  }
+      LEFT JOIN nombres_fb n_grupo1 
+        ON i1.grupo_raw IS NOT NULL AND TRIM(i1.grupo_raw) != '' 
+        AND (LOWER(TRIM(n_grupo1.whatsapp)) = LOWER(TRIM(i1.grupo_raw)) OR LOWER(TRIM(n_grupo1.id_grupo)) = LOWER(TRIM(i1.grupo_raw)))
+      LEFT JOIN nombres_fb n_user1 
+        ON i1.usuario_raw IS NOT NULL AND TRIM(i1.usuario_raw) != '' 
+        AND LOWER(TRIM(n_user1.whatsapp)) = LOWER(TRIM(i1.usuario_raw))
 
-  if (hash && hash.trim()) {
-    query += ` AND (i.hash_corto ILIKE $${paramIndex} OR i.hash_largo ILIKE $${paramIndex})`;
-    values.push(`%${hash.trim()}%`);
-    paramIndex++;
-  }
+      LEFT JOIN nombres_fb n_grupo2 
+        ON i2.grupo_raw IS NOT NULL AND TRIM(i2.grupo_raw) != '' 
+        AND (LOWER(TRIM(n_grupo2.whatsapp)) = LOWER(TRIM(i2.grupo_raw)) OR LOWER(TRIM(n_grupo2.id_grupo)) = LOWER(TRIM(i2.grupo_raw)))
+      LEFT JOIN nombres_fb n_user2 
+        ON i2.usuario_raw IS NOT NULL AND TRIM(i2.usuario_raw) != '' 
+        AND LOWER(TRIM(n_user2.whatsapp)) = LOWER(TRIM(i2.usuario_raw))
 
-  if (fechaInicio && fechaInicio.trim()) {
-    const startTimestamp = Math.floor(new Date(fechaInicio.trim() + 'T00:00:00-04:00').getTime() / 1000);
-    if (!isNaN(startTimestamp)) {
-      query += ` AND i.timestamp >= $${paramIndex}`;
-      values.push(startTimestamp);
+      LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(n_grupo1.nombre, n_user1.nombre)))
+      LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(n_grupo2.nombre, n_user2.nombre)))
+
+      WHERE ${whereSql}
+    `;
+
+    let queryFinal = `
+      WITH datos AS (${sqlBase})
+      SELECT * FROM datos WHERE 1=1
+    `;
+
+    if (rol && rol.trim() && rol.trim().toUpperCase() !== 'TODOS') {
+      queryFinal += ` AND (UPPER(TRIM(rol_socio_1)) = UPPER(TRIM($${paramIndex})) OR UPPER(TRIM(rol_socio_2)) = UPPER(TRIM($${paramIndex})))`;
+      values.push(rol.trim());
       paramIndex++;
     }
-  }
 
-  if (fechaFin && fechaFin.trim()) {
-    const endTimestamp = Math.floor(new Date(fechaFin.trim() + 'T23:59:59-04:00').getTime() / 1000);
-    if (!isNaN(endTimestamp)) {
-      query += ` AND i.timestamp <= $${paramIndex}`;
-      values.push(endTimestamp);
+    if (targetSocio && targetSocio.toUpperCase() !== 'TODOS') {
+      queryFinal += ` AND (UPPER(TRIM(nombre_socio_1)) = UPPER(TRIM($${paramIndex})) OR UPPER(TRIM(nombre_socio_2)) = UPPER(TRIM($${paramIndex})))`;
+      values.push(targetSocio);
       paramIndex++;
     }
+
+    queryFinal += ` ORDER BY fecha_hora_comprobante ${orderDirection} LIMIT 100;`;
+
+    const { rows } = await db.query(queryFinal, values);
+
+    return rows.map(r => {
+      const monto = aplicarPrecisionMonto(r.monto);
+      const monOrig = r.moneda;
+      
+      // Cálculo de Socio 1
+      const aj1 = typeof r.ajustes_socio_1 === 'string' ? JSON.parse(r.ajustes_socio_1 || '{}') : (r.ajustes_socio_1 || {});
+      const factor1 = parseFloat(aj1[`D-${monOrig}`]) || 1.0;
+      const tasa1 = aplicarReglaPrecisionTasa(factor1);
+      const m1Socio = aplicarPrecisionMonto(tasa1 > 0 ? (monto / tasa1) : monto);
+
+      // Cálculo de Socio 2
+      const s2Name = r.nombre_socio_2 ? String(r.nombre_socio_2).trim() : null;
+      const tieneSocio2 = s2Name && s2Name !== '' && s2Name !== 'null' && s2Name !== 'undefined';
+
+      let tasa2 = 0;
+      let m2Socio = 0;
+
+      if (tieneSocio2) {
+        const aj2 = typeof r.ajustes_socio_2 === 'string' ? JSON.parse(r.ajustes_socio_2 || '{}') : (r.ajustes_socio_2 || {});
+        const factor2 = parseFloat(aj2[`D-${monOrig}`]) || 1.0;
+        tasa2 = aplicarReglaPrecisionTasa(factor2);
+        m2Socio = aplicarPrecisionMonto(tasa2 > 0 ? (monto / tasa2) : monto);
+      }
+
+      return {
+        hash_largo: r.hash_largo,
+        hash_corto: r.hash_corto,
+        fecha_hora_comprobante: r.fecha_hora_comprobante,
+        monto,
+        moneda: r.moneda,
+        banco: r.banco,
+        titular: r.titular,
+        referencia: r.referencia,
+        url_imagen: r.url_imagen,
+        procesado_ia: r.procesado_ia,
+        caption: r.caption,
+        nombre_socio_1: r.nombre_socio_1 || 'GENERAL',
+        nombre_socio_2: tieneSocio2 ? s2Name : null,
+        tasa_1: tasa1,
+        tasa_2: tasa2,
+        m1_socio: m1Socio,
+        m1_usdt: m1Socio,
+        m2_socio: m2Socio,
+        m2_usdt: m2Socio,
+        tipo_op_socio: 'D',
+        lote_tasa_asignado: 'T041',
+        monto_usd_equivalente: monto
+      };
+    });
+  } catch (err) {
+    console.error('❌ Error en obtenerComprobantesAuditados:', err.message);
+    return [];
   }
-
-  query += ` ORDER BY i.timestamp DESC;`;
-
-  const { rows } = await db.query(query, values);
-
-  const ratesRes = await db.query(`SELECT id_tasa, moneda, tasa_base FROM mercado_tasas;`);
-  const ratesMap = {};
-  for (const rate of ratesRes.rows) {
-    ratesMap[`${rate.id_tasa}_${(rate.moneda || '').toUpperCase()}`] = parseFloat(rate.tasa_base) || 1.0;
-  }
-
-  function getTasaBase(lote, mon) {
-    const m = (mon || 'USDT').toUpperCase();
-    if (m === 'USD' || m === 'USDT' || m === 'PYUSD') return 1.0;
-    return ratesMap[`${lote}_${m}`] || 1.0;
-  }
-
-  return rows.map(r => {
-    const monto = aplicarPrecisionMonto(r.monto);
-    const monOrig = (r.moneda || 'USDT').trim().toUpperCase();
-    const lote = r.lote_tasa_asignado;
-
-    const tasaBaseOrigen = getTasaBase(lote, monOrig);
-    const montoUsdEq = monOrig === 'USD' || monOrig === 'USDT' ? monto : (tasaBaseOrigen > 0 ? aplicarPrecisionMonto(monto / tasaBaseOrigen) : 0);
-
-    // Cálculos Socio 1
-    const monS1 = (r.moneda_socio_1 || 'USDT').trim().toUpperCase();
-    const tasaBaseS1 = getTasaBase(lote, monS1);
-    const aj1 = typeof r.ajustes_socio_1 === 'string' ? JSON.parse(r.ajustes_socio_1) : (r.ajustes_socio_1 || {});
-    const factor1 = parseFloat(aj1[`D-${monOrig}`]) || 1.0;
-    const tasaCross1 = tasaBaseS1 > 0 ? (tasaBaseOrigen / tasaBaseS1) : tasaBaseOrigen;
-    const tasa1Signed = tasaCross1 * factor1;
-    const tasa1 = aplicarReglaPrecisionTasa(tasa1Signed);
-    let m1Raw = Math.abs(tasa1) > 0 ? (monto / Math.abs(tasa1)) : 0;
-    if (factor1 < 0 || tasa1 < 0) m1Raw = -m1Raw;
-    const m1Socio = aplicarPrecisionMonto(m1Raw);
-    const m1Usdt = tasaBaseS1 > 0 ? aplicarPrecisionMonto(m1Socio / tasaBaseS1) : m1Socio;
-
-    // Cálculos Socio 2
-    let m2Socio = 0;
-    let m2Usdt = 0;
-    let tasa2 = 1;
-    let monS2 = 'USDT';
-
-    const s2Name = r.nombre_socio_2 ? String(r.nombre_socio_2).trim() : '';
-    const tieneSocio2 = s2Name !== '' && s2Name !== 'null' && s2Name !== 'undefined';
-
-    if (tieneSocio2) {
-      monS2 = (r.moneda_socio_2 || 'USDT').trim().toUpperCase();
-      const tasaBaseS2 = getTasaBase(lote, monS2);
-      const aj2 = typeof r.ajustes_socio_2 === 'string' ? JSON.parse(r.ajustes_socio_2) : (r.ajustes_socio_2 || {});
-      const factor2 = parseFloat(aj2[`D-${monOrig}`]) || 1.0;
-      const tasaCross2 = tasaBaseS2 > 0 ? (tasaBaseOrigen / tasaBaseS2) : tasaBaseOrigen;
-      const tasa2Signed = tasaCross2 * factor2;
-      tasa2 = aplicarReglaPrecisionTasa(tasa2Signed);
-      let m2Raw = Math.abs(tasa2) > 0 ? (monto / Math.abs(tasa2)) : 0;
-      if (factor2 < 0 || tasa2 < 0) m2Raw = -m2Raw;
-      m2Socio = aplicarPrecisionMonto(m2Raw);
-      m2Usdt = tasaBaseS2 > 0 ? aplicarPrecisionMonto(m2Socio / tasaBaseS2) : m2Socio;
-    }
-
-    return {
-      hash_largo: r.hash_largo,
-      hash_corto: r.hash_corto,
-      timestamp: r.timestamp_comprobante,
-      fecha_hora_comprobante: r.fecha_hora_comprobante,
-      monto,
-      moneda: monOrig,
-      banco: r.banco,
-      titular: r.titular,
-      referencia: r.referencia,
-      procesado_ia: r.procesado_ia,
-      nombre_socio_1: r.nombre_socio_1,
-      nombre_socio_2: tieneSocio2 ? s2Name : null,
-      url_imagen: r.url_imagen,
-      conteo: r.conteo,
-      lote_tasa_asignado: lote,
-      tasa_base: tasaBaseOrigen,
-      monto_usd_equivalente: montoUsdEq,
-      tipo_op: 'D',
-      moneda_socio_1: monS1,
-      rol_socio_1: r.rol_socio_1,
-      tasa_1: tasa1,
-      m1_socio: m1Socio,
-      m1_usdt: m1Usdt,
-      moneda_socio_2: monS2,
-      rol_socio_2: r.rol_socio_2,
-      tasa_2: tasa2,
-      m2_socio: m2Socio,
-      m2_usdt: m2Usdt
-    };
-  });
 }
 
 async function actualizarComprobante(hashLargo, datos) {
   const targetHash = (hashLargo || '').trim();
-  const { monto, moneda, banco, referencia, titular, nombre_socio_1, nombre_socio_2, lote_tasa_asignado, timestamp } = datos;
+  const { monto, moneda, banco, referencia, titular } = datos;
 
   await db.query(`
-    INSERT INTO comprobantes_raw (hash_largo, monto, moneda, banco, referencia, titular, procesado_ia)
-    VALUES ($1, $2, $3, $4, $5, $6, TRUE)
-    ON CONFLICT (hash_largo) DO UPDATE SET
-      monto = EXCLUDED.monto,
-      moneda = EXCLUDED.moneda,
-      banco = EXCLUDED.banco,
-      referencia = EXCLUDED.referencia,
-      titular = EXCLUDED.titular,
-      procesado_ia = TRUE;
+    UPDATE comprobantes_raw SET
+      monto = COALESCE($1, monto),
+      moneda = COALESCE($2, moneda),
+      banco = COALESCE($3, banco),
+      referencia = COALESCE($4, referencia),
+      titular = COALESCE($5, titular)
+    WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($6));
   `, [
-    targetHash,
     monto !== undefined && monto !== '' ? parseFloat(monto) : null,
     moneda || null,
     banco ? banco.toUpperCase() : null,
     referencia || null,
-    titular ? titular.toUpperCase() : null
-  ]);
-
-  await db.query(`
-    UPDATE impactos_raw 
-    SET nombre_socio_1 = $1, 
-        nombre_socio_2 = $2,
-        lote_tasa_manual = COALESCE($3, lote_tasa_manual),
-        timestamp = COALESCE($4, timestamp)
-    WHERE TRIM(LOWER(hash_largo)) = TRIM(LOWER($5));
-  `, [
-    nombre_socio_1 || null, 
-    nombre_socio_2 || null, 
-    lote_tasa_asignado || null,
-    timestamp ? parseInt(timestamp) : null,
+    titular ? titular.toUpperCase() : null,
     targetHash
   ]);
 
@@ -268,10 +202,8 @@ async function actualizarComprobante(hashLargo, datos) {
 
 async function eliminarComprobante(hashLargo) {
   const targetHash = (hashLargo || '').trim();
-
-  await db.query(`DELETE FROM comprobantes_raw WHERE TRIM(LOWER(hash_largo)) = TRIM(LOWER($1));`, [targetHash]);
-  await db.query(`UPDATE impactos_raw SET estado = 'DESCARTADO' WHERE TRIM(LOWER(hash_largo)) = TRIM(LOWER($1));`, [targetHash]);
-
+  await db.query(`DELETE FROM comprobantes_raw WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));`, [targetHash]);
+  await db.query(`DELETE FROM impactos_raw WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));`, [targetHash]);
   return { success: true };
 }
 
