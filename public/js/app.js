@@ -1,11 +1,15 @@
-function registrarAppAlpine() {
+import { AteneaAPI } from './api.js';
+
+document.addEventListener('alpine:init', () => {
   Alpine.data('app', () => ({
     vistaActiva: 'comprobantes',
     comprobantes: [],
-    socios: [],
     directorio: [],
-    carteleraTasas: [],
-    
+    socios: [],
+
+    // Métricas KPI
+    saldoAnterior: 0,
+
     // Filtros
     filtroRol: '',
     filtroSocio: '',
@@ -16,9 +20,8 @@ function registrarAppAlpine() {
     ordenarPor: 'fecha_desc',
     filtroHashBusqueda: '',
     busquedaDirectorio: '',
-    saldoAnterior: 0,
-    
-    // Modales de UI
+
+    // Modales y Visor
     modalAbierto: false,
     itemEdicion: null,
     modalConfigSocioAbierto: false,
@@ -26,73 +29,90 @@ function registrarAppAlpine() {
     modalImagenAbierto: false,
     itemSeleccionado: null,
 
+    // Sync
+    timerPolling: null,
+    ultimaActualizacion: '',
+
+    // Cartelera Tasas
+    carteleraTasas: [
+      { pais: 'Argentina (ARS)', bandera: '🇦🇷', comprar: 1626, vender: 1563 },
+      { pais: 'Venezuela (VES)', bandera: '🇻🇪', comprar: 984, vender: 950 },
+      { pais: 'Peru (PEN)', bandera: '🇵🇪', comprar: 3.44, vender: 3.31 },
+      { pais: 'Colombia (COP)', bandera: '🇨🇴', comprar: 3335, vender: 3140 },
+      { pais: 'Chile (CLP)', bandera: '🇨🇱', comprar: 1005, vender: 928 },
+      { pais: 'Brazil (BRL)', bandera: '🇧🇷', comprar: 5.42, vender: 4.91 },
+      { pais: 'Paraguay (PYG)', bandera: '🇵🇾', comprar: 6104, vender: 5749 },
+      { pais: 'Ecuador (ECU)', bandera: '🇪🇨', comprar: 1.06, vender: 0.94 },
+      { pais: 'Mexico (MXN)', bandera: '🇲🇽', comprar: 18.62, vender: 16.51 }
+    ],
+
     async init() {
       await this.cargarSocios();
-      await this.cargarDirectorio();
       await this.cargarComprobantes();
+      await this.cargarDirectorio();
+      this.iniciarAutoSync();
     },
 
-    async cargarComprobantes() {
-      try {
-        const query = new URLSearchParams();
-        if (this.filtroRol) query.append('rol', this.filtroRol);
-        if (this.filtroSocio) query.append('socio', this.filtroSocio);
-        if (this.filtroFechaInicio) query.append('fechaInicio', this.filtroFechaInicio);
-        if (this.filtroFechaFin) query.append('fechaFin', this.filtroFechaFin);
-        if (this.filtroDesdeHash) query.append('desdeHash', this.filtroDesdeHash);
-        if (this.filtroHastaHash) query.append('hastaHash', this.filtroHastaHash);
-        if (this.filtroHashBusqueda) query.append('hash', this.filtroHashBusqueda);
-
-        const res = await fetch(`/api/comprobantes?${query.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          this.comprobantes = Array.isArray(data) ? data : [];
-        } else {
-          this.comprobantes = [];
+    iniciarAutoSync() {
+      if (this.timerPolling) clearInterval(this.timerPolling);
+      this.timerPolling = setInterval(() => {
+        if (this.vistaActiva === 'comprobantes') {
+          this.cargarComprobantes(true);
         }
+      }, 5000);
+    },
+
+    async cargarComprobantes(silencioso = false) {
+      try {
+        const params = {};
+        if (this.filtroSocio) params.socio = this.filtroSocio;
+        if (this.filtroRol) params.rol = this.filtroRol;
+        if (this.filtroFechaInicio) params.fechaInicio = this.filtroFechaInicio;
+        if (this.filtroFechaFin) params.fechaFin = this.filtroFechaFin;
+        if (this.filtroHashBusqueda) params.hash = this.filtroHashBusqueda;
+        if (this.ordenarPor) params.orden = this.ordenarPor;
+
+        const res = await AteneaAPI.getComprobantes(params);
+        this.comprobantes = Array.isArray(res) ? res : [];
+        this.ultimaActualizacion = new Date().toLocaleTimeString('es-ES');
       } catch (err) {
-        console.error('Error cargando comprobantes:', err);
+        if (!silencioso) console.error('[Glaukov UI ❌]', err);
         this.comprobantes = [];
-      }
-    },
-
-    async cargarSocios() {
-      try {
-        const res = await fetch('/api/socios');
-        if (res.ok) {
-          const data = await res.json();
-          this.socios = Array.isArray(data) ? data.map(s => typeof s === 'string' ? s : s.nombre) : [];
-        }
-      } catch (err) {
-        console.error('Error cargando socios:', err);
       }
     },
 
     async cargarDirectorio() {
       try {
-        const res = await fetch('/api/directorio');
-        if (res.ok) {
-          const data = await res.json();
-          this.directorio = Array.isArray(data) ? data : [];
-        }
+        const res = await AteneaAPI.getDirectorio();
+        this.directorio = Array.isArray(res) ? res : [];
       } catch (err) {
-        console.error('Error cargando directorio:', err);
+        console.error('[Glaukov UI ❌]', err);
       }
     },
 
-    // MANEJADORES DE MODALES
+    async cargarSocios() {
+      try {
+        const res = await AteneaAPI.getSocios();
+        this.socios = Array.isArray(res) ? res : [];
+      } catch (err) {
+        console.error('[Glaukov UI ❌]', err);
+      }
+    },
+
     abrirModal(item) {
       if (!item) return;
       let dateInput = '';
-      if (item.timestamp) {
-        const d = new Date(item.timestamp * 1000);
-        const tzOffset = d.getTimezoneOffset() * 60000;
-        dateInput = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 16);
+      if (item.fecha_hora_comprobante) {
+        const d = new Date(item.fecha_hora_comprobante);
+        if (!isNaN(d.getTime())) {
+          const tzOffset = d.getTimezoneOffset() * 60000;
+          dateInput = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 16);
+        }
       }
 
       this.itemEdicion = { 
         ...item,
-        tipo_manual: item.tipo_op || 'D',
+        tipo_manual: item.tipo_op_socio || item.tipo_op || 'D',
         lote_tasa_asignado: item.lote_tasa_asignado || 'T041',
         fecha_hora_input: dateInput
       };
@@ -109,35 +129,24 @@ function registrarAppAlpine() {
           }
         }
 
-        const res = await fetch(`/api/comprobantes/${encodeURIComponent(this.itemEdicion.hash_largo)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.itemEdicion)
-        });
-
-        if (res.ok) {
-          this.modalAbierto = false;
-          await this.cargarComprobantes();
-        } else {
-          alert('Error al guardar cambios.');
-        }
+        await AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, this.itemEdicion);
+        this.modalAbierto = false;
+        await this.cargarComprobantes();
       } catch (err) {
         console.error('Error en guardarCambios:', err);
+        alert('Error guardando cambios: ' + err.message);
       }
     },
 
     async eliminarComprobante(hashLargo) {
       if (!hashLargo || !confirm('¿Deseas eliminar este comprobante?')) return;
       try {
-        const res = await fetch(`/api/comprobantes/${encodeURIComponent(hashLargo)}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          this.modalAbierto = false;
-          await this.cargarComprobantes();
-        }
+        await AteneaAPI.eliminarComprobante(hashLargo);
+        this.modalAbierto = false;
+        await this.cargarComprobantes();
       } catch (err) {
         console.error('Error eliminando comprobante:', err);
+        alert('Error eliminando: ' + err.message);
       }
     },
 
@@ -159,21 +168,21 @@ function registrarAppAlpine() {
 
     formatearFecha(fechaStr) {
       if (!fechaStr) return '-';
-      const date = new Date(fechaStr);
-      return isNaN(date.getTime()) ? '-' : date.toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+      const d = new Date(fechaStr);
+      return isNaN(d.getTime()) ? fechaStr : d.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
     },
 
     get sujetoAuditado() {
       return this.filtroSocio ? this.filtroSocio.toUpperCase() : 'TODOS LOS SOCIOS';
     },
 
-    get monedaSocioDominante() {
-      return 'USDT';
-    },
-
     get movimientoFiltradoTotal() {
       if (!Array.isArray(this.comprobantes)) return 0;
-      return this.comprobantes.reduce((acc, c) => acc + (parseFloat(c.m1_socio) || 0), 0);
+      return this.comprobantes.reduce((sum, item) => sum + (parseFloat(item.m1_socio) || parseFloat(item.monto) || 0), 0);
+    },
+
+    get monedaSocioDominante() {
+      return (this.comprobantes && this.comprobantes[0]?.moneda) || 'USDT';
     },
 
     get saldoActualTotal() {
@@ -184,14 +193,20 @@ function registrarAppAlpine() {
       if (!Array.isArray(this.directorio)) return [];
       if (!this.busquedaDirectorio) return this.directorio;
       const q = this.busquedaDirectorio.toLowerCase();
-      return this.directorio.filter(d => d && d.nombre && d.nombre.toLowerCase().includes(q));
+      return this.directorio.filter(d => 
+        (d && d.nombre && d.nombre.toLowerCase().includes(q)) ||
+        (d && d.roles && d.roles.toLowerCase().includes(q))
+      );
+    },
+
+    async toggleEstadoSocio(socio) {
+      try {
+        const nuevoEstado = !socio.activo;
+        await AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
+        socio.activo = nuevoEstado;
+      } catch (err) {
+        console.error('[Glaukov UI ❌]', err);
+      }
     }
   }));
-}
-
-// Verificación anti race-condition para Alpine v3
-if (window.Alpine) {
-  registrarAppAlpine();
-} else {
-  document.addEventListener('alpine:init', registrarAppAlpine);
-}
+});
