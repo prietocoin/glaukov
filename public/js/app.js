@@ -1,6 +1,6 @@
 import { AteneaAPI } from './api.js';
 
-document.addEventListener('alpine:init', () => {
+function registrarAppAlpine() {
   Alpine.data('app', () => ({
     vistaActiva: 'comprobantes',
     comprobantes: [],
@@ -33,17 +33,31 @@ document.addEventListener('alpine:init', () => {
     timerPolling: null,
     ultimaActualizacion: '',
 
-    // Cartelera Tasas
+    // Tasas base de mercado para precálculo en vivo
+    tasasMercadoBase: {
+      ARS: 1550,
+      VES: 960,
+      PEN: 3.38,
+      COP: 3250,
+      CLP: 950,
+      BRL: 5.15,
+      PYG: 5850,
+      EUR: 0.88,
+      USD: 1.00,
+      MXN: 17.50
+    },
+
+    // Cartelera Tasas Glaukov
     carteleraTasas: [
-      { pais: 'Argentina (ARS)', bandera: '🇦🇷', comprar: 1626, vender: 1563 },
-      { pais: 'Venezuela (VES)', bandera: '🇻🇪', comprar: 984, vender: 950 },
-      { pais: 'Peru (PEN)', bandera: '🇵🇪', comprar: 3.44, vender: 3.31 },
-      { pais: 'Colombia (COP)', bandera: '🇨🇴', comprar: 3335, vender: 3140 },
-      { pais: 'Chile (CLP)', bandera: '🇨🇱', comprar: 1005, vender: 928 },
-      { pais: 'Brazil (BRL)', bandera: '🇧🇷', comprar: 5.42, vender: 4.91 },
-      { pais: 'Paraguay (PYG)', bandera: '🇵🇾', comprar: 6104, vender: 5749 },
-      { pais: 'Ecuador (ECU)', bandera: '🇪🇨', comprar: 1.06, vender: 0.94 },
-      { pais: 'Mexico (MXN)', bandera: '🇲🇽', comprar: 18.62, vender: 16.51 }
+      { pais: 'Argentina (ARS)', bandera: '🇦🇷', code: 'ARS', comprar: 1665, vender: 1536, trendC: 'up', trendV: 'up' },
+      { pais: 'Venezuela (VES)', bandera: '🇻🇪', code: 'VES', comprar: 988, vender: 953, trendC: 'up', trendV: 'up' },
+      { pais: 'Peru (PEN)', bandera: '🇵🇪', code: 'PEN', comprar: 3.48, vender: 3.35, trendC: 'up', trendV: 'up' },
+      { pais: 'Colombia (COP)', bandera: '🇨🇴', code: 'COP', comprar: 3386, vender: 3253, trendC: 'up', trendV: 'up' },
+      { pais: 'Chile (CLP)', bandera: '🇨🇱', code: 'CLP', comprar: 1001, vender: 924, trendC: 'down', trendV: 'down' },
+      { pais: 'Brazil (BRL)', bandera: '🇧🇷', code: 'BRL', comprar: 5.46, vender: 4.94, trendC: 'up', trendV: 'up' },
+      { pais: 'Paraguay (PYG)', bandera: '🇵🇾', code: 'PYG', comprar: 6222, vender: 5629, trendC: 'up', trendV: 'up' },
+      { pais: 'Europa (EUR)', bandera: '🇪🇺', code: 'EUR', comprar: 0.985, vender: 0.774, trendC: 'eq', trendV: 'eq' },
+      { pais: 'EEUU-Zelle (USD)', bandera: '🇺🇸', code: 'USD', comprar: 1.08, vender: 0.95, trendC: 'eq', trendV: 'eq' }
     ],
 
     async init() {
@@ -59,6 +73,7 @@ document.addEventListener('alpine:init', () => {
         if (this.vistaActiva === 'comprobantes') {
           this.cargarComprobantes(true);
         }
+        this.ultimaActualizacion = new Date().toLocaleTimeString('es-ES');
       }, 5000);
     },
 
@@ -74,7 +89,6 @@ document.addEventListener('alpine:init', () => {
 
         const res = await AteneaAPI.getComprobantes(params);
         this.comprobantes = Array.isArray(res) ? res : [];
-        this.ultimaActualizacion = new Date().toLocaleTimeString('es-ES');
       } catch (err) {
         if (!silencioso) console.error('[Glaukov UI ❌]', err);
         this.comprobantes = [];
@@ -99,6 +113,157 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    // ==========================================
+    // DIRECTORIO & CONFIGURACIÓN INTEGRAL DE SOCIO
+    // ==========================================
+    abrirConfigSocio(socioObj) {
+      const aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {});
+      
+      const listaPaisesDefault = [
+        { code: 'ARS', nombre: 'Argentina', bandera: '🇦🇷', activo: true, factorD: aj['D-ARS'] ?? 1.0, factorP: aj['P-ARS'] ?? -0.95 },
+        { code: 'VES', nombre: 'Venezuela', bandera: '🇻🇪', activo: true, factorD: aj['D-VES'] ?? 1.0, factorP: aj['P-VES'] ?? -0.95 },
+        { code: 'PEN', nombre: 'Peru', bandera: '🇵🇪', activo: true, factorD: aj['D-PEN'] ?? 1.0, factorP: aj['P-PEN'] ?? -0.95 },
+        { code: 'COP', nombre: 'Colombia', bandera: '🇨🇴', activo: true, factorD: aj['D-COP'] ?? 1.03, factorP: aj['P-COP'] ?? -0.97 },
+        { code: 'CLP', nombre: 'Chile', bandera: '🇨🇱', activo: true, factorD: aj['D-CLP'] ?? 1.0, factorP: aj['P-CLP'] ?? -0.95 },
+        { code: 'BRL', nombre: 'Brazil', bandera: '🇧🇷', activo: true, factorD: aj['D-BRL'] ?? 1.0, factorP: aj['P-BRL'] ?? -0.95 },
+        { code: 'PYG', nombre: 'Paraguay', bandera: '🇵🇾', activo: false, factorD: aj['D-PYG'] ?? 1.0, factorP: aj['P-PYG'] ?? -0.95 },
+        { code: 'EUR', nombre: 'Europa', bandera: '🇪🇺', activo: false, factorD: aj['D-EUR'] ?? 1.0, factorP: aj['P-EUR'] ?? -0.95 },
+        { code: 'USD', nombre: 'EEUU-Zelle', bandera: '🇺🇸', activo: false, factorD: aj['D-USD'] ?? 1.0, factorP: aj['P-USD'] ?? -0.95 }
+      ];
+
+      this.socioConfigEdit = {
+        nombre: socioObj.nombre || 'NUEVO_SOCIO',
+        roles: socioObj.roles || 'SOCIO',
+        moneda_socio: socioObj.moneda_socio || 'USDT',
+        whatsapp: socioObj.whatsapp || socioObj.id_grupo || '',
+        saldo_anterior: socioObj.saldo_anterior || 0,
+        activo: socioObj.activo ?? true,
+        paises: listaPaisesDefault
+      };
+
+      this.modalConfigSocioAbierto = true;
+    },
+
+    crearNuevoSocio() {
+      this.abrirConfigSocio({
+        nombre: '',
+        roles: 'SOCIO',
+        moneda_socio: 'USDT',
+        whatsapp: '',
+        saldo_anterior: 0,
+        activo: true
+      });
+    },
+
+    // Precalculadora de Tasa en Vivo para las casillas superiores del Modal
+    calcularTasaEnVivo(code, factor, esDeposito = true) {
+      const base = this.tasasMercadoBase[code] || 1.0;
+      const f = parseFloat(factor) || (esDeposito ? 1.0 : -0.95);
+      const res = base * Math.abs(f);
+      if (res === 0) return '0';
+      if (res > 99.99) return Math.trunc(res).toLocaleString('en-US');
+      return (Math.trunc(res * 100) / 100).toFixed(2);
+    },
+
+    async guardarConfigSocioModal() {
+      if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
+        alert('Por favor especifica el nombre del socio.');
+        return;
+      }
+
+      try {
+        const ajustes = {};
+        const carteleraPaises = [];
+
+        this.socioConfigEdit.paises.forEach(p => {
+          ajustes[`D-${p.code}`] = parseFloat(p.factorD) || 1.0;
+          ajustes[`P-${p.code}`] = parseFloat(p.factorP) || -0.95;
+          if (p.activo) {
+            carteleraPaises.push({ moneda: p.code, pais: p.nombre, activo: true });
+          }
+        });
+
+        const payload = {
+          nombre: this.socioConfigEdit.nombre,
+          roles: this.socioConfigEdit.roles,
+          moneda_socio: this.socioConfigEdit.moneda_socio,
+          whatsapp: this.socioConfigEdit.whatsapp,
+          saldo_anterior: this.socioConfigEdit.saldo_anterior,
+          activo: this.socioConfigEdit.activo,
+          ajustes,
+          cartelera_paises: carteleraPaises
+        };
+
+        await AteneaAPI.guardarSocioConfig(payload);
+        this.modalConfigSocioAbierto = false;
+        await this.cargarDirectorio();
+        await this.cargarSocios();
+      } catch (err) {
+        console.error('Error al guardar socio:', err);
+        alert('Error guardando socio: ' + err.message);
+      }
+    },
+
+    async toggleEstadoSocio(socio) {
+      try {
+        const nuevoEstado = !socio.activo;
+        await AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
+        socio.activo = nuevoEstado;
+      } catch (err) {
+        console.error('[Glaukov UI ❌]', err);
+      }
+    },
+
+    async apagarTodosSocios() {
+      if (!confirm('¿Deseas apagar/desactivar todos los socios?')) return;
+      try {
+        await AteneaAPI.desactivarTodosSocios();
+        await this.cargarDirectorio();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+
+    async guardarVigentes() {
+      try {
+        await AteneaAPI.guardarVigentes();
+        alert('Plantilla de socios vigentes memorizada.');
+      } catch (err) {
+        console.error(err);
+      }
+    },
+
+    async restaurarVigentes() {
+      try {
+        await AteneaAPI.restaurarVigentes();
+        await this.cargarDirectorio();
+        alert('Socios vigentes restaurados.');
+      } catch (err) {
+        console.error(err);
+      }
+    },
+
+    async eliminarSocioDirectorio(nombre) {
+      if (!confirm(`¿Eliminar permanentemente a ${nombre}?`)) return;
+      try {
+        await AteneaAPI.eliminarSocioDirectorio(nombre);
+        await this.cargarDirectorio();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+
+    // Helper Talla Visual
+    getTallaClass(socioObj) {
+      const count = socioObj.cartelera_paises ? socioObj.cartelera_paises.length : 3;
+      if (count <= 3) return { label: `Talla: S [${count}]`, color: 'border-cyan-500/40 text-cyan-300 bg-cyan-950/40' };
+      if (count <= 6) return { label: `Talla: M [${count}]`, color: 'border-amber-500/40 text-amber-300 bg-amber-950/40' };
+      return { label: `Talla: L [${count}]`, color: 'border-purple-500/40 text-purple-300 bg-purple-950/40' };
+    },
+
+    // ==========================================
+    // HELPERS COMPROBANTES & MODALES
+    // ==========================================
     abrirModal(item) {
       if (!item) return;
       let dateInput = '';
@@ -195,18 +360,16 @@ document.addEventListener('alpine:init', () => {
       const q = this.busquedaDirectorio.toLowerCase();
       return this.directorio.filter(d => 
         (d && d.nombre && d.nombre.toLowerCase().includes(q)) ||
-        (d && d.roles && d.roles.toLowerCase().includes(q))
+        (d && d.roles && d.roles.toLowerCase().includes(q)) ||
+        (d && d.whatsapp && d.whatsapp.toLowerCase().includes(q))
       );
-    },
-
-    async toggleEstadoSocio(socio) {
-      try {
-        const nuevoEstado = !socio.activo;
-        await AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
-        socio.activo = nuevoEstado;
-      } catch (err) {
-        console.error('[Glaukov UI ❌]', err);
-      }
     }
   }));
-});
+}
+
+// Inicialización que evita la carrera de carga de Alpine.js
+if (window.Alpine) {
+  registrarAppAlpine();
+} else {
+  document.addEventListener('alpine:init', registrarAppAlpine);
+}
