@@ -51,9 +51,10 @@ async function dispararWhatsApp(req, res) {
 async function getComprobantes(req, res) {
   try {
     const datos = await comprobantesService.obtenerComprobantesAuditados(req.query);
-    res.json(datos);
+    res.json(datos || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error GET /api/comprobantes:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 }
 
@@ -131,25 +132,30 @@ async function postReenviarTasa(req, res) {
 // ==========================================
 async function getDirectorio(req, res) {
   try {
-    const directorio = await directorioService.obtenerDirectorioCompleto();
-    res.json(directorio);
+    const fn = directorioService.obtenerDirectorio || directorioService.obtenerDirectorioCompleto;
+    const directorio = await fn();
+    res.json(directorio || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error GET /api/directorio:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 }
 
 async function getSocios(req, res) {
   try {
-    const socios = await directorioService.obtenerNombresSocios();
-    res.json(socios);
+    const fn = directorioService.obtenerListaSocios || directorioService.obtenerNombresSocios;
+    const socios = await fn();
+    res.json(socios || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error GET /api/socios:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 }
 
 async function postSocioConfig(req, res) {
   try {
-    const socio = await directorioService.guardarSocioConfig(req.body);
+    const fn = directorioService.guardarConfigSocio || directorioService.guardarSocioConfig;
+    const socio = await fn(req.body);
     res.json({ success: true, data: socio });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -167,7 +173,8 @@ async function patchDesactivarTodos(req, res) {
 
 async function postGuardarVigentes(req, res) {
   try {
-    await directorioService.guardarVigentes();
+    const fn = directorioService.guardarSociosVigentes || directorioService.guardarVigentes;
+    await fn();
     res.json({ success: true, message: 'Plantilla de socios activos memorizada correctamente.' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -176,7 +183,8 @@ async function postGuardarVigentes(req, res) {
 
 async function postRestaurarVigentes(req, res) {
   try {
-    await directorioService.restaurarVigentes();
+    const fn = directorioService.restaurarSociosVigentes || directorioService.restaurarVigentes;
+    await fn();
     res.json({ success: true, message: 'Socios vigentes restaurados correctamente.' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -187,7 +195,8 @@ async function patchSocioEstado(req, res) {
   try {
     const { nombre } = req.params;
     const { activo } = req.body;
-    const socio = await directorioService.patchEstadoSocio(nombre, activo);
+    const fn = directorioService.cambiarEstadoSocio || directorioService.patchEstadoSocio;
+    const socio = await fn(nombre, activo);
     res.json({ success: true, data: socio });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -197,7 +206,8 @@ async function patchSocioEstado(req, res) {
 async function deleteSocio(req, res) {
   try {
     const { nombre } = req.params;
-    const resultado = await directorioService.eliminarSocioDirectorio(nombre);
+    const fn = directorioService.eliminarSocio || directorioService.eliminarSocioDirectorio;
+    const resultado = await fn(nombre);
     res.json(resultado);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
