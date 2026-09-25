@@ -82,7 +82,7 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 p-4 md:p-6 overflow-x-hidden space-y-6">
       
-      <!-- VISTA 1: GESTIÓN DE COMPROBANTES (MODO ATENEA HORIZONTAL) -->
+      <!-- VISTA 1: GESTIÓN DE COMPROBANTES -->
       <div x-show="vistaActiva === 'comprobantes'" class="space-y-5">
         
         <!-- HEADER ENCABEZADO -->
@@ -191,35 +191,31 @@
           </div>
         </div>
 
-        <!-- LISTADO EN MODO TARJETA HORIZONTAL (TIPO ATENEA) -->
+        <!-- LISTADO DE TARJETAS HORIZONTALES (OPTIMIZADO ESTILO ATENEA) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           <template x-for="item in comprobantes" :key="item.hash_largo">
             
             <div class="flex flex-row bg-[#080e26] border border-blue-900/40 rounded-2xl p-3 shadow-xl relative gap-3 transition-colors hover:bg-[#0a112e]">
               
-              <!-- IZQUIERDA: IMAGEN -->
-              <div class="w-24 sm:w-28 shrink-0 flex flex-col justify-start">
-                <button @click="verDetalleImagen(item)" class="relative aspect-square w-full rounded-xl bg-[#030611] border border-blue-800/60 overflow-hidden shadow-sm group">
+              <!-- COLUMNA IZQUIERDA: SÓLO IMAGEN (EXCLUSIVO) -->
+              <div class="w-24 sm:w-28 shrink-0 flex items-start">
+                <button @click="verDetalleImagen(item)" class="relative aspect-[3/4] w-full rounded-xl bg-[#030611] border border-blue-800/60 overflow-hidden shadow-sm group">
                   <template x-if="item.url_imagen">
                     <img :src="item.url_imagen" class="w-full h-full object-cover transition-transform group-hover:scale-105" alt="Comprobante">
                   </template>
                   <template x-if="!item.url_imagen">
-                    <div class="w-full h-full flex flex-col items-center justify-center text-slate-600">
-                      <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                      <span class="text-[8px] font-bold">SIN IMG</span>
+                    <div class="w-full h-full flex flex-col items-center justify-center text-slate-600 p-2">
+                      <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                      <span class="text-[9px] font-bold">SIN IMG</span>
                     </div>
                   </template>
                   <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <span class="text-white text-xl">🔍</span>
                   </div>
                 </button>
-                <div class="mt-2 text-center">
-                  <span class="text-[9px] text-slate-500 font-mono block" x-text="formatearFecha(item.fecha_hora_comprobante).split(',')[0]"></span>
-                  <span class="text-[9px] text-slate-500 font-mono block" x-text="formatearFecha(item.fecha_hora_comprobante).split(',')[1]"></span>
-                </div>
               </div>
 
-              <!-- DERECHA: DATOS DE AUDITORÍA -->
+              <!-- COLUMNA DERECHA: TODOS LOS DATOS Y TEXTO -->
               <div class="flex-1 flex flex-col justify-between min-w-0 py-0.5 gap-1.5">
                 
                 <!-- Fila 1: Badges y Acciones -->
@@ -238,8 +234,8 @@
                     <span class="px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-400 text-[9px] font-bold border border-amber-700/50 uppercase" x-text="item.tipo_op_socio || 'D'"></span>
                   </div>
 
-                  <!-- Botones de Acción Mínimos (Borrar/Editar) -->
-                  <div class="flex items-center gap-1.5 shrink-0">
+                  <!-- Botones de Acción -->
+                  <div class="flex items-center gap-1 shrink-0">
                     <button class="text-rose-400 hover:text-rose-300 hover:bg-rose-900/30 p-1 rounded-lg transition-colors" title="Eliminar">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
@@ -249,14 +245,20 @@
                   </div>
                 </div>
 
-                <!-- Fila 2: Monto Principal -->
-                <div class="flex items-center gap-2">
-                  <span class="font-black text-emerald-400 text-xl tracking-tight leading-none" x-text="item.monto"></span>
-                  <span class="font-bold text-slate-300 text-sm uppercase" x-text="item.moneda"></span>
+                <!-- Fila 2: Monto Principal + Fecha Integrada -->
+                <div class="flex items-baseline justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-black text-emerald-400 text-xl tracking-tight leading-none" x-text="item.monto"></span>
+                    <span class="font-bold text-slate-300 text-sm uppercase" x-text="item.moneda"></span>
+                  </div>
+                  <div class="text-[10px] font-mono text-slate-400 flex items-center gap-1 shrink-0">
+                    <span>📅</span>
+                    <span x-text="formatearFecha(item.fecha_hora_comprobante)"></span>
+                  </div>
                 </div>
 
                 <!-- Fila 3: Bloque de Socios (Dark Box) -->
-                <div class="bg-[#030611] rounded-lg border border-blue-900/30 p-1.5 space-y-1 mt-0.5">
+                <div class="bg-[#030611] rounded-lg border border-blue-900/30 p-1.5 space-y-1">
                   <div class="flex items-center justify-between text-[10px]">
                     <div class="flex items-center gap-2 truncate">
                       <span class="font-bold text-cyan-300 uppercase truncate" x-text="item.nombre_socio_1 || 'GENERAL'"></span>
@@ -276,8 +278,8 @@
                   </template>
                 </div>
 
-                <!-- Fila 4: Detalles de Banco, Titular, Referencia y Métricas -->
-                <div class="flex items-end justify-between pt-1 gap-2 border-t border-blue-900/40 mt-1">
+                <!-- Fila 4: Detalles de Banco, Titular, Referencia y Métricas ME0 / ME1 -->
+                <div class="flex items-end justify-between pt-1 gap-2 border-t border-blue-900/40 mt-0.5">
                   
                   <!-- Info Origen -->
                   <div class="flex flex-col text-[9px] text-slate-400 truncate flex-1 min-w-0 space-y-0.5">
@@ -295,7 +297,7 @@
                     </div>
                   </div>
 
-                  <!-- Métricas Equivalentes -->
+                  <!-- Métricas Equivalentes ME0 y ME1 -->
                   <div class="flex flex-col items-end shrink-0 text-[9px] font-mono space-y-0.5 bg-[#030611] p-1.5 rounded-lg border border-blue-900/30">
                     <div class="flex items-center gap-1.5">
                       <span class="font-bold text-slate-500">ME0</span>
