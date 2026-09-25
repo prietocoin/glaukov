@@ -91,7 +91,7 @@
     <main class="flex-1 p-4 md:p-6 overflow-x-hidden space-y-5">
       
       <!-- ========================================== -->
-      <!-- VISTA 1: COMPROBANTES (COMPLETA Y FIEL)    -->
+      <!-- VISTA 1: COMPROBANTES                      -->
       <!-- ========================================== -->
       <div x-show="vistaActiva === 'comprobantes'" class="space-y-4">
         
@@ -214,7 +214,7 @@
 
         </div>
 
-        <!-- LISTA COMPROBANTES (TARJETAS COMPONENTES CON TODOS LOS METADATOS) -->
+        <!-- LISTA COMPROBANTES -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <template x-for="item in comprobantes" :key="item.hash_largo">
             
@@ -280,7 +280,7 @@
                   </template>
                 </div>
 
-                <!-- BLOQUE INFERIOR DE METADATOS (TITULAR, BANCO & REF) -->
+                <!-- BLOQUE INFERIOR DE METADATOS -->
                 <div class="mt-1 pt-1.5 border-t border-blue-900/30 text-[10px] font-mono space-y-0.5">
                   <div class="truncate text-slate-300 font-bold uppercase" x-text="item.titular || 'DESCONOCIDO'"></div>
                   <div class="flex items-center justify-between text-slate-400">
@@ -297,51 +297,74 @@
       </div>
 
       <!-- ========================================== -->
-      <!-- VISTA 2: CARTELERA DE TASAS GLOUKOV        -->
+      <!-- VISTA 2: BAÚL & CARTELERA DE TASAS         -->
       <!-- ========================================== -->
       <div x-show="vistaActiva === 'cartelera'" class="space-y-6">
-        <div class="flex justify-between items-center border-b border-blue-900/50 pb-4">
+        
+        <!-- HEADER & ACCIONES SUPERIORES -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-white tracking-tight">Baúl & Cartelera de Tasas</h2>
+          </div>
           <div class="flex items-center gap-3">
-            <h2 class="text-3xl font-black text-white tracking-wide">FUNDABLOCK</h2>
-            <span class="text-2xl text-blue-500 font-light">|</span>
-            <span class="text-xl font-extrabold text-cyan-300" x-text="filtroSocio || 'ROSIRIS'"></span>
-          </div>
-          <div class="w-10 h-10 rounded-full border border-cyan-500/50 bg-[#091333] p-1 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <img src="/logo-fundablock.png" alt="Logo" class="w-full h-full object-contain">
+            <button @click="reenviarTasaActual()" class="px-3.5 py-2 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-bold hover:bg-amber-900 transition-all flex items-center gap-1.5 shadow-lg shadow-amber-950/40">
+              ⚡ Reenviar Tasa Actual
+            </button>
+            <button @click="conectarHooAPI()" class="px-3.5 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-900 transition-all flex items-center gap-1.5 shadow-lg shadow-purple-950/40">
+              ⚡ Conectar Hoo API
+            </button>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template x-for="c in carteleraTasas" :key="c.pais">
-            <div class="bg-[#060c24] rounded-2xl border border-blue-600/40 p-4 space-y-3 shadow-2xl hover:border-cyan-400 transition-all shadow-blue-900/30">
-              <div class="flex items-center gap-3">
-                <span class="text-2xl" x-text="c.bandera"></span>
-                <h3 class="font-extrabold text-white text-base tracking-wide" x-text="c.pais"></h3>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3 pt-2 border-t border-blue-900/50">
-                <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/50">
-                  <p class="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
-                    COMPRAR <span :class="c.trendC === 'up' ? 'text-emerald-400' : 'text-rose-400'" x-text="c.trendC === 'up' ? '▲' : '▼'"></span>
-                  </p>
-                  <p class="text-xl font-black text-emerald-400 mt-1" x-text="c.comprar"></p>
-                </div>
-
-                <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/50">
-                  <p class="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
-                    VENDER <span :class="c.trendV === 'up' ? 'text-emerald-400' : 'text-rose-400'" x-text="c.trendV === 'up' ? '▲' : '▼'"></span>
-                  </p>
-                  <p class="text-xl font-black text-pink-400 mt-1" x-text="c.vender"></p>
-                </div>
-              </div>
+        <!-- SECCIÓN 1: TASAS ACTIVAS EN PRODUCCIÓN (TABLA MERCADO) -->
+        <div class="bg-[#060c24] rounded-2xl border border-blue-900/60 p-4 space-y-3 shadow-2xl relative">
+          
+          <div class="flex justify-between items-center border-b border-blue-900/50 pb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <h3 class="text-xs font-black text-emerald-400 uppercase tracking-wider">TASAS ACTIVAS EN PRODUCCIÓN (TABLA MERCADO)</h3>
             </div>
-          </template>
+            <span class="px-3 py-1 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[11px] font-mono font-bold rounded-lg" x-text="'Lote Activo: ' + (loteActivo || 'CARGANDO...')"></span>
+          </div>
+
+          <!-- GRID DE TARJETAS PRODUCCIÓN -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <template x-for="(valor, moneda) in tasasProduccion" :key="'prod-'+moneda">
+              <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/50 space-y-1">
+                <p class="text-[10px] font-black text-purple-400 uppercase font-mono" x-text="moneda"></p>
+                <p class="text-base font-black text-emerald-400 font-mono tracking-wide" x-text="formatMonto(valor)"></p>
+              </div>
+            </template>
+          </div>
+
         </div>
 
-        <div class="bg-[#050b1e] border border-blue-900/50 rounded-2xl p-3 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-400 font-mono">
-          <span>Tasa base referencial: <strong class="text-cyan-400">T042 25/09/2026</strong> • Glaukov Engine</span>
-          <span class="bg-blue-950 px-3 py-1 rounded-xl text-cyan-300 font-bold border border-cyan-800/40 mt-2 sm:mt-0" x-text="'Actualizado: ' + (ultimaActualizacion || '12:42:08')"></span>
+        <!-- SECCIÓN 2: BORRADOR CAPTURADO (PASO PREVIO A PUBLICAR) -->
+        <div class="bg-[#060c24] rounded-2xl border border-blue-900/60 p-4 space-y-4 shadow-2xl">
+          
+          <div class="border-b border-blue-900/50 pb-2.5">
+            <h3 class="text-xs font-black text-slate-300 uppercase tracking-wider">BORRADOR CAPTURADO (PASO PREVIO A PUBLICAR)</h3>
+          </div>
+
+          <!-- GRID DE TARJETAS BORRADOR EDITABLE -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <template x-for="(valor, moneda) in borradorCapturado" :key="'borr-'+moneda">
+              <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/50 space-y-1">
+                <p class="text-[10px] font-black text-purple-400 uppercase font-mono" x-text="moneda"></p>
+                <input type="number" step="0.01" x-model="borradorCapturado[moneda]" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1 text-sm font-black text-emerald-400 font-mono outline-none focus:border-cyan-400">
+              </div>
+            </template>
+          </div>
+
+          <!-- BOTÓN PUBLICAR -->
+          <div class="flex justify-end pt-2">
+            <button @click="publicarTasaOficial()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2">
+              🚀 Publicar Tasa Oficial a Producción
+            </button>
+          </div>
+
         </div>
+
       </div>
 
       <!-- ========================================== -->
@@ -423,7 +446,7 @@
           <div class="w-10 h-10 rounded-2xl bg-purple-950 border border-purple-500/40 flex items-center justify-center text-purple-300 text-lg">⚙</div>
           <div>
             <h3 class="font-black text-white text-base">Configuración Integral del Socio</h3>
-            <p class="text-xs text-slate-400">Valores calculados en vivo en VET (GMT-4) con el lote <strong class="text-cyan-400">T041</strong>.</p>
+            <p class="text-xs text-slate-400">Valores calculados en vivo en VET (GMT-4) con el lote <strong class="text-cyan-400" x-text="loteActivo || 'T041'"></strong>.</p>
           </div>
         </div>
         <button type="button" @click="modalConfigSocioAbierto = false" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
