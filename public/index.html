@@ -176,7 +176,7 @@
             <select x-model="filtroDesdeHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
               <option value="">NINGUNO (TODOS)</option>
               <template x-for="item in comprobantes" :key="'desde'+item.hash_largo">
-                <option :value="item.hash_largo" x-text="item.hash_corto || item.hash_largo.substring(0,8)"></option>
+                <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
               </template>
             </select>
           </div>
@@ -186,7 +186,7 @@
             <select x-model="filtroHastaHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
               <option value="">NINGUNO (TODOS)</option>
               <template x-for="item in comprobantes" :key="'hasta'+item.hash_largo">
-                <option :value="item.hash_largo" x-text="item.hash_corto || item.hash_largo.substring(0,8)"></option>
+                <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
               </template>
             </select>
           </div>
@@ -210,12 +210,11 @@
 
         </div>
 
-        <!-- LISTA COMPROBANTES CON ENGINE GLAUKOV -->
+        <!-- LISTA COMPROBANTES -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <template x-for="item in comprobantes" :key="item.hash_largo">
             
-            <div x-data="{ calc: procesarLiquidacionComprobante(item) }" 
-                 class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-4 shadow-xl flex flex-row gap-4 items-stretch transition-all overflow-hidden relative">
+            <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-4 shadow-xl flex flex-row gap-4 items-stretch transition-all overflow-hidden relative">
               
               <!-- MARCO DE IMAGEN -->
               <div class="w-28 sm:w-36 shrink-0 bg-[#010309] border border-blue-900/60 rounded-xl overflow-hidden p-1 flex items-center justify-center">
@@ -235,16 +234,16 @@
                 <!-- ROW HASH, BADGES & ACCIONES -->
                 <div class="flex items-center justify-between gap-2 border-b border-blue-900/40 pb-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 font-mono text-xs font-bold border border-purple-500/40" x-text="item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH'"></span>
-                    <span x-show="calc.socio2Nombre" class="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 text-[10px] font-bold border border-amber-500/40">x2</span>
+                    <span class="px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 font-mono text-xs font-bold border border-purple-500/40" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></span>
+                    <span x-show="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'" class="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 text-[10px] font-bold border border-amber-500/40">x2</span>
                     <span x-show="item.procesado_ia" class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px] font-bold border border-emerald-500/40 flex items-center gap-1">✓ IA</span>
                     
                     <!-- BADGE NATURALEZA D / P / A -->
                     <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border"
-                          :class="calc.tipoOp === 'P' ? 'bg-amber-950 text-amber-300 border-amber-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40'"
-                          x-text="calc.tipoOp"></span>
+                          :class="(item.tipo_op1 || item.tipo_op || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40'"
+                          x-text="(item.tipo_op1 || item.tipo_op || 'D').split('-')[0]"></span>
 
-                    <span class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 text-[10px] font-bold border border-purple-500/40" x-text="item.lote_tasa || loteActivo || 'T041'"></span>
+                    <span class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 text-[10px] font-bold border border-purple-500/40" x-text="item.lote_tasa || item.lote_tasa_asignado || loteActivo || 'T041'"></span>
                   </div>
 
                   <div class="flex items-center gap-1 shrink-0">
@@ -255,32 +254,28 @@
 
                 <!-- ROW MONTO OPERADO EN DIVISA LOCAL -->
                 <div class="flex items-baseline gap-1.5 my-1.5">
-                  <span class="text-2xl sm:text-3xl font-black tracking-tight" :class="parseFloat(item.monto) < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="formatMonto(item.monto)"></span>
-                  <span class="text-xs font-black text-slate-300" x-text="item.moneda || 'PEN'"></span>
+                  <span class="text-2xl sm:text-3xl font-black tracking-tight" :class="parseFloat(item.monto || item.monto_local) < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="formatMonto(item.monto || item.monto_local)"></span>
+                  <span class="text-xs font-black text-slate-300" x-text="item.moneda || item.moneda_local || 'PEN'"></span>
                 </div>
 
-                <!-- TABLA DUAL DE SOCIOS (CONGELADOS / EN VIVO) -->
+                <!-- TABLA DUAL DE SOCIOS -->
                 <div class="bg-[#030611] rounded-xl border border-blue-900/50 p-2 space-y-1.5 my-1">
                   <!-- SOCIO 1 -->
                   <div class="flex items-center justify-between text-xs">
-                    <span class="font-black text-cyan-300 uppercase truncate max-w-[120px]" x-text="calc.socio1Nombre"></span>
+                    <span class="font-black text-cyan-300 uppercase truncate max-w-[120px]" x-text="item.nombre_socio_1 || item.socio_1 || item.titular || 'GENERAL'"></span>
                     <div class="flex items-center gap-1.5">
-                      <!-- Monto USDT (ME1) -->
-                      <span class="font-mono font-bold text-emerald-400" x-text="formatMonto(item.me1 || calc.me1_usdt) + ' USDT'"></span>
-                      <!-- Tasa T1 -->
-                      <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30" x-text="'T1:' + (item.tasa_1 || calc.tasaReal1)"></span>
+                      <span class="font-mono font-bold text-emerald-400" x-text="formatMonto(item.me1 || item.m1_socio || item.monto) + ' ' + (item.me1 ? 'USDT' : (item.moneda || 'PEN'))"></span>
+                      <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30" x-text="'T1:' + (item.tasa_1 || '1.00')"></span>
                     </div>
                   </div>
                   
                   <!-- SOCIO 2 -->
-                  <template x-if="calc.socio2Nombre">
+                  <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
                     <div class="flex items-center justify-between text-xs border-t border-blue-900/40 pt-1">
-                      <span class="font-black text-pink-300 uppercase truncate max-w-[120px]" x-text="calc.socio2Nombre"></span>
+                      <span class="font-black text-pink-300 uppercase truncate max-w-[120px]" x-text="item.nombre_socio_2 || item.socio_2"></span>
                       <div class="flex items-center gap-1.5">
-                        <!-- Monto USDT (ME2) -->
-                        <span class="font-mono font-bold text-pink-300" x-text="formatMonto(item.me2 || calc.me2_usdt) + ' USDT'"></span>
-                        <!-- Tasa T2 -->
-                        <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30" x-text="'T2:' + (item.tasa_2 || calc.tasaReal2)"></span>
+                        <span class="font-mono font-bold text-pink-300" x-text="formatMonto(item.me2 || item.m2_socio || -item.monto) + ' ' + (item.me2 ? 'USDT' : (item.moneda || 'PEN'))"></span>
+                        <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30" x-text="'T2:' + (item.tasa_2 || '1.00')"></span>
                       </div>
                     </div>
                   </template>
@@ -527,7 +522,7 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITAR COMPROBANTE REPOTENCIADO (AUDITORÍA & CONGELAMIENTO EN comprobantes_liq) -->
+  <!-- MODAL AUDITAR COMPROBANTE -->
   <div x-show="modalAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md" x-cloak>
     <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl relative" @click.away="modalAbierto = false">
       <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
