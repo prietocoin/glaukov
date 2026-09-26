@@ -10,15 +10,16 @@ router.get('/preview-image/:identificador?', ateneaController.previewImage);
 router.all('/disparar', ateneaController.dispararWhatsApp);
 
 // ==========================================
-// 2. AUDITORÍA DE COMPROBANTES
+// 2. AUDITORÍA DE COMPROBANTES Y LIQUIDACIONES
 // ==========================================
 router.get('/comprobantes', ateneaController.getComprobantes);
 router.get('/cola', ateneaController.getComprobantes);
+router.post('/comprobantes/liquidar', ateneaController.liquidarComprobante); // 👈 Congela liquidación
 router.put('/comprobantes/:hashLargo', ateneaController.updateComprobante);
 router.delete('/comprobantes/:hashLargo', ateneaController.deleteComprobante);
 
 // ==========================================
-// 3. TASAS Y MERCADO (HOO / N8N)
+// 3. TASAS Y MERCADO (HOO / API)
 // ==========================================
 router.get('/tasas/ultimas', ateneaController.getUltimasTasas);
 router.post('/tasas/n8n-webhook', ateneaController.postN8nWebhook);
@@ -52,8 +53,5 @@ router.post('/reportes/enviar-whatsapp', ateneaController.postEnviarReporteWhats
 router.get('/admin/cola', ateneaController.getColaAdmin);
 router.put('/admin/cola/:hashLargo', ateneaController.updateColaAdmin);
 router.delete('/admin/cola/:hashLargo', ateneaController.deleteColaAdmin);
-
-//------------------------------------------
-router.post('/comprobantes/liquidar', ateneaController.liquidarComprobante);
 
 module.exports = router;
