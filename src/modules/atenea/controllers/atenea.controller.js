@@ -49,7 +49,7 @@ async function dispararWhatsApp(req, res) {
 }
 
 // ==========================================
-// 2. AUDITORÍA DE COMPROBANTES
+// 2. AUDITORÍA DE COMPROBANTES Y LIQUIDACIONES
 // ==========================================
 async function getComprobantes(req, res) {
   try {
@@ -57,6 +57,18 @@ async function getComprobantes(req, res) {
     res.json(datos || []);
   } catch (err) {
     console.error('❌ Error GET /api/comprobantes:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// 🔴 NUEVO: Congelar snapshot en comprobantes_liq desde Alpine / Modal
+async function liquidarComprobante(req, res) {
+  try {
+    const fn = comprobantesService.liquidarComprobante || comprobantesService.guardarLiquidacion;
+    const resultado = await fn(req.body);
+    res.json({ success: true, message: 'Liquidación registrada correctamente', data: resultado });
+  } catch (err) {
+    console.error('❌ Error POST /api/comprobantes/liquidar:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -82,7 +94,7 @@ async function deleteComprobante(req, res) {
 }
 
 // ==========================================
-// 3. TASAS Y MERCADO (HOO / N8N)
+// 3. TASAS Y MERCADO (HOO / API)
 // ==========================================
 async function getUltimasTasas(req, res) {
   try {
@@ -105,7 +117,7 @@ function postN8nWebhook(req, res) {
 function getFetchHoo(req, res) {
   const rates = mercadoService.obtenerBorradorTasas();
   if (!rates) {
-    return res.status(404).json({ success: false, msg: 'El motor de n8n aún no ha enviado un borrador reciente.' });
+    return res.status(404).json({ success: false, msg: 'No se ha recibido un borrador reciente.' });
   }
   res.json({ success: true, rates });
 }
@@ -277,6 +289,7 @@ module.exports = {
   previewImage,
   dispararWhatsApp,
   getComprobantes,
+  liquidarComprobante, // 👈 Exportado
   updateComprobante,
   deleteComprobante,
   getUltimasTasas,
