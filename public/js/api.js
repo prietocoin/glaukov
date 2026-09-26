@@ -30,6 +30,17 @@ window.AteneaAPI = {
     return await res.json();
   },
 
+  // 🔴 NUEVO ENDPOINT: Congelar la liquidación financiera en comprobantes_liq
+  async liquidarComprobante(payload) {
+    const res = await fetch('/api/comprobantes/liquidar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Error al liquidar comprobante');
+    return await res.json();
+  },
+
   async eliminarComprobante(hashLargo) {
     const res = await fetch('/api/comprobantes/' + encodeURIComponent(hashLargo), {
       method: 'DELETE'
