@@ -53,4 +53,7 @@ router.get('/admin/cola', ateneaController.getColaAdmin);
 router.put('/admin/cola/:hashLargo', ateneaController.updateColaAdmin);
 router.delete('/admin/cola/:hashLargo', ateneaController.deleteColaAdmin);
 
+//------------------------------------------
+router.post('/comprobantes/liquidar', ateneaController.liquidarComprobante);
+
 module.exports = router;
