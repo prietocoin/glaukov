@@ -3,8 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-// 1. Inicializar Worker de Tasas (Consumidor BullMQ para WhatsApp)
-require('./src/workers/tasas.worker'); // ✅ Ruta corregida a src/jobs/
+// 1. Inicializar Workers en Segundo Plano (BullMQ)
+require('./src/workers/tasas.worker');
+require('./src/workers/liquidacion.worker'); // 👈 Subservicio de liquidación contable
 
 // 2. Cargar enrutador modular de Atenea
 const ateneaRoutes = require('./src/modules/atenea/routes/atenea.routes');
@@ -33,10 +34,6 @@ app.get('/health', (req, res) => {
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
-
-require('./src/workers/tasas.worker');
-require('./src/workers/liquidacion.worker'); // 👈 Agregar esta línea
-
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
