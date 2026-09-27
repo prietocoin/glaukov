@@ -34,6 +34,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
+require('./src/workers/tasas.worker');
+require('./src/workers/liquidacion.worker'); // 👈 Agregar esta línea
+
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Glaukov Engine 🦅] Motor activo en puerto ${PORT}`);
