@@ -1,6 +1,9 @@
 const db = require('../../../config/db');
-const { aplicarReglaPrecisionTasa, aplicarPrecisionMonto } = require('../../../utils/formatters');
+const { aplicarPrecisionMonto } = require('../../../utils/formatters');
 
+/**
+ * Consulta de lectura optimizada: Lee directamente desde comprobantes_raw + comprobantes_liq
+ */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
     const { socio, rol, fechaInicio, fechaFin, hash, orden = 'fecha_desc' } = filtros;
@@ -34,12 +37,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     const sqlBase = `
       WITH impactos_ordenados AS (
         SELECT 
-          hash_largo,
-          hash_corto,
-          url_imagen,
-          usuario_raw,
-          grupo_raw,
-          caption,
+          hash_largo, hash_corto, url_imagen, usuario_raw, grupo_raw, caption,
           ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(hash_largo)) ORDER BY id ASC) AS num_impacto
         FROM impactos_raw
         WHERE UPPER(TRIM(instancia)) = 'JAIRO'
@@ -57,22 +55,29 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         COALESCE(c.url_r2, i1.url_imagen, '') AS url_imagen,
         i1.caption,
 
-        -- SOCIO 1 (Del Impacto 1X)
-        COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS nombre_socio_1,
-        
-        -- SOCIO 2 (Del Impacto 2X)
-        COALESCE(n_grupo2.nombre, n_user2.nombre) AS nombre_socio_2,
+        -- DATOS CONGELADOS EN comprobantes_liq (SI EXISTEN)
+        l.socio_1,
+        l.tipo_op1,
+        l.monto_1,
+        l.tasa_1,
+        l.me1,
+        l.socio_2,
+        l.tipo_op2,
+        l.monto_2,
+        l.tasa_2,
+        l.me2,
+        l.lote_tasa,
 
-        -- AJUSTES DE TASA Y PERFILES DE SOCIOS DESDE NOMBRES_FB
+        -- NOMBRES Y ROLES FALLBACK (SI AÚN NO SE HA LIQUIDADO EN 2DO PLANO)
+        COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS fb_socio_1,
+        COALESCE(n_grupo2.nombre, n_user2.nombre) AS fb_socio_2,
         COALESCE(n1.roles, 'SOCIO') AS rol_socio_1,
-        COALESCE(NULLIF(TRIM(n1.moneda_socio), ''), 'USDT') AS moneda_socio_1,
-        COALESCE(n1.ajustes, '{}'::jsonb) AS ajustes_socio_1,
-
-        COALESCE(n2.roles, 'SOCIO') AS rol_socio_2,
-        COALESCE(NULLIF(TRIM(n2.moneda_socio), ''), 'USDT') AS moneda_socio_2,
-        COALESCE(n2.ajustes, '{}'::jsonb) AS ajustes_socio_2
+        COALESCE(n2.roles, 'SOCIO') AS rol_socio_2
 
       FROM comprobantes_raw c
+
+      LEFT JOIN comprobantes_liq l 
+        ON LOWER(TRIM(l.hash_largo)) = LOWER(TRIM(c.hash_largo))
 
       LEFT JOIN impactos_ordenados i1 
         ON LOWER(TRIM(i1.hash_largo)) = LOWER(TRIM(c.hash_largo)) AND i1.num_impacto = 1
@@ -112,7 +117,10 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     }
 
     if (targetSocio && targetSocio.toUpperCase() !== 'TODOS') {
-      queryFinal += ` AND (UPPER(TRIM(nombre_socio_1)) = UPPER(TRIM($${paramIndex})) OR UPPER(TRIM(nombre_socio_2)) = UPPER(TRIM($${paramIndex})))`;
+      queryFinal += ` AND (
+        UPPER(TRIM(COALESCE(socio_1, fb_socio_1))) = UPPER(TRIM($${paramIndex})) OR 
+        UPPER(TRIM(COALESCE(socio_2, fb_socio_2))) = UPPER(TRIM($${paramIndex}))
+      )`;
       values.push(targetSocio);
       paramIndex++;
     }
@@ -123,27 +131,6 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
     return rows.map(r => {
       const monto = aplicarPrecisionMonto(r.monto);
-      const monOrig = r.moneda;
-      
-      // Cálculo de Socio 1
-      const aj1 = typeof r.ajustes_socio_1 === 'string' ? JSON.parse(r.ajustes_socio_1 || '{}') : (r.ajustes_socio_1 || {});
-      const factor1 = parseFloat(aj1[`D-${monOrig}`]) || 1.0;
-      const tasa1 = aplicarReglaPrecisionTasa(factor1);
-      const m1Socio = aplicarPrecisionMonto(tasa1 > 0 ? (monto / tasa1) : monto);
-
-      // Cálculo de Socio 2
-      const s2Name = r.nombre_socio_2 ? String(r.nombre_socio_2).trim() : null;
-      const tieneSocio2 = s2Name && s2Name !== '' && s2Name !== 'null' && s2Name !== 'undefined';
-
-      let tasa2 = 0;
-      let m2Socio = 0;
-
-      if (tieneSocio2) {
-        const aj2 = typeof r.ajustes_socio_2 === 'string' ? JSON.parse(r.ajustes_socio_2 || '{}') : (r.ajustes_socio_2 || {});
-        const factor2 = parseFloat(aj2[`D-${monOrig}`]) || 1.0;
-        tasa2 = aplicarReglaPrecisionTasa(factor2);
-        m2Socio = aplicarPrecisionMonto(tasa2 > 0 ? (monto / tasa2) : monto);
-      }
 
       return {
         hash_largo: r.hash_largo,
@@ -157,23 +144,83 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         url_imagen: r.url_imagen,
         procesado_ia: r.procesado_ia,
         caption: r.caption,
-        nombre_socio_1: r.nombre_socio_1 || 'GENERAL',
-        nombre_socio_2: tieneSocio2 ? s2Name : null,
-        tasa_1: tasa1,
-        tasa_2: tasa2,
-        m1_socio: m1Socio,
-        m1_usdt: m1Socio,
-        m2_socio: m2Socio,
-        m2_usdt: m2Socio,
-        tipo_op_socio: 'D',
-        lote_tasa_asignado: 'T041',
-        monto_usd_equivalente: monto
+
+        // SOCIO 1
+        nombre_socio_1: r.socio_1 || r.fb_socio_1 || 'GENERAL',
+        tipo_op1: r.tipo_op1 || `D-${r.moneda}`,
+        monto_1: r.monto_1 !== null ? parseFloat(r.monto_1) : monto,
+        tasa_1: r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0,
+        me1: r.me1 !== null ? parseFloat(r.me1) : monto,
+
+        // SOCIO 2
+        nombre_socio_2: r.socio_2 || r.fb_socio_2 || null,
+        tipo_op2: r.tipo_op2 || `D-${r.moneda}`,
+        monto_2: r.monto_2 !== null ? parseFloat(r.monto_2) : 0,
+        tasa_2: r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0,
+        me2: r.me2 !== null ? parseFloat(r.me2) : 0,
+
+        // PROPIEDADES DE COMPATIBILIDAD CON FRONTEND
+        m1_socio: r.monto_1 !== null ? parseFloat(r.monto_1) : monto,
+        m2_socio: r.monto_2 !== null ? parseFloat(r.monto_2) : 0,
+        lote_tasa_asignado: r.lote_tasa || 'T041'
       };
     });
   } catch (err) {
     console.error('❌ Error en obtenerComprobantesAuditados:', err.message);
     return [];
   }
+}
+
+/**
+ * Registra o actualiza el congelamiento inmutable en comprobantes_liq
+ */
+async function liquidarComprobante(payload) {
+  const {
+    hash_largo, socio_1, tipo_op1, monto_1, tasa_1, me1,
+    socio_2, tipo_op2, monto_2, tasa_2, me2, lote_tasa
+  } = payload;
+
+  if (!hash_largo) {
+    throw new Error('El hash_largo es obligatorio para registrar la liquidación.');
+  }
+
+  const query = `
+    INSERT INTO comprobantes_liq (
+      hash_largo, socio_1, tipo_op1, monto_1, tasa_1, me1,
+      socio_2, tipo_op2, monto_2, tasa_2, me2, lote_tasa, actualizado_en
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+    ON CONFLICT (hash_largo) DO UPDATE SET
+      socio_1 = EXCLUDED.socio_1,
+      tipo_op1 = EXCLUDED.tipo_op1,
+      monto_1 = EXCLUDED.monto_1,
+      tasa_1 = EXCLUDED.tasa_1,
+      me1 = EXCLUDED.me1,
+      socio_2 = EXCLUDED.socio_2,
+      tipo_op2 = EXCLUDED.tipo_op2,
+      monto_2 = EXCLUDED.monto_2,
+      tasa_2 = EXCLUDED.tasa_2,
+      me2 = EXCLUDED.me2,
+      lote_tasa = EXCLUDED.lote_tasa,
+      actualizado_en = NOW();
+  `;
+
+  await db.query(query, [
+    hash_largo,
+    socio_1 || 'GENERAL',
+    tipo_op1 || 'D',
+    monto_1 !== undefined ? parseFloat(monto_1) : 0,
+    tasa_1 !== undefined ? parseFloat(tasa_1) : 1.0,
+    me1 !== undefined ? parseFloat(me1) : 0,
+    socio_2 || null,
+    tipo_op2 || 'D',
+    monto_2 !== undefined ? parseFloat(monto_2) : 0,
+    tasa_2 !== undefined ? parseFloat(tasa_2) : 1.0,
+    me2 !== undefined ? parseFloat(me2) : 0,
+    lote_tasa || 'T041'
+  ]);
+
+  return { success: true };
 }
 
 async function actualizarComprobante(hashLargo, datos) {
@@ -200,15 +247,20 @@ async function actualizarComprobante(hashLargo, datos) {
   return { success: true };
 }
 
+/**
+ * Borrado en cascada consistente en las tres tablas relacionales
+ */
 async function eliminarComprobante(hashLargo) {
   const targetHash = (hashLargo || '').trim();
   await db.query(`DELETE FROM comprobantes_raw WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));`, [targetHash]);
   await db.query(`DELETE FROM impactos_raw WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));`, [targetHash]);
+  await db.query(`DELETE FROM comprobantes_liq WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));`, [targetHash]);
   return { success: true };
 }
 
 module.exports = {
   obtenerComprobantesAuditados,
+  liquidarComprobante,
   actualizarComprobante,
   eliminarComprobante
 };
