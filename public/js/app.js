@@ -319,9 +319,19 @@ function registrarAppAlpine() {
         }
       }
 
+      const tipoOpBruto = (item.tipo_op1 || item.tipo_op_socio || 'D').split('-')[0];
+
       this.itemEdicion = { 
         ...item,
-        tipo_manual: item.tipo_op_socio || item.tipo_op || 'D',
+        nombre_socio_1: item.nombre_socio_1 || 'GENERAL',
+        nombre_socio_2: item.nombre_socio_2 || 'GENERAL',
+        tipo_manual: tipoOpBruto,
+        monto: item.monto || 0,
+        // Tasas y equivalentes son estrictamente SOLO LECTURA (derivados)
+        tasa_1: item.tasa_1 || 1.0,
+        me1: item.me1 !== undefined ? item.me1 : item.monto,
+        tasa_2: item.tasa_2 || 1.0,
+        me2: item.me2 || 0,
         lote_tasa_asignado: item.lote_tasa_asignado || this.loteActivo || 'T041',
         fecha_hora_input: dateInput
       };
@@ -336,11 +346,49 @@ function registrarAppAlpine() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
-        await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, this.itemEdicion);
+        const montoEditado = parseFloat(this.itemEdicion.monto || 0);
+
+        // 1. Actualizar metadatos brutos en comprobantes_raw
+        await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, {
+          monto: montoEditado,
+          moneda: this.itemEdicion.moneda,
+          banco: this.itemEdicion.banco,
+          referencia: this.itemEdicion.referencia,
+          titular: this.itemEdicion.titular
+        });
+
+        // 2. Tasa inmutable del lote y derivación automática de ME (Monto / Tasa)
+        const tasa1 = parseFloat(this.itemEdicion.tasa_1 || 1.0);
+        const tasa2 = parseFloat(this.itemEdicion.tasa_2 || 1.0);
+        const me1Derivado = tasa1 > 0 ? (montoEditado / tasa1) : montoEditado;
+        
+        const tieneSocio2 = this.itemEdicion.nombre_socio_2 && this.itemEdicion.nombre_socio_2 !== 'GENERAL';
+        const me2Derivado = tieneSocio2 ? (tasa2 > 0 ? (-1 * montoEditado / tasa2) : 0) : 0;
+
+        const divisa = (this.itemEdicion.moneda || 'USDT').toUpperCase();
+        const tipoOpFinal = `${this.itemEdicion.tipo_manual || 'D'}-${divisa}`;
+
+        // 3. Congelar instantánea inmutable enviando los valores calculados protegidos
+        await window.AteneaAPI.liquidarComprobante({
+          hash_largo: this.itemEdicion.hash_largo,
+          socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
+          tipo_op1: tipoOpFinal,
+          monto_1: montoEditado,
+          tasa_1: tasa1,           // Tasa inmutable del lote/socio
+          me1: me1Derivado,        // Calculado automáticamente
+          socio_2: tieneSocio2 ? this.itemEdicion.nombre_socio_2 : null,
+          tipo_op2: tipoOpFinal,
+          monto_2: tieneSocio2 ? -1 * montoEditado : 0,
+          tasa_2: tasa2,           // Tasa inmutable del lote/socio
+          me2: me2Derivado,        // Calculado automáticamente
+          lote_tasa: this.itemEdicion.lote_tasa_asignado || this.loteActivo || 'T041'
+        });
+
         this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
-        console.error('Error en guardarCambios:', err);
+        console.error('❌ Error en guardarCambios:', err);
+        alert('Error al guardar liquidación: ' + err.message);
       }
     },
 
