@@ -527,102 +527,129 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITAR COMPROBANTE (CON OPCIONES DINÁMICAS INYECTADAS) -->
+  <!-- MODAL AUDITAR COMPROBANTE -->
   <div x-show="modalAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md" x-cloak>
-    <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl relative" @click.away="modalAbierto = false">
+    <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-2xl p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto" @click.away="modalAbierto = false">
+      
+      <!-- HEADER -->
       <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
         <div class="flex items-center gap-2">
           <span class="text-cyan-400 font-black text-base">✏️ Auditar & Liquidar Comprobante</span>
         </div>
-        <button type="button" @click="modalAbierto = false" class="text-slate-400 hover:text-white text-sm">✕</button>
+        <button type="button" @click="modalAbierto = false" class="text-slate-400 hover:text-white text-sm font-bold">✕</button>
       </div>
 
       <template x-if="itemEdicion">
-        <div class="space-y-3.5 text-xs">
+        <div class="space-y-4 text-xs">
           
-          <!-- HASH & FECHA -->
-          <div class="grid grid-cols-2 gap-3 bg-[#030611] p-3 rounded-xl border border-blue-900/60">
+          <!-- BLOQUE 1: HASH & FECHA -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#030611] p-3 rounded-xl border border-blue-900/60">
             <div>
               <span class="text-[9px] font-bold text-slate-400 uppercase block">Hash Largo Referencia</span>
               <span class="font-mono text-cyan-300 font-bold truncate block" x-text="itemEdicion.hash_largo"></span>
             </div>
             <div>
               <span class="text-[9px] font-bold text-slate-400 uppercase block">Fecha / Timestamp Input</span>
-              <input type="datetime-local" x-model="itemEdicion.fecha_hora_input" class="w-full bg-[#080e26] border border-blue-900/80 rounded px-2 py-1 text-slate-200 outline-none text-[11px]">
+              <input type="datetime-local" x-model="itemEdicion.fecha_hora_input" class="w-full bg-[#080e26] border border-blue-900/80 rounded px-2.5 py-1 text-slate-200 outline-none text-[11px]">
             </div>
           </div>
 
-          <!-- REASIGNACIÓN DE SOCIOS CON CONSERVACIÓN FORZADA -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">Socio 1 (Primer Impacto)</label>
-              <select x-model="itemEdicion.nombre_socio_1" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2.5 py-2 text-xs text-white font-bold outline-none">
-                <option value="GENERAL">GENERAL</option>
-                
-                <!-- INYECCIÓN DINÁMICA DE SOCIO 1 SI NO EXISTE EN DIRECTORIO -->
-                <template x-if="itemEdicion.nombre_socio_1 && itemEdicion.nombre_socio_1 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_1)">
-                  <option :value="itemEdicion.nombre_socio_1" x-text="itemEdicion.nombre_socio_1" selected></option>
-                </template>
+          <!-- BLOQUE 2: METADATOS EXTRAÍDOS POR IA (BANCO, REFERENCIA, TITULAR) -->
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">1. Datos Extraídos / Banco</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-[#030611] p-3 rounded-xl border border-blue-900/60">
+              <div>
+                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Banco</label>
+                <input type="text" x-model="itemEdicion.banco" placeholder="Ej: YAPE, BCP, BBVA..." class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold outline-none uppercase focus:border-cyan-400">
+              </div>
 
-                <template x-for="s in directorio" :key="'ed-s1-'+s.nombre">
-                  <option :value="s.nombre" x-text="s.nombre"></option>
-                </template>
-              </select>
-            </div>
+              <div>
+                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nº Referencia</label>
+                <input type="text" x-model="itemEdicion.referencia" placeholder="Ej: 08635297" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono font-bold outline-none focus:border-cyan-400">
+              </div>
 
-            <div>
-              <label class="block text-[10px] font-bold text-pink-400 uppercase mb-1">Socio 2 (Contraparte)</label>
-              <select x-model="itemEdicion.nombre_socio_2" class="w-full bg-[#030611] border border-pink-500/40 rounded-xl px-2.5 py-2 text-xs text-white font-bold outline-none">
-                <option value="GENERAL">GENERAL</option>
-                
-                <!-- INYECCIÓN DINÁMICA DE SOCIO 2 SI NO EXISTE EN DIRECTORIO -->
-                <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_2)">
-                  <option :value="itemEdicion.nombre_socio_2" x-text="itemEdicion.nombre_socio_2" selected></option>
-                </template>
-
-                <template x-for="s in directorio" :key="'ed-s2-'+s.nombre">
-                  <option :value="s.nombre" x-text="s.nombre"></option>
-                </template>
-              </select>
+              <div>
+                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Titular Cuenta</label>
+                <input type="text" x-model="itemEdicion.titular" placeholder="Nombre titular..." class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold outline-none uppercase focus:border-cyan-400">
+              </div>
             </div>
           </div>
 
-          <!-- NATURALEZA, MONEDA RECIBO Y MONTO LOCAL -->
-          <div class="grid grid-cols-3 gap-2.5">
-            <div>
-              <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Naturaleza</label>
-              <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/40 rounded-xl px-2 py-2 text-xs text-amber-300 font-bold outline-none">
-                <option value="D">D (Depósito)</option>
-                <option value="P">P (Pago)</option>
-                <option value="A">A (Abono)</option>
-              </select>
-            </div>
+          <!-- BLOQUE 3: REASIGNACIÓN DE SOCIOS -->
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">2. Asignación de Socios</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">Socio 1 (Primer Impacto)</label>
+                <select x-model="itemEdicion.nombre_socio_1" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2.5 py-2 text-xs text-white font-bold outline-none">
+                  <option value="GENERAL">GENERAL</option>
+                  <template x-if="itemEdicion.nombre_socio_1 && itemEdicion.nombre_socio_1 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_1)">
+                    <option :value="itemEdicion.nombre_socio_1" x-text="itemEdicion.nombre_socio_1" selected></option>
+                  </template>
+                  <template x-for="s in directorio" :key="'ed-s1-'+s.nombre">
+                    <option :value="s.nombre" x-text="s.nombre"></option>
+                  </template>
+                </select>
+              </div>
 
-            <div>
-              <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">Moneda Recibo</label>
-              <select x-model="itemEdicion.moneda" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-2 text-xs text-cyan-300 font-bold outline-none uppercase">
-                <option value="COP">COP (Colombia)</option>
-                <option value="VES">VES (Venezuela)</option>
-                <option value="PEN">PEN (Perú)</option>
-                <option value="ARS">ARS (Argentina)</option>
-                <option value="CLP">CLP (Chile)</option>
-                <option value="BRL">BRL (Brasil)</option>
-                <option value="PYG">PYG (Paraguay)</option>
-                <option value="EUR">EUR (Europa)</option>
-                <option value="USD">USD (EEUU/Zelle)</option>
-                <option value="USDT">USDT (Crypto)</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Monto Local</label>
-              <input type="number" step="0.01" x-model="itemEdicion.monto" class="w-full bg-[#030611] border border-emerald-500/40 rounded-xl px-2.5 py-2 text-xs text-emerald-400 font-bold outline-none">
+              <div>
+                <label class="block text-[10px] font-bold text-pink-400 uppercase mb-1">Socio 2 (Contraparte)</label>
+                <select x-model="itemEdicion.nombre_socio_2" class="w-full bg-[#030611] border border-pink-500/40 rounded-xl px-2.5 py-2 text-xs text-white font-bold outline-none">
+                  <option value="GENERAL">GENERAL</option>
+                  <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_2)">
+                    <option :value="itemEdicion.nombre_socio_2" x-text="itemEdicion.nombre_socio_2" selected></option>
+                  </template>
+                  <template x-for="s in directorio" :key="'ed-s2-'+s.nombre">
+                    <option :value="s.nombre" x-text="s.nombre"></option>
+                  </template>
+                </select>
+              </div>
             </div>
           </div>
 
-          <!-- ACCIONES DEL MODAL -->
-          <div class="flex justify-between items-center pt-3 border-t border-blue-900/60">
-            <button type="button" @click="eliminarComprobante(itemEdicion.hash_largo)" class="px-3 py-1.5 bg-rose-950/80 border border-rose-500/40 text-rose-300 rounded-xl font-bold hover:bg-rose-900">🗑 Eliminar</button>
+          <!-- BLOQUE 4: NATURALEZA, MONEDA RECIBO Y MONTO LOCAL -->
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">3. Reglas de Operación</span>
+            <div class="grid grid-cols-3 gap-2.5">
+              <div>
+                <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Naturaleza</label>
+                <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/40 rounded-xl px-2 py-2 text-xs text-amber-300 font-bold outline-none">
+                  <option value="D">D (Depósito)</option>
+                  <option value="P">P (Pago)</option>
+                  <option value="A">A (Abono)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">Moneda Recibo</label>
+                <select x-model="itemEdicion.moneda" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-2 text-xs text-cyan-300 font-bold outline-none uppercase">
+                  <option value="COP">COP (Colombia)</option>
+                  <option value="VES">VES (Venezuela)</option>
+                  <option value="PEN">PEN (Perú)</option>
+                  <option value="ARS">ARS (Argentina)</option>
+                  <option value="CLP">CLP (Chile)</option>
+                  <option value="BRL">BRL (Brasil)</option>
+                  <option value="PYG">PYG (Paraguay)</option>
+                  <option value="EUR">EUR (Europa)</option>
+                  <option value="USD">USD (EEUU/Zelle)</option>
+                  <option value="USDT">USDT (Crypto)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Monto Local</label>
+                <input type="number" step="0.01" x-model="itemEdicion.monto" class="w-full bg-[#030611] border border-emerald-500/40 rounded-xl px-2.5 py-2 text-xs text-emerald-400 font-bold outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTONES Y ACCIONES DEL MODAL -->
+          <div class="flex flex-wrap justify-between items-center pt-3 border-t border-blue-900/60 gap-2">
+            <div class="flex gap-2">
+              <button type="button" @click="eliminarComprobante(itemEdicion.hash_largo)" class="px-3 py-1.5 bg-rose-950/80 border border-rose-500/40 text-rose-300 rounded-xl font-bold hover:bg-rose-900 transition-colors">🗑 Eliminar</button>
+              <button type="button" @click="releerIAModal()" class="px-3 py-1.5 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl font-bold hover:bg-purple-900 transition-colors flex items-center gap-1.5">🤖 Releer IA</button>
+            </div>
+
             <div class="flex gap-2">
               <button type="button" @click="modalAbierto = false" class="px-3.5 py-1.5 bg-blue-950 text-slate-300 rounded-xl font-bold border border-blue-900 hover:bg-blue-900">Cancelar</button>
               <button type="button" @click="guardarCambios()" class="px-5 py-1.5 bg-cyan-600 text-white rounded-xl font-black hover:bg-cyan-500 shadow-lg shadow-cyan-600/30">💾 Guardar & Congelar</button>
