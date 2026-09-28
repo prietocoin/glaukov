@@ -210,17 +210,17 @@
 
         </div>
 
-        <!-- LISTA COMPROBANTES -->
+        <!-- LISTA COMPROBANTES: VERSIÓN RESPONSIVA MOBILE/DESKTOP -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <template x-for="item in comprobantes" :key="item.hash_largo">
             
-            <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-4 shadow-xl flex flex-row gap-4 items-stretch transition-all overflow-hidden relative">
+            <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row gap-4 transition-all overflow-hidden relative">
               
-              <!-- MARCO DE IMAGEN -->
-              <div class="w-28 sm:w-36 shrink-0 bg-[#010309] border border-blue-900/60 rounded-xl overflow-hidden p-1 flex items-center justify-center">
-                <button @click="verDetalleImagen(item)" class="w-full h-full flex items-center justify-center min-h-[160px]">
+              <!-- MARCO DE IMAGEN (Banner en Móvil, Columna Izquierda en Desktop) -->
+              <div class="w-full md:w-36 h-36 md:h-auto shrink-0 bg-[#010309] border border-blue-900/60 rounded-xl overflow-hidden p-1 flex items-center justify-center relative group">
+                <button @click="verDetalleImagen(item)" class="w-full h-full flex items-center justify-center">
                   <template x-if="item.url_r2 || item.url_imagen">
-                    <img :src="item.url_r2 || item.url_imagen" class="max-w-full max-h-full object-contain rounded-lg" alt="Recibo">
+                    <img :src="item.url_r2 || item.url_imagen" class="w-full h-full object-cover md:object-contain rounded-lg opacity-80 group-hover:opacity-100 transition-opacity" alt="Recibo">
                   </template>
                   <template x-if="!item.url_r2 && !item.url_imagen">
                     <span class="text-[10px] text-slate-500 font-bold">SIN IMAGEN</span>
@@ -229,24 +229,24 @@
               </div>
 
               <!-- CONTENIDO DERECHO COMPLETO -->
-              <div class="flex-1 flex flex-col justify-between min-w-0">
+              <div class="flex-1 flex flex-col justify-between min-w-0 space-y-3 md:space-y-0">
                 
                 <!-- ROW HASH, BADGES & ACCIONES -->
-                <div class="flex items-center justify-between gap-2 border-b border-blue-900/40 pb-2">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-900/40 pb-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 font-mono text-xs font-bold border border-purple-500/40" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></span>
-                    <span x-show="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'" class="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 text-[10px] font-bold border border-amber-500/40">x2</span>
-                    <span x-show="item.procesado_ia" class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px] font-bold border border-emerald-500/40 flex items-center gap-1">✓ IA</span>
+                    <span class="px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 font-mono text-xs font-bold border border-purple-500/40 whitespace-nowrap" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></span>
+                    <span x-show="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'" class="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 text-[10px] font-bold border border-amber-500/40 whitespace-nowrap">x2</span>
+                    <span x-show="item.procesado_ia" class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px] font-bold border border-emerald-500/40 flex items-center gap-1 whitespace-nowrap">✓ IA</span>
                     
                     <!-- BADGE NATURALEZA D / P / A -->
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border"
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap"
                           :class="(item.tipo_op1 || item.tipo_op || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40'"
                           x-text="(item.tipo_op1 || item.tipo_op || 'D').split('-')[0]"></span>
 
-                    <span class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 text-[10px] font-bold border border-purple-500/40" x-text="item.lote_tasa || item.lote_tasa_asignado || loteActivo || 'T041'"></span>
+                    <span class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 text-[10px] font-bold border border-purple-500/40 whitespace-nowrap" x-text="item.lote_tasa || item.lote_tasa_asignado || loteActivo || 'T041'"></span>
                   </div>
 
-                  <div class="flex items-center gap-1 shrink-0">
+                  <div class="flex items-center justify-end gap-3 sm:gap-1 shrink-0 mt-1 sm:mt-0">
                     <button @click="eliminarComprobante(item.hash_largo)" class="p-1 text-slate-400 hover:text-rose-400 transition-colors" title="Eliminar">🗑</button>
                     <button @click="abrirModal(item)" class="p-1 text-slate-400 hover:text-cyan-400 transition-colors" title="Auditar">✏️</button>
                   </div>
@@ -254,55 +254,55 @@
 
                 <!-- ROW MONTO OPERADO EN DIVISA LOCAL -->
                 <div class="flex items-baseline gap-1.5 my-1.5">
-                  <span class="text-2xl sm:text-3xl font-black tracking-tight" :class="parseFloat(item.monto || item.monto_local) < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="formatMonto(item.monto || item.monto_local)"></span>
-                  <span class="text-xs font-black text-slate-300" x-text="item.moneda || item.moneda_local || 'PEN'"></span>
+                  <span class="text-3xl font-black tracking-tight truncate" :class="parseFloat(item.monto || item.monto_local) < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="formatMonto(item.monto || item.monto_local)"></span>
+                  <span class="text-sm font-black text-slate-300 whitespace-nowrap" x-text="item.moneda || item.moneda_local || 'PEN'"></span>
                 </div>
 
-                <!-- TABLA DUAL DE SOCIOS (MOSTRANDO M1 Y M2 CON MONEDAS NATIVAS) -->
-                <div class="bg-[#030611] rounded-xl border border-blue-900/50 p-2 space-y-1.5 my-1">
+                <!-- TABLA DUAL DE SOCIOS RESPONSIVA -->
+                <div class="bg-[#030611] rounded-xl border border-blue-900/50 p-3 space-y-2 md:my-1">
                   <!-- SOCIO 1 -->
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="font-black text-cyan-300 uppercase truncate max-w-[120px]" x-text="item.nombre_socio_1 || item.socio_1 || item.titular || 'GENERAL'"></span>
-                    <div class="flex items-center gap-1.5">
-                      <!-- M1 Nominal en divisa nativa del Socio 1 -->
-                      <span class="font-mono font-bold" 
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1.5">
+                    <span class="font-black text-cyan-300 uppercase truncate" x-text="item.nombre_socio_1 || item.socio_1 || item.titular || 'GENERAL'"></span>
+                    <div class="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                      <!-- M1 Nominal -->
+                      <span class="font-mono font-bold whitespace-nowrap" 
                             :class="parseFloat(item.monto_1 !== undefined ? item.monto_1 : item.m1_socio) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
                             x-text="formatMonto(item.monto_1 !== undefined ? item.monto_1 : item.m1_socio) + ' ' + (item.moneda_socio_1 || 'USDT')">
                       </span>
-                      <!-- ME1 USDT (si la moneda del socio NO es USDT) -->
+                      <!-- ME1 USDT -->
                       <template x-if="item.moneda_socio_1 && item.moneda_socio_1 !== 'USDT'">
-                        <span class="text-[10px] text-slate-400 font-mono" x-text="'(' + formatMonto(item.me1) + ' USDT)'"></span>
+                        <span class="text-[10px] text-slate-400 font-mono whitespace-nowrap" x-text="'(' + formatMonto(item.me1) + ' USDT)'"></span>
                       </template>
-                      <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30" x-text="'T1:' + (item.tasa_1 || '1.00')"></span>
+                      <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T1:' + (item.tasa_1 || '1.00')"></span>
                     </div>
                   </div>
                   
                   <!-- SOCIO 2 -->
                   <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
-                    <div class="flex items-center justify-between text-xs border-t border-blue-900/40 pt-1">
-                      <span class="font-black text-pink-300 uppercase truncate max-w-[120px]" x-text="item.nombre_socio_2 || item.socio_2"></span>
-                      <div class="flex items-center gap-1.5">
-                        <!-- M2 Nominal en divisa nativa del Socio 2 -->
-                        <span class="font-mono font-bold" 
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs border-t border-blue-900/40 pt-2 gap-1.5">
+                      <span class="font-black text-pink-300 uppercase truncate" x-text="item.nombre_socio_2 || item.socio_2"></span>
+                      <div class="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                        <!-- M2 Nominal -->
+                        <span class="font-mono font-bold whitespace-nowrap" 
                               :class="parseFloat(item.monto_2 !== undefined ? item.monto_2 : item.m2_socio) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
                               x-text="formatMonto(item.monto_2 !== undefined ? item.monto_2 : item.m2_socio) + ' ' + (item.moneda_socio_2 || 'USDT')">
                         </span>
-                        <!-- ME2 USDT (si la moneda del socio NO es USDT) -->
+                        <!-- ME2 USDT -->
                         <template x-if="item.moneda_socio_2 && item.moneda_socio_2 !== 'USDT'">
-                          <span class="text-[10px] text-slate-400 font-mono" x-text="'(' + formatMonto(item.me2) + ' USDT)'"></span>
+                          <span class="text-[10px] text-slate-400 font-mono whitespace-nowrap" x-text="'(' + formatMonto(item.me2) + ' USDT)'"></span>
                         </template>
-                        <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30" x-text="'T2:' + (item.tasa_2 || '1.00')"></span>
+                        <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T2:' + (item.tasa_2 || '1.00')"></span>
                       </div>
                     </div>
                   </template>
                 </div>
 
                 <!-- METADATOS -->
-                <div class="mt-1 pt-1.5 border-t border-blue-900/30 text-[10px] font-mono space-y-0.5">
+                <div class="mt-2 pt-2 border-t border-blue-900/30 text-[10px] font-mono space-y-1">
                   <div class="truncate text-slate-300 font-bold uppercase" x-text="item.titular || 'TITULAR NO DEFINIDO'"></div>
-                  <div class="flex items-center justify-between text-slate-400">
-                    <span class="uppercase" x-text="item.banco || 'BANCO'"></span>
-                    <span>Ref: <strong class="text-cyan-300" x-text="item.referencia || 'N/A'"></strong></span>
+                  <div class="flex items-center justify-between text-slate-400 flex-wrap gap-1">
+                    <span class="uppercase whitespace-nowrap" x-text="item.banco || 'BANCO'"></span>
+                    <span class="whitespace-nowrap">Ref: <strong class="text-cyan-300" x-text="item.referencia || 'N/A'"></strong></span>
                   </div>
                 </div>
 
