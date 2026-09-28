@@ -15,7 +15,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const loteCodigo = tasaLote?.id_tasa || 'T041';
   const mapaTasas = tasaLote?.tasas || { USD: 1.0, USDT: 1.0, PEN: 3.75, COP: 3900.0 };
 
-  // 1. Tasa base de la divisa del comprobante frente a USDT
+  // 1. Tasa base de la divisa del comprobante frente a USDT (ej. COP = 3900)
   const tasaBaseRawUSDT = parseFloat(mapaTasas[divisaRaw] || 1.0);
 
   // --- SOCIO 1 ---
@@ -27,8 +27,8 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const factor1 = parseFloat(aj1[`${tipoOp}-${divisaRaw}`]) || 1.0;
   const tasaBaseSocio1USDT = parseFloat(mapaTasas[monedaSocio1] || 1.0);
 
-  // Tasa cruzada efectiva T1: (Divisa Comprobante -> Divisa Nativa Socio 1) * Factor
-  const crossBase1 = tasaBaseRawUSDT / (tasaBaseSocio1USDT > 0 ? tasaBaseSocio1USDT : 1.0);
+  // Tasa cruzada efectiva T1: (Moneda Socio 1 / Moneda Comprobante) * Factor
+  const crossBase1 = tasaBaseSocio1USDT / (tasaBaseRawUSDT > 0 ? tasaBaseRawUSDT : 1.0);
   const tasa1Efectiva = aplicarReglaPrecisionTasa(crossBase1 * factor1);
 
   // M1: Monto nominal en divisa nativa del Socio 1
@@ -47,8 +47,8 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const factor2 = parseFloat(aj2[`${tipoOp}-${divisaRaw}`]) || 1.0;
   const tasaBaseSocio2USDT = parseFloat(mapaTasas[monedaSocio2] || 1.0);
 
-  // Tasa cruzada efectiva T2: (Divisa Comprobante -> Divisa Nativa Socio 2) * Factor
-  const crossBase2 = tasaBaseRawUSDT / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0);
+  // Tasa cruzada efectiva T2: (Moneda Socio 2 / Moneda Comprobante) * Factor
+  const crossBase2 = tasaBaseSocio2USDT / (tasaBaseRawUSDT > 0 ? tasaBaseRawUSDT : 1.0);
   const tasa2Efectiva = aplicarReglaPrecisionTasa(crossBase2 * factor2);
 
   // M2: Monto nominal en divisa nativa del Socio 2 (reflejo contable)
@@ -65,7 +65,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     tasa_1: tasa1Efectiva,
     me1: me1USDT,
 
-    socio_2: socio2Data?.nombre || 'GENERAL',
+    socio_2: socio2Data?.nombre || null,
     tipo_op2: `${tipoOp}-${divisaRaw}`,
     monto_2: m2Nominal,
     tasa_2: tasa2Efectiva,
