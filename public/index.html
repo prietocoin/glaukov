@@ -282,7 +282,7 @@
 
                   <div class="flex gap-1 w-full">
                     <span class="flex-1 text-center py-0.5 rounded bg-purple-950 text-purple-300 text-[9px] font-bold border border-purple-500/40 truncate px-0.5" 
-                          x-text="item.lote_tasa || item.lote_tasa_asignado || loteActivo || 'T041'"></span>
+                          x-text="item.lote_tasa_asignado || item.lote_tasa || loteActivo || 'T-ND'"></span>
                     <span x-show="item.procesado_ia" class="flex-1 text-center py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px] font-bold border border-emerald-500/40 flex items-center justify-center whitespace-nowrap">✓ IA</span>
                   </div>
 
@@ -431,13 +431,13 @@
 
   <!-- MODAL CONFIGURACIÓN SOCIO CON SELECTOR DE NATURALEZA POR MONEDA -->
   <div x-show="modalConfigSocioAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md" x-cloak>
-    <div class="bg-[#080e26] border border-blue-800/80 rounded-3xl w-full max-w-4xl p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto" @click.away="modalConfigSocioAbierto = false">
+    <div class="bg-[#080e26] border border-blue-808/80 rounded-3xl w-full max-w-4xl p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto" @click.away="modalConfigSocioAbierto = false">
       <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-2xl bg-purple-950 border border-purple-500/40 flex items-center justify-center text-purple-300 text-lg">⚙</div>
           <div>
             <h3 class="font-black text-white text-base">Configuración Integral del Socio</h3>
-            <p class="text-xs text-slate-400">Valores calculados en vivo con el lote <strong class="text-cyan-400" x-text="loteActivo || 'T041'"></strong>.</p>
+            <p class="text-xs text-slate-400">Valores calculados en vivo con el lote <strong class="text-cyan-400" x-text="loteActivo || 'CARGANDO...'"></strong>.</p>
           </div>
         </div>
         <button type="button" @click="modalConfigSocioAbierto = false" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
@@ -476,9 +476,9 @@
                       <span class="text-sm font-black text-white" x-text="p.bandera + ' ' + p.nombre"></span>
                     </label>
 
-                    <div class="flex items-center gap-1" x-show="socioConfigEdit.naturalezas">
+                    <div class="flex items-center gap-1">
                       <span class="text-[9px] font-bold text-slate-400">DEF:</span>
-                      <select x-model="socioConfigEdit.naturalezas[p.code]" 
+                      <select x-model="p.naturaleza" 
                               class="bg-[#080e26] border border-blue-900 text-cyan-300 font-bold text-xs rounded px-1.5 py-0.5 outline-none">
                         <option value="D">D (Depósito)</option>
                         <option value="P">P (Pago)</option>
@@ -607,10 +607,10 @@
             </div>
           </div>
 
-          <!-- BLOQUE 4: NATURALEZA, MONEDA RECIBO Y MONTO LOCAL -->
+          <!-- BLOQUE 4: NATURALEZA, MONEDA RECIBO, MONTO LOCAL Y LOTE TASA -->
           <div class="space-y-1.5">
             <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">3. Reglas de Operación</span>
-            <div class="grid grid-cols-3 gap-2.5">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div>
                 <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Naturaleza</label>
                 <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/40 rounded-xl px-2 py-2 text-xs text-amber-300 font-bold outline-none">
@@ -639,6 +639,11 @@
               <div>
                 <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Monto Local</label>
                 <input type="number" step="0.01" x-model="itemEdicion.monto" class="w-full bg-[#030611] border border-emerald-500/40 rounded-xl px-2.5 py-2 text-xs text-emerald-400 font-bold outline-none">
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-bold text-purple-400 uppercase mb-1">Lote Tasa</label>
+                <input type="text" x-model="itemEdicion.lote_tasa_asignado" placeholder="ej. T047" class="w-full bg-[#030611] border border-purple-500/40 rounded-xl px-2.5 py-2 text-xs text-purple-300 font-bold font-mono outline-none uppercase">
               </div>
             </div>
           </div>
