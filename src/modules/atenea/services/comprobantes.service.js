@@ -8,7 +8,7 @@ const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
 /**
  * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq.
- * Evalúa la naturaleza (D/P/A) y busca el lote de tasa histórico exacto en la tabla mercado.
+ * Evalúa la naturaleza (D/P/A) y busca el lote de tasa histórico exacto en la tabla mercado_tasas.
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -83,16 +83,16 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
-        -- 🟢 CRUCE CON TABLA MERCADO PARA OBTENER LA TASA HISTÓRICA EXACTA
+        -- 🟢 CRUCE CON TABLA MERCADO_TASAS PARA OBTENER LA TASA HISTÓRICA EXACTA
         (
           SELECT m.id_tasa 
-          FROM mercado m 
-          WHERE m.creado_en <= COALESCE(
+          FROM mercado_tasas m 
+          WHERE COALESCE(m.creado_en, m.created_at, NOW()) <= COALESCE(
             c.creado_en, 
             CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, 
             NOW()
           )
-          ORDER BY m.creado_en DESC 
+          ORDER BY COALESCE(m.creado_en, m.created_at) DESC 
           LIMIT 1
         ) AS lote_tasa_historico,
 
@@ -229,7 +229,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         m1_socio: m1Calculado,
         m2_socio: m2Calculado,
         
-        // 🟢 Asigna la tasa liquidada, o si no está liquidada, la tasa histórica extraída de mercado
+        // Asigna la tasa liquidada, o la tasa histórica desde mercado_tasas
         lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T-ND'
       };
     });
@@ -285,7 +285,7 @@ async function liquidarComprobante(payload) {
     monto_2 !== undefined ? parseFloat(monto_2) : 0,
     tasa_2 !== undefined ? parseFloat(tasa_2) : 1.0,
     me2 !== undefined ? parseFloat(me2) : 0,
-    lote_tasa || null // 🟢 Removido el 'T041' forzado
+    lote_tasa || null
   ]);
 
   return { success: true };
