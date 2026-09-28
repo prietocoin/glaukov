@@ -8,7 +8,7 @@ const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
 /**
  * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq.
- * Extrae ajustes del Socio 1 para determinar naturaleza y mantiene timestamp inmutable.
+ * Extrae la columna de naturaleza (cop, ves, pen, etc.) directamente de nombres_fb vía to_jsonb(n1).
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -51,7 +51,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       SELECT 
         c.hash_largo,
         COALESCE(i1.hash_corto, SUBSTRING(c.hash_largo FROM 1 FOR 7)) AS hash_corto,
-        -- FECHA / TIMESTAMP INMUTABLE DE INGESTA ORIGINAL (Casteo seguro a timestamp)
+        -- TIMESTAMP ORIGINAL INMUTABLE
         COALESCE(
           c.creado_en, 
           CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, 
@@ -83,10 +83,10 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
-        -- MONEDAS DE SOCIO Y AJUSTES DICCIONARIO
+        -- MONEDAS Y FILA COMPLETA DE SOCIO 1 (nombres_fb)
         COALESCE(n1.moneda_socio, 'USDT') AS moneda_socio_1,
         COALESCE(n2.moneda_socio, 'USDT') AS moneda_socio_2,
-        COALESCE(n1.ajustes, '{}') AS ajustes_socio_1,
+        to_jsonb(n1) AS socio1_row,
 
         -- FALLBACKS DE INGESTA BRUTA
         COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS fb_socio_1,
@@ -156,32 +156,21 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const socio1Final = estaLiquidado ? (r.socio_1 || 'GENERAL') : (r.fb_socio_1 || 'GENERAL');
       const socio2Final = estaLiquidado ? r.socio_2 : (r.fb_socio_2 || null);
 
-      // 1. Lectura del diccionario de ajustes del Socio 1
-      let aj1 = {};
-      try {
-        aj1 = typeof r.ajustes_socio_1 === 'string'
-          ? JSON.parse(r.ajustes_socio_1 || '{}')
-          : (r.ajustes_socio_1 || {});
-      } catch (e) {
-        aj1 = {};
-      }
-
-      // 2. Extraer Naturaleza (D/P/A) del Socio 1 según la moneda del recibo
+      // 1. Lectura directa de la columna de moneda de Socio 1 (ej: n1.cop, n1.ves, n1.pen)
       const divisaRecibo = (r.moneda || 'COP').toUpperCase();
-      const naturalezaSocio1 = (
-        aj1[`naturaleza_${divisaRecibo}`] || 
-        aj1[`NAT-${divisaRecibo}`] || 
-        aj1[divisaRecibo] || 
-        'D'
-      ).toUpperCase();
+      const divisaKey = divisaRecibo.toLowerCase();
+      const socio1Row = r.socio1_row || {};
 
-      // 3. Tipo de operación para Socio 1
+      const natRaw = socio1Row[divisaKey];
+      const naturalezaSocio1 = (typeof natRaw === 'string' && natRaw.trim() ? natRaw.trim() : 'D').toUpperCase();
+
+      // 2. Tipo de operación para Socio 1
       const tipoOp1Final = r.tipo_op1 || `${naturalezaSocio1}-${divisaRecibo}`;
 
-      // 4. Socio 2 HEREDA exactamente el mismo tipo de operación que Socio 1
+      // 3. Socio 2 HEREDA exactamente el mismo tipo de operación que Socio 1
       const tipoOp2Final = r.tipo_op2 || tipoOp1Final;
 
-      // 5. Asignación de signos nominales no liquidados
+      // 4. Asignación de signos nominales no liquidados
       const signo1 = tipoOp1Final.startsWith('P') ? -1 : 1;
       const signo2 = -1 * signo1;
 
