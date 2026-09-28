@@ -6,9 +6,15 @@ const { aplicarPrecisionMonto } = require('../../../utils/formatters');
 // Queue de BullMQ para re-procesamiento de IA
 const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
+function truncarTasaComercial(valor) {
+  const num = Math.abs(parseFloat(valor) || 0);
+  if (num === 0) return 1.0;
+  if (num > 99.99) return Math.trunc(num);
+  return Math.trunc((num + 0.0000001) * 100) / 100;
+}
+
 /**
- * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq.
- * Evalúa la naturaleza (D/P/A) y busca el lote de tasa histórico exacto en mercado_tasas vía m.created_at.
+ * Consulta de lectura optimizada con cálculo comercial dinámico en vivo.
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -41,7 +47,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     const orderDirection = orden === 'fecha_asc' ? 'ASC' : 'DESC';
 
     const sqlBase = `
-      WITH impactos_ordenados AS (
+      WITH tasas_por_lote AS (
+        SELECT id_tasa, jsonb_object_agg(UPPER(moneda), tasa_base) AS tasas
+        FROM mercado_tasas
+        GROUP BY id_tasa
+      ),
+      impactos_ordenados AS (
         SELECT 
           hash_largo, hash_corto, url_imagen, usuario_raw, grupo_raw, caption, timestamp_msg,
           ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(hash_largo)) ORDER BY id ASC) AS num_impacto
@@ -51,7 +62,6 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       SELECT 
         c.hash_largo,
         COALESCE(i1.hash_corto, SUBSTRING(c.hash_largo FROM 1 FOR 7)) AS hash_corto,
-        -- TIMESTAMP ORIGINAL INMUTABLE
         COALESCE(
           c.creado_en, 
           CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, 
@@ -83,7 +93,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
-        -- 🟢 CRUCE CON TABLA MERCADO_TASAS USANDO m.created_at
+        -- CRUCE CON TABLA MERCADO_TASAS
         (
           SELECT m.id_tasa 
           FROM mercado_tasas m 
@@ -96,10 +106,14 @@ async function obtenerComprobantesAuditados(filtros = {}) {
           LIMIT 1
         ) AS lote_tasa_historico,
 
-        -- MONEDAS Y FILA COMPLETA DE SOCIO 1 (nombres_fb)
+        -- DICCIONARIO DE TASAS DEL LOTE
+        tj.tasas AS tasas_lote,
+
+        -- MONEDAS Y FILA COMPLETA DE SOCIO 1 Y 2
         COALESCE(n1.moneda_socio, 'USDT') AS moneda_socio_1,
         COALESCE(n2.moneda_socio, 'USDT') AS moneda_socio_2,
         to_jsonb(n1) AS socio1_row,
+        to_jsonb(n2) AS socio2_row,
 
         -- FALLBACKS DE INGESTA BRUTA
         COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS fb_socio_1,
@@ -135,6 +149,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(l.socio_1, n_grupo1.nombre, n_user1.nombre)))
       LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(l.socio_2, n_grupo2.nombre, n_user2.nombre)))
 
+      LEFT JOIN tasas_por_lote tj ON tj.id_tasa = COALESCE(l.lote_tasa, (
+        SELECT m.id_tasa FROM mercado_tasas m 
+        WHERE m.created_at <= COALESCE(c.creado_en, CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, NOW())
+        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+      ))
+
       WHERE ${whereSql}
     `;
 
@@ -169,13 +189,19 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const socio1Final = estaLiquidado ? (r.socio_1 || 'GENERAL') : (r.fb_socio_1 || 'GENERAL');
       const socio2Final = estaLiquidado ? r.socio_2 : (r.fb_socio_2 || null);
 
-      // 1. Lectura de divisa y moneda nativa del Socio 1
       const divisaRecibo = (r.moneda || 'COP').toUpperCase();
       const divisaKey = divisaRecibo.toLowerCase();
       const monedaSocio1 = (r.moneda_socio_1 || 'USDT').toUpperCase();
-      const socio1Row = r.socio1_row || {};
+      const monedaSocio2 = (r.moneda_socio_2 || 'USDT').toUpperCase();
 
-      // 2. REGLA: Si la divisa es USDT o coincide con la moneda nativa de Socio 1 -> 'A' (Abono)
+      const socio1Row = r.socio1_row || {};
+      const socio2Row = r.socio2_row || {};
+
+      let aj1 = {}, aj2 = {};
+      try { aj1 = typeof socio1Row.ajustes === 'string' ? JSON.parse(socio1Row.ajustes || '{}') : (socio1Row.ajustes || {}); } catch (e) {}
+      try { aj2 = typeof socio2Row.ajustes === 'string' ? JSON.parse(socio2Row.ajustes || '{}') : (socio2Row.ajustes || {}); } catch (e) {}
+
+      // REGLA NATURALEZA
       let naturalezaSocio1;
       if (divisaRecibo === 'USDT' || divisaRecibo === monedaSocio1) {
         naturalezaSocio1 = 'A';
@@ -184,16 +210,51 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         naturalezaSocio1 = (typeof natRaw === 'string' && natRaw.trim() ? natRaw.trim() : 'D').toUpperCase();
       }
 
-      // 3. Tipo de operación para Socio 1 y Socio 2 (Hereda)
       const tipoOp1Final = r.tipo_op1 || `${naturalezaSocio1}-${divisaRecibo}`;
       const tipoOp2Final = r.tipo_op2 || tipoOp1Final;
 
-      // 4. Asignación de signos nominales no liquidados
-      const signo1 = tipoOp1Final.startsWith('P') ? -1 : 1;
-      const signo2 = -1 * signo1;
+      let tasa1Calculada = 1.0, tasa2Calculada = 1.0;
+      let m1Calculado = 0, m2Calculado = 0;
+      let me1Calculado = 0, me2Calculado = 0;
 
-      const m1Calculado = r.monto_1 !== null ? parseFloat(r.monto_1) : (signo1 * montoAbsoluto);
-      const m2Calculado = r.monto_2 !== null ? parseFloat(r.monto_2) : (socio2Final ? (signo2 * montoAbsoluto) : 0);
+      if (estaLiquidado) {
+        tasa1Calculada = r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0;
+        tasa2Calculada = r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0;
+        m1Calculado = parseFloat(r.monto_1 || 0);
+        m2Calculado = parseFloat(r.monto_2 || 0);
+        me1Calculado = parseFloat(r.me1 || 0);
+        me2Calculado = parseFloat(r.me2 || 0);
+      } else {
+        // CÁLCULO EN TIEMPO REAL CON LA TASA HISTÓRICA DEL MERCADO
+        const tasasMap = r.tasas_lote || {};
+        const tasaBaseDivisa = parseFloat(tasasMap[divisaRecibo] || 1.0);
+        const tasaBaseS1 = parseFloat(tasasMap[monedaSocio1] || 1.0);
+        const tasaBaseS2 = parseFloat(tasasMap[monedaSocio2] || 1.0);
+
+        const tipoOpLetra = naturalezaSocio1;
+        const factor1 = Math.abs(parseFloat(aj1[`${tipoOpLetra}-${divisaRecibo}`]) || 1.0);
+        const factor2 = Math.abs(parseFloat(aj2[`${tipoOpLetra}-${divisaRecibo}`]) || 1.0);
+
+        const cross1 = (tasaBaseDivisa / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0)) * factor1;
+        tasa1Calculada = truncarTasaComercial(cross1);
+
+        const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
+        tasa2Calculada = truncarTasaComercial(cross2);
+
+        const signo1 = tipoOpLetra === 'P' ? -1 : 1;
+        const signo2 = -1 * signo1;
+
+        m1Calculado = tasa1Calculada > 0 ? (signo1 * montoAbsoluto / tasa1Calculada) : (signo1 * montoAbsoluto);
+        me1Calculado = m1Calculado / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0);
+
+        if (socio2Final) {
+          m2Calculado = tasa2Calculada > 0 ? (signo2 * montoAbsoluto / tasa2Calculada) : 0;
+          me2Calculado = m2Calculado / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0);
+        } else {
+          m2Calculado = 0;
+          me2Calculado = 0;
+        }
+      }
 
       return {
         hash_largo: r.hash_largo,
@@ -214,22 +275,20 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         moneda_socio_1: r.moneda_socio_1 || 'USDT',
         tipo_op1: tipoOp1Final,
         monto_1: m1Calculado,
-        tasa_1: r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0,
-        me1: r.me1 !== null ? parseFloat(r.me1) : montoAbsoluto,
+        tasa_1: tasa1Calculada,
+        me1: me1Calculado,
 
         // SOCIO 2
         nombre_socio_2: socio2Final,
         moneda_socio_2: r.moneda_socio_2 || 'USDT',
         tipo_op2: tipoOp2Final,
         monto_2: m2Calculado,
-        tasa_2: r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0,
-        me2: r.me2 !== null ? parseFloat(r.me2) : 0,
+        tasa_2: tasa2Calculada,
+        me2: me2Calculado,
 
-        // PROPIEDADES FRONTEND Y LOTE TASA DINÁMICO
+        // PROPIEDADES FRONTEND
         m1_socio: m1Calculado,
         m2_socio: m2Calculado,
-        
-        // 🟢 Asigna la tasa congelada en comprobantes_liq, o la tasa histórica desde mercado_tasas
         lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T047'
       };
     });
@@ -240,7 +299,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 }
 
 /**
- * Registra o actualiza el congelamiento inmutable en comprobantes_liq
+ * Registra o actualiza la liquidación congelada en comprobantes_liq
  */
 async function liquidarComprobante(payload) {
   const {
@@ -291,9 +350,6 @@ async function liquidarComprobante(payload) {
   return { success: true };
 }
 
-/**
- * 🤖 Encola el re-procesamiento de un comprobante con IA Gemini
- */
 async function releerIA(hashLargo) {
   const targetHash = (hashLargo || '').trim();
 
