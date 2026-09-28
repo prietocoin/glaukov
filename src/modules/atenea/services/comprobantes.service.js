@@ -2,7 +2,7 @@ const db = require('../../../config/db');
 const { aplicarPrecisionMonto } = require('../../../utils/formatters');
 
 /**
- * Consulta de lectura optimizada: Lee directamente desde comprobantes_raw + comprobantes_liq
+ * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq con fallback seguro
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -55,7 +55,10 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         COALESCE(c.url_r2, i1.url_imagen, '') AS url_imagen,
         i1.caption,
 
-        -- DATOS CONGELADOS EN comprobantes_liq (SI EXISTEN)
+        -- Banderilla de estado
+        (l.hash_largo IS NOT NULL) AS esta_liquidado,
+
+        -- DATOS CONGELADOS EN comprobantes_liq
         l.socio_1,
         l.tipo_op1,
         l.monto_1,
@@ -68,7 +71,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
-        -- NOMBRES Y ROLES FALLBACK (SI AÚN NO SE HA LIQUIDADO EN 2DO PLANO)
+        -- FALLBACKS DE INGESTA BRUTA
         COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS fb_socio_1,
         COALESCE(n_grupo2.nombre, n_user2.nombre) AS fb_socio_2,
         COALESCE(n1.roles, 'SOCIO') AS rol_socio_1,
@@ -118,8 +121,8 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
     if (targetSocio && targetSocio.toUpperCase() !== 'TODOS') {
       queryFinal += ` AND (
-        UPPER(TRIM(COALESCE(socio_1, fb_socio_1))) = UPPER(TRIM($${paramIndex})) OR 
-        UPPER(TRIM(COALESCE(socio_2, fb_socio_2))) = UPPER(TRIM($${paramIndex}))
+        UPPER(TRIM(CASE WHEN esta_liquidado THEN socio_1 ELSE fb_socio_1 END)) = UPPER(TRIM($${paramIndex})) OR 
+        UPPER(TRIM(CASE WHEN esta_liquidado THEN socio_2 ELSE fb_socio_2 END)) = UPPER(TRIM($${paramIndex}))
       )`;
       values.push(targetSocio);
       paramIndex++;
@@ -131,6 +134,10 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
     return rows.map(r => {
       const monto = aplicarPrecisionMonto(r.monto);
+      const estaLiquidado = Boolean(r.esta_liquidado);
+
+      const socio1Final = estaLiquidado ? (r.socio_1 || 'GENERAL') : (r.fb_socio_1 || 'GENERAL');
+      const socio2Final = estaLiquidado ? r.socio_2 : (r.fb_socio_2 || null);
 
       return {
         hash_largo: r.hash_largo,
@@ -146,14 +153,14 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         caption: r.caption,
 
         // SOCIO 1
-        nombre_socio_1: r.socio_1 || r.fb_socio_1 || 'GENERAL',
+        nombre_socio_1: socio1Final,
         tipo_op1: r.tipo_op1 || `D-${r.moneda}`,
         monto_1: r.monto_1 !== null ? parseFloat(r.monto_1) : monto,
         tasa_1: r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0,
         me1: r.me1 !== null ? parseFloat(r.me1) : monto,
 
         // SOCIO 2
-        nombre_socio_2: r.socio_2 || r.fb_socio_2 || null,
+        nombre_socio_2: socio2Final,
         tipo_op2: r.tipo_op2 || `D-${r.moneda}`,
         monto_2: r.monto_2 !== null ? parseFloat(r.monto_2) : 0,
         tasa_2: r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0,
@@ -208,12 +215,12 @@ async function liquidarComprobante(payload) {
   await db.query(query, [
     hash_largo,
     socio_1 || 'GENERAL',
-    tipo_op1 || 'D',
+    tipo_op1 || 'D-USDT',
     monto_1 !== undefined ? parseFloat(monto_1) : 0,
     tasa_1 !== undefined ? parseFloat(tasa_1) : 1.0,
     me1 !== undefined ? parseFloat(me1) : 0,
-    socio_2 || null,
-    tipo_op2 || 'D',
+    socio_2 && socio_2 !== 'GENERAL' ? socio_2 : null,
+    tipo_op2 || 'D-USDT',
     monto_2 !== undefined ? parseFloat(monto_2) : 0,
     tasa_2 !== undefined ? parseFloat(tasa_2) : 1.0,
     me2 !== undefined ? parseFloat(me2) : 0,
