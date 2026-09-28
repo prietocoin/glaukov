@@ -102,7 +102,7 @@ function registrarAppAlpine() {
         this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } finally {
+      } font-bold {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -328,20 +328,28 @@ function registrarAppAlpine() {
         }
       }
 
-      const tipoOpBruto = (item.tipo_op1 || item.tipo_op_socio || 'D').split('-')[0];
+      // Rastrear la naturaleza (D/P/A) desde todas las fuentes posibles
+      const tipoOpBruto = (item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0];
+
+      // Fallbacks para NO perder los nombres de socio detectados
+      const fallbackSocio1 = item.nombre_socio_1 || item.socio_1 || item.fb_socio_1 || item.titular || 'GENERAL';
+      const fallbackSocio2 = item.nombre_socio_2 || item.socio_2 || item.fb_socio_2 || 'GENERAL';
+
+      // Fallback de monto
+      const fallbackMonto = Math.abs(parseFloat(item.monto || item.monto_local || item.m1_socio || item.monto_1 || 0));
 
       this.itemEdicion = { 
         ...item,
-        nombre_socio_1: item.nombre_socio_1 || 'GENERAL',
-        nombre_socio_2: item.nombre_socio_2 || 'GENERAL',
+        nombre_socio_1: fallbackSocio1,
+        nombre_socio_2: fallbackSocio2,
         tipo_manual: tipoOpBruto,
-        moneda: (item.moneda || 'COP').toUpperCase(),
-        monto: Math.abs(parseFloat(item.monto || 0)),
+        moneda: (item.moneda || item.moneda_local || 'COP').toUpperCase(),
+        monto: fallbackMonto,
         tasa_1: truncarTasaComercial(item.tasa_1 || 1.0),
-        me1: item.me1 !== undefined ? item.me1 : item.monto,
+        me1: item.me1 !== undefined && item.me1 !== null ? item.me1 : fallbackMonto,
         tasa_2: truncarTasaComercial(item.tasa_2 || 1.0),
         me2: item.me2 || 0,
-        lote_tasa_asignado: item.lote_tasa_asignado || this.loteActivo || 'T041',
+        lote_tasa_asignado: item.lote_tasa || item.lote_tasa_asignado || this.loteActivo || 'T041',
         fecha_hora_input: dateInput
       };
       this.modalAbierto = true;
