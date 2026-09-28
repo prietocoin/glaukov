@@ -41,6 +41,15 @@ window.AteneaAPI = {
     return await res.json();
   },
 
+  // 🤖 NUEVO: Enviar comprobante a re-lectura con IA Gemini
+  async releerIA(hashLargo) {
+    const res = await fetch('/api/comprobantes/' + encodeURIComponent(hashLargo) + '/releer', {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error('Error al solicitar re-lectura de IA');
+    return await res.json();
+  },
+
   async eliminarComprobante(hashLargo) {
     const res = await fetch('/api/comprobantes/' + encodeURIComponent(hashLargo), {
       method: 'DELETE'
