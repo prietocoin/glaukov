@@ -183,15 +183,15 @@ function registrarAppAlpine() {
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
       
       const listaPaisesDefault = [
-        { code: 'ARS', nombre: 'Argentina', bandera: '🇦🇷', activo: true, factorD: aj['D-ARS'] ?? 1.0, factorP: aj['P-ARS'] ?? -0.95 },
-        { code: 'VES', nombre: 'Venezuela', bandera: '🇻🇪', activo: true, factorD: aj['D-VES'] ?? 1.0, factorP: aj['P-VES'] ?? -0.95 },
-        { code: 'PEN', nombre: 'Peru', bandera: '🇵🇪', activo: true, factorD: aj['D-PEN'] ?? 1.0, factorP: aj['P-PEN'] ?? -0.95 },
-        { code: 'COP', nombre: 'Colombia', bandera: '🇨🇴', activo: true, factorD: aj['D-COP'] ?? 1.03, factorP: aj['P-COP'] ?? -0.97 },
-        { code: 'CLP', nombre: 'Chile', bandera: '🇨🇱', activo: true, factorD: aj['D-CLP'] ?? 1.0, factorP: aj['P-CLP'] ?? -0.95 },
-        { code: 'BRL', nombre: 'Brazil', bandera: '🇧🇷', activo: true, factorD: aj['D-BRL'] ?? 1.0, factorP: aj['P-BRL'] ?? -0.95 },
-        { code: 'PYG', nombre: 'Paraguay', bandera: '🇵🇾', activo: false, factorD: aj['D-PYG'] ?? 1.0, factorP: aj['P-PYG'] ?? -0.95 },
-        { code: 'EUR', nombre: 'Europa', bandera: '🇪🇺', activo: false, factorD: aj['D-EUR'] ?? 1.0, factorP: aj['P-EUR'] ?? -0.95 },
-        { code: 'USD', nombre: 'EEUU-Zelle', bandera: '🇺🇸', activo: false, factorD: aj['D-USD'] ?? 1.0, factorP: aj['P-USD'] ?? -0.95 }
+        { code: 'ARS', nombre: 'Argentina', bandera: '🇦🇷', activo: true, factorD: aj['D-ARS'] ?? 1.0, factorP: aj['P-ARS'] ?? -0.95, naturaleza: aj['naturaleza_ARS'] || aj['NAT-ARS'] || 'D' },
+        { code: 'VES', nombre: 'Venezuela', bandera: '🇻🇪', activo: true, factorD: aj['D-VES'] ?? 1.0, factorP: aj['P-VES'] ?? -0.95, naturaleza: aj['naturaleza_VES'] || aj['NAT-VES'] || 'D' },
+        { code: 'PEN', nombre: 'Peru', bandera: '🇵🇪', activo: true, factorD: aj['D-PEN'] ?? 1.0, factorP: aj['P-PEN'] ?? -0.95, naturaleza: aj['naturaleza_PEN'] || aj['NAT-PEN'] || 'D' },
+        { code: 'COP', nombre: 'Colombia', bandera: '🇨🇴', activo: true, factorD: aj['D-COP'] ?? 1.03, factorP: aj['P-COP'] ?? -0.97, naturaleza: aj['naturaleza_COP'] || aj['NAT-COP'] || 'D' },
+        { code: 'CLP', nombre: 'Chile', bandera: '🇨🇱', activo: true, factorD: aj['D-CLP'] ?? 1.0, factorP: aj['P-CLP'] ?? -0.95, naturaleza: aj['naturaleza_CLP'] || aj['NAT-CLP'] || 'D' },
+        { code: 'BRL', nombre: 'Brazil', bandera: '🇧🇷', activo: true, factorD: aj['D-BRL'] ?? 1.0, factorP: aj['P-BRL'] ?? -0.95, naturaleza: aj['naturaleza_BRL'] || aj['NAT-BRL'] || 'D' },
+        { code: 'PYG', nombre: 'Paraguay', bandera: '🇵🇾', activo: false, factorD: aj['D-PYG'] ?? 1.0, factorP: aj['P-PYG'] ?? -0.95, naturaleza: aj['naturaleza_PYG'] || aj['NAT-PYG'] || 'D' },
+        { code: 'EUR', nombre: 'Europa', bandera: '🇪🇺', activo: false, factorD: aj['D-EUR'] ?? 1.0, factorP: aj['P-EUR'] ?? -0.95, naturaleza: aj['naturaleza_EUR'] || aj['NAT-EUR'] || 'D' },
+        { code: 'USD', nombre: 'EEUU-Zelle', bandera: '🇺🇸', activo: false, factorD: aj['D-USD'] ?? 1.0, factorP: aj['P-USD'] ?? -0.95, naturaleza: aj['naturaleza_USD'] || aj['NAT-USD'] || 'D' }
       ];
 
       this.socioConfigEdit = {
@@ -235,6 +235,7 @@ function registrarAppAlpine() {
         this.socioConfigEdit.paises.forEach(p => {
           ajustes[`D-${p.code}`] = parseFloat(p.factorD) || 1.0;
           ajustes[`P-${p.code}`] = parseFloat(p.factorP) || -0.95;
+          ajustes[`naturaleza_${p.code}`] = p.naturaleza || 'D';
           if (p.activo) {
             carteleraPaises.push({ moneda: p.code, pais: p.nombre, activo: true });
           }
@@ -255,6 +256,7 @@ function registrarAppAlpine() {
         this.modalConfigSocioAbierto = false;
         await this.cargarDirectorio();
         await this.cargarSocios();
+        await this.cargarComprobantes();
       } catch (err) {
         console.error('Error al guardar socio:', err);
         alert('Error guardando socio: ' + err.message);
@@ -358,7 +360,7 @@ function registrarAppAlpine() {
       this.modalAbierto = true;
     },
 
-    // 🤖 NUEVO: Método para solicitar re-lectura IA desde la UI
+    // 🤖 Método para solicitar re-lectura IA desde la UI
     async releerIAModal() {
       if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
       if (!confirm('¿Deseas enviar este comprobante a re-lectura con Gemini?')) return;
