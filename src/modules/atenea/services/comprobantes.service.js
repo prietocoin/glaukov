@@ -8,7 +8,7 @@ const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
 /**
  * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq.
- * Evalúa la naturaleza (D/P/A) y busca el lote de tasa histórico exacto en la tabla mercado_tasas.
+ * Evalúa la naturaleza (D/P/A) y busca el lote de tasa histórico exacto en mercado_tasas vía m.created_at.
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -83,16 +83,16 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
-        -- 🟢 CRUCE CON TABLA MERCADO_TASAS PARA OBTENER LA TASA HISTÓRICA EXACTA
+        -- 🟢 CRUCE CON TABLA MERCADO_TASAS USANDO m.created_at
         (
           SELECT m.id_tasa 
           FROM mercado_tasas m 
-          WHERE COALESCE(m.creado_en, m.created_at, NOW()) <= COALESCE(
+          WHERE m.created_at <= COALESCE(
             c.creado_en, 
             CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, 
             NOW()
           )
-          ORDER BY COALESCE(m.creado_en, m.created_at) DESC 
+          ORDER BY m.created_at DESC, m.id DESC
           LIMIT 1
         ) AS lote_tasa_historico,
 
@@ -229,8 +229,8 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         m1_socio: m1Calculado,
         m2_socio: m2Calculado,
         
-        // Asigna la tasa liquidada, o la tasa histórica desde mercado_tasas
-        lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T-ND'
+        // 🟢 Asigna la tasa congelada en comprobantes_liq, o la tasa histórica desde mercado_tasas
+        lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T047'
       };
     });
   } catch (err) {
