@@ -7,7 +7,8 @@ const { aplicarPrecisionMonto } = require('../../../utils/formatters');
 const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
 /**
- * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq con fallback seguro
+ * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq.
+ * Extrae ajustes del Socio 1 para determinar naturaleza y mantiene timestamp inmutable.
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -42,7 +43,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     const sqlBase = `
       WITH impactos_ordenados AS (
         SELECT 
-          hash_largo, hash_corto, url_imagen, usuario_raw, grupo_raw, caption,
+          hash_largo, hash_corto, url_imagen, usuario_raw, grupo_raw, caption, timestamp_msg,
           ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(hash_largo)) ORDER BY id ASC) AS num_impacto
         FROM impactos_raw
         WHERE UPPER(TRIM(instancia)) = 'JAIRO'
@@ -50,7 +51,9 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       SELECT 
         c.hash_largo,
         COALESCE(i1.hash_corto, SUBSTRING(c.hash_largo FROM 1 FOR 7)) AS hash_corto,
-        COALESCE(c.creado_en, NOW()) AS fecha_hora_comprobante,
+        -- 🟢 FECHA / TIMESTAMP INMUTABLE DE INGESTA ORIGINAL
+        COALESCE(c.creado_en, to_timestamp(i1.timestamp_msg), NOW()) AS fecha_hora_comprobante,
+        i1.timestamp_msg,
         COALESCE(c.monto, 0) AS monto,
         COALESCE(UPPER(c.moneda), 'USDT') AS moneda,
         COALESCE(c.banco, '-') AS banco,
@@ -76,9 +79,10 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
-        -- MONEDAS DE SOCIO DESDE DIRECTORIO (nombres_fb)
+        -- MONEDAS DE SOCIO Y AJUSTES DICCIONARIO
         COALESCE(n1.moneda_socio, 'USDT') AS moneda_socio_1,
         COALESCE(n2.moneda_socio, 'USDT') AS moneda_socio_2,
+        COALESCE(n1.ajustes, '{}') AS ajustes_socio_1,
 
         -- FALLBACKS DE INGESTA BRUTA
         COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS fb_socio_1,
@@ -111,7 +115,6 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         ON i2.usuario_raw IS NOT NULL AND TRIM(i2.usuario_raw) != '' 
         AND LOWER(TRIM(n_user2.whatsapp)) = LOWER(TRIM(i2.usuario_raw))
 
-      -- Búsqueda de directorio por el nombre efectivo (congelado o de ingesta)
       LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(l.socio_1, n_grupo1.nombre, n_user1.nombre)))
       LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(l.socio_2, n_grupo2.nombre, n_user2.nombre)))
 
@@ -149,10 +152,36 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const socio1Final = estaLiquidado ? (r.socio_1 || 'GENERAL') : (r.fb_socio_1 || 'GENERAL');
       const socio2Final = estaLiquidado ? r.socio_2 : (r.fb_socio_2 || null);
 
+      // 1. Lectura del diccionario de ajustes del Socio 1
+      let aj1 = {};
+      try {
+        aj1 = typeof r.ajustes_socio_1 === 'string'
+          ? JSON.parse(r.ajustes_socio_1 || '{}')
+          : (r.ajustes_socio_1 || {});
+      } catch (e) {
+        aj1 = {};
+      }
+
+      // 2. Extraer Naturaleza (D/P/A) del Socio 1 según la moneda del recibo
+      const divisaRecibo = (r.moneda || 'COP').toUpperCase();
+      const naturalezaSocio1 = (
+        aj1[`NAT-${divisaRecibo}`] || 
+        aj1[`naturaleza_${divisaRecibo}`] || 
+        aj1[divisaRecibo] || 
+        'D'
+      ).toUpperCase();
+
+      // 3. Tipo de operación para Socio 1
+      const tipoOp1Final = r.tipo_op1 || `${naturalezaSocio1}-${divisaRecibo}`;
+
+      // 4. Socio 2 HEREDA exactamente el mismo tipo de operación que Socio 1
+      const tipoOp2Final = r.tipo_op2 || tipoOp1Final;
+
       return {
         hash_largo: r.hash_largo,
         hash_corto: r.hash_corto,
         fecha_hora_comprobante: r.fecha_hora_comprobante,
+        timestamp_msg: r.timestamp_msg,
         monto,
         moneda: r.moneda,
         banco: r.banco,
@@ -165,15 +194,15 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         // SOCIO 1
         nombre_socio_1: socio1Final,
         moneda_socio_1: r.moneda_socio_1 || 'USDT',
-        tipo_op1: r.tipo_op1 || `D-${r.moneda}`,
+        tipo_op1: tipoOp1Final,
         monto_1: r.monto_1 !== null ? parseFloat(r.monto_1) : monto,
         tasa_1: r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0,
         me1: r.me1 !== null ? parseFloat(r.me1) : monto,
 
-        // SOCIO 2
+        // SOCIO 2 (Hereda tipo_op1)
         nombre_socio_2: socio2Final,
         moneda_socio_2: r.moneda_socio_2 || 'USDT',
-        tipo_op2: r.tipo_op2 || `D-${r.moneda}`,
+        tipo_op2: tipoOp2Final,
         monto_2: r.monto_2 !== null ? parseFloat(r.monto_2) : 0,
         tasa_2: r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0,
         me2: r.me2 !== null ? parseFloat(r.me2) : 0,
@@ -244,12 +273,13 @@ async function liquidarComprobante(payload) {
 
 /**
  * 🤖 Encola el re-procesamiento de un comprobante con IA Gemini
+ * PRESERVA EL TIMESTAMP Y FECHA INMUTABLES ORIGINALES
  */
 async function releerIA(hashLargo) {
   const targetHash = (hashLargo || '').trim();
 
   const { rows } = await db.query(`
-    SELECT c.hash_largo, COALESCE(c.url_r2, i.url_imagen) as url_r2, COALESCE(c.instancia, i.instancia, 'JAIRO') as instancia, i.caption
+    SELECT c.hash_largo, c.creado_en, COALESCE(c.url_r2, i.url_imagen) as url_r2, COALESCE(c.instancia, i.instancia, 'JAIRO') as instancia, i.caption, i.timestamp_msg
     FROM comprobantes_raw c
     LEFT JOIN impactos_raw i ON LOWER(TRIM(c.hash_largo)) = LOWER(TRIM(i.hash_largo))
     WHERE LOWER(TRIM(c.hash_largo)) = LOWER(TRIM($1))
@@ -262,6 +292,7 @@ async function releerIA(hashLargo) {
 
   const comp = rows[0];
 
+  // 🟢 Solo actualiza el estado de procesamiento (NO altera creado_en ni timestamp_msg)
   await db.query(`
     UPDATE comprobantes_raw 
     SET estado_ia = 'RE-PROCESANDO', procesado_ia = false 
@@ -272,13 +303,15 @@ async function releerIA(hashLargo) {
     hash_largo: comp.hash_largo,
     url_r2: comp.url_r2,
     instancia: comp.instancia || 'JAIRO',
-    caption: comp.caption
+    caption: comp.caption,
+    timestamp_msg: comp.timestamp_msg, // Preserva timestamp de mensaje original
+    creado_en: comp.creado_en           // Preserva fecha inmutable
   }, {
     attempts: 3,
     removeOnComplete: true
   });
 
-  return { success: true, message: 'Re-lectura encolada a la cola-pipeline' };
+  return { success: true, message: 'Re-lectura encolada manteniendo fecha/tasa histórica intacta' };
 }
 
 async function actualizarComprobante(hashLargo, datos) {
