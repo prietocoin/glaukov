@@ -51,8 +51,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       SELECT 
         c.hash_largo,
         COALESCE(i1.hash_corto, SUBSTRING(c.hash_largo FROM 1 FOR 7)) AS hash_corto,
-        -- 🟢 FECHA / TIMESTAMP INMUTABLE DE INGESTA ORIGINAL
-        COALESCE(c.creado_en, to_timestamp(i1.timestamp_msg), NOW()) AS fecha_hora_comprobante,
+        -- FECHA / TIMESTAMP INMUTABLE DE INGESTA ORIGINAL (Casteo seguro a timestamp)
+        COALESCE(
+          c.creado_en, 
+          CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, 
+          NOW()
+        ) AS fecha_hora_comprobante,
         i1.timestamp_msg,
         COALESCE(c.monto, 0) AS monto,
         COALESCE(UPPER(c.moneda), 'USDT') AS moneda,
@@ -146,7 +150,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     const { rows } = await db.query(queryFinal, values);
 
     return rows.map(r => {
-      const monto = aplicarPrecisionMonto(r.monto);
+      const montoAbsoluto = Math.abs(aplicarPrecisionMonto(r.monto));
       const estaLiquidado = Boolean(r.esta_liquidado);
 
       const socio1Final = estaLiquidado ? (r.socio_1 || 'GENERAL') : (r.fb_socio_1 || 'GENERAL');
@@ -165,8 +169,8 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       // 2. Extraer Naturaleza (D/P/A) del Socio 1 según la moneda del recibo
       const divisaRecibo = (r.moneda || 'COP').toUpperCase();
       const naturalezaSocio1 = (
-        aj1[`NAT-${divisaRecibo}`] || 
         aj1[`naturaleza_${divisaRecibo}`] || 
+        aj1[`NAT-${divisaRecibo}`] || 
         aj1[divisaRecibo] || 
         'D'
       ).toUpperCase();
@@ -177,12 +181,19 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       // 4. Socio 2 HEREDA exactamente el mismo tipo de operación que Socio 1
       const tipoOp2Final = r.tipo_op2 || tipoOp1Final;
 
+      // 5. Asignación de signos nominales no liquidados
+      const signo1 = tipoOp1Final.startsWith('P') ? -1 : 1;
+      const signo2 = -1 * signo1;
+
+      const m1Calculado = r.monto_1 !== null ? parseFloat(r.monto_1) : (signo1 * montoAbsoluto);
+      const m2Calculado = r.monto_2 !== null ? parseFloat(r.monto_2) : (socio2Final ? (signo2 * montoAbsoluto) : 0);
+
       return {
         hash_largo: r.hash_largo,
         hash_corto: r.hash_corto,
         fecha_hora_comprobante: r.fecha_hora_comprobante,
         timestamp_msg: r.timestamp_msg,
-        monto,
+        monto: montoAbsoluto,
         moneda: r.moneda,
         banco: r.banco,
         titular: r.titular,
@@ -195,21 +206,21 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         nombre_socio_1: socio1Final,
         moneda_socio_1: r.moneda_socio_1 || 'USDT',
         tipo_op1: tipoOp1Final,
-        monto_1: r.monto_1 !== null ? parseFloat(r.monto_1) : monto,
+        monto_1: m1Calculado,
         tasa_1: r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0,
-        me1: r.me1 !== null ? parseFloat(r.me1) : monto,
+        me1: r.me1 !== null ? parseFloat(r.me1) : montoAbsoluto,
 
         // SOCIO 2 (Hereda tipo_op1)
         nombre_socio_2: socio2Final,
         moneda_socio_2: r.moneda_socio_2 || 'USDT',
         tipo_op2: tipoOp2Final,
-        monto_2: r.monto_2 !== null ? parseFloat(r.monto_2) : 0,
+        monto_2: m2Calculado,
         tasa_2: r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0,
         me2: r.me2 !== null ? parseFloat(r.me2) : 0,
 
         // PROPIEDADES DE COMPATIBILIDAD CON FRONTEND
-        m1_socio: r.monto_1 !== null ? parseFloat(r.monto_1) : monto,
-        m2_socio: r.monto_2 !== null ? parseFloat(r.monto_2) : 0,
+        m1_socio: m1Calculado,
+        m2_socio: m2Calculado,
         lote_tasa_asignado: r.lote_tasa || 'T041'
       };
     });
@@ -292,7 +303,6 @@ async function releerIA(hashLargo) {
 
   const comp = rows[0];
 
-  // 🟢 Solo actualiza el estado de procesamiento (NO altera creado_en ni timestamp_msg)
   await db.query(`
     UPDATE comprobantes_raw 
     SET estado_ia = 'RE-PROCESANDO', procesado_ia = false 
@@ -304,8 +314,8 @@ async function releerIA(hashLargo) {
     url_r2: comp.url_r2,
     instancia: comp.instancia || 'JAIRO',
     caption: comp.caption,
-    timestamp_msg: comp.timestamp_msg, // Preserva timestamp de mensaje original
-    creado_en: comp.creado_en           // Preserva fecha inmutable
+    timestamp_msg: comp.timestamp_msg,
+    creado_en: comp.creado_en
   }, {
     attempts: 3,
     removeOnComplete: true
