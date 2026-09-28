@@ -61,7 +61,7 @@ async function getComprobantes(req, res) {
   }
 }
 
-// 🔴 NUEVO: Congelar snapshot en comprobantes_liq desde Alpine / Modal
+// Congelar snapshot en comprobantes_liq desde Alpine / Modal
 async function liquidarComprobante(req, res) {
   try {
     const fn = comprobantesService.liquidarComprobante || comprobantesService.guardarLiquidacion;
@@ -69,6 +69,18 @@ async function liquidarComprobante(req, res) {
     res.json({ success: true, message: 'Liquidación registrada correctamente', data: resultado });
   } catch (err) {
     console.error('❌ Error POST /api/comprobantes/liquidar:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// 🤖 NUEVO: Re-lectura con IA Gemini
+async function releerIA(req, res) {
+  try {
+    const { hashLargo } = req.params;
+    const resultado = await comprobantesService.releerIA(hashLargo);
+    res.json(resultado);
+  } catch (err) {
+    console.error('❌ Error POST /api/comprobantes/:hashLargo/releer:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -289,7 +301,8 @@ module.exports = {
   previewImage,
   dispararWhatsApp,
   getComprobantes,
-  liquidarComprobante, // 👈 Exportado
+  liquidarComprobante,
+  releerIA,
   updateComprobante,
   deleteComprobante,
   getUltimasTasas,
