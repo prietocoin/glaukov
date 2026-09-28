@@ -10,6 +10,8 @@ const liquidacionWorker = new Worker(
   'cola-liquidaciones',
   async (job) => {
     const { hash_largo } = job.data;
+    if (!hash_largo) return;
+
     console.log(`[Glaukov Worker ⚙️] Procesando snapshot para: ${hash_largo.substring(0, 8)}`);
 
     // 1. Obtener comprobante raw
@@ -20,34 +22,46 @@ const liquidacionWorker = new Worker(
     if (rawRes.rows.length === 0) return;
     const raw = rawRes.rows[0];
 
-    // 2. Obtener nombres de socios desde impactos_raw o general
+    // 2. Obtener identificadores de socios desde impactos_raw
     const impRes = await db.query(`
       SELECT usuario_raw, grupo_raw FROM impactos_raw 
       WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1)) ORDER BY id ASC LIMIT 2;
     `, [hash_largo]);
 
-    const s1Identifier = impRes.rows[0]?.grupo_raw || impRes.rows[0]?.usuario_raw || '';
-    const s2Identifier = impRes.rows[1]?.grupo_raw || impRes.rows[1]?.usuario_raw || '';
+    const s1Identifier = (impRes.rows[0]?.grupo_raw || impRes.rows[0]?.usuario_raw || '').trim();
+    const s2Identifier = (impRes.rows[1]?.grupo_raw || impRes.rows[1]?.usuario_raw || '').trim();
 
-    // 3. Traer datos de directorio (nombres_fb)
-    const soc1Res = await db.query(`
-      SELECT * FROM nombres_fb WHERE LOWER(TRIM(whatsapp)) = LOWER(TRIM($1)) OR LOWER(TRIM(id_grupo)) = LOWER(TRIM($1)) LIMIT 1;
-    `, [s1Identifier]);
+    // 3. Buscar Socio 1 en nombres_fb
+    let socio1Data = { nombre: 'GENERAL', moneda_socio: 'USDT' };
+    if (s1Identifier) {
+      const soc1Res = await db.query(`
+        SELECT * FROM nombres_fb 
+        WHERE (whatsapp IS NOT NULL AND TRIM(whatsapp) <> '' AND LOWER(TRIM(whatsapp)) = LOWER(TRIM($1)))
+           OR (id_grupo IS NOT NULL AND TRIM(id_grupo) <> '' AND LOWER(TRIM(id_grupo)) = LOWER(TRIM($1))) 
+        LIMIT 1;
+      `, [s1Identifier]);
+      if (soc1Res.rows.length > 0) socio1Data = soc1Res.rows[0];
+    }
 
-    const soc2Res = await db.query(`
-      SELECT * FROM nombres_fb WHERE LOWER(TRIM(whatsapp)) = LOWER(TRIM($1)) OR LOWER(TRIM(id_grupo)) = LOWER(TRIM($1)) LIMIT 1;
-    `, [s2Identifier]);
+    // 4. Buscar Socio 2 en nombres_fb (solo si existe identificador)
+    let socio2Data = null;
+    if (s2Identifier) {
+      const soc2Res = await db.query(`
+        SELECT * FROM nombres_fb 
+        WHERE (whatsapp IS NOT NULL AND TRIM(whatsapp) <> '' AND LOWER(TRIM(whatsapp)) = LOWER(TRIM($1)))
+           OR (id_grupo IS NOT NULL AND TRIM(id_grupo) <> '' AND LOWER(TRIM(id_grupo)) = LOWER(TRIM($1))) 
+        LIMIT 1;
+      `, [s2Identifier]);
+      if (soc2Res.rows.length > 0) socio2Data = soc2Res.rows[0];
+    }
 
-    const socio1Data = soc1Res.rows[0] || { nombre: 'GENERAL', moneda_socio: 'USDT' };
-    const socio2Data = soc2Res.rows[0] || { nombre: 'GENERAL', moneda_socio: 'USDT' };
-
-    // 4. Obtener lote de mercado activo
+    // 5. Obtener lote de mercado activo
     const loteTasa = await mercadoService.obtenerUltimasTasas();
 
-    // 5. Ejecutar cálculo puro
+    // 6. Ejecutar cálculo puro
     const snapshot = calcularSnapshotFinanciero(raw, socio1Data, socio2Data, loteTasa);
 
-    // 6. UPSERT en comprobantes_liq
+    // 7. UPSERT inmutable en comprobantes_liq
     const queryUpsert = `
       INSERT INTO comprobantes_liq (
         hash_largo, socio_1, tipo_op1, monto_1, tasa_1, me1,
