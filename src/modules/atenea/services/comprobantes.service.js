@@ -8,7 +8,7 @@ const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
 /**
  * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq.
- * Extrae la columna de naturaleza (cop, ves, pen, etc.) directamente de nombres_fb vía to_jsonb(n1).
+ * Evalúa regla 'A' (USDT / Moneda Nativa Socio 1) o columna de moneda en nombres_fb.
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -156,13 +156,20 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const socio1Final = estaLiquidado ? (r.socio_1 || 'GENERAL') : (r.fb_socio_1 || 'GENERAL');
       const socio2Final = estaLiquidado ? r.socio_2 : (r.fb_socio_2 || null);
 
-      // 1. Lectura directa de la columna de moneda de Socio 1 (ej: n1.cop, n1.ves, n1.pen)
+      // 1. Lectura de divisa y moneda nativa del Socio 1
       const divisaRecibo = (r.moneda || 'COP').toUpperCase();
       const divisaKey = divisaRecibo.toLowerCase();
+      const monedaSocio1 = (r.moneda_socio_1 || 'USDT').toUpperCase();
       const socio1Row = r.socio1_row || {};
 
-      const natRaw = socio1Row[divisaKey];
-      const naturalezaSocio1 = (typeof natRaw === 'string' && natRaw.trim() ? natRaw.trim() : 'D').toUpperCase();
+      // 🟢 REGLA: Si la divisa es USDT o coincide con la moneda nativa de Socio 1 -> 'A' (Abono)
+      let naturalezaSocio1;
+      if (divisaRecibo === 'USDT' || divisaRecibo === monedaSocio1) {
+        naturalezaSocio1 = 'A';
+      } else {
+        const natRaw = socio1Row[divisaKey];
+        naturalezaSocio1 = (typeof natRaw === 'string' && natRaw.trim() ? natRaw.trim() : 'D').toUpperCase();
+      }
 
       // 2. Tipo de operación para Socio 1
       const tipoOp1Final = r.tipo_op1 || `${naturalezaSocio1}-${divisaRecibo}`;
