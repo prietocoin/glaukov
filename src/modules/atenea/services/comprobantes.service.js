@@ -71,6 +71,10 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
+        -- MONEDAS DE SOCIO DESDE DIRECTORIO (nombres_fb)
+        COALESCE(n1.moneda_socio, 'USDT') AS moneda_socio_1,
+        COALESCE(n2.moneda_socio, 'USDT') AS moneda_socio_2,
+
         -- FALLBACKS DE INGESTA BRUTA
         COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS fb_socio_1,
         COALESCE(n_grupo2.nombre, n_user2.nombre) AS fb_socio_2,
@@ -102,8 +106,9 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         ON i2.usuario_raw IS NOT NULL AND TRIM(i2.usuario_raw) != '' 
         AND LOWER(TRIM(n_user2.whatsapp)) = LOWER(TRIM(i2.usuario_raw))
 
-      LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(n_grupo1.nombre, n_user1.nombre)))
-      LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(n_grupo2.nombre, n_user2.nombre)))
+      -- Búsqueda de directorio por el nombre efectivo (congelado o de ingesta)
+      LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(l.socio_1, n_grupo1.nombre, n_user1.nombre)))
+      LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(l.socio_2, n_grupo2.nombre, n_user2.nombre)))
 
       WHERE ${whereSql}
     `;
@@ -154,6 +159,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
         // SOCIO 1
         nombre_socio_1: socio1Final,
+        moneda_socio_1: r.moneda_socio_1 || 'USDT',
         tipo_op1: r.tipo_op1 || `D-${r.moneda}`,
         monto_1: r.monto_1 !== null ? parseFloat(r.monto_1) : monto,
         tasa_1: r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0,
@@ -161,6 +167,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
         // SOCIO 2
         nombre_socio_2: socio2Final,
+        moneda_socio_2: r.moneda_socio_2 || 'USDT',
         tipo_op2: r.tipo_op2 || `D-${r.moneda}`,
         monto_2: r.monto_2 !== null ? parseFloat(r.monto_2) : 0,
         tasa_2: r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0,
