@@ -282,7 +282,7 @@
                     <div class="flex items-center justify-between text-xs border-t border-blue-900/40 pt-1">
                       <span class="font-black text-pink-300 uppercase truncate max-w-[120px]" x-text="item.nombre_socio_2 || item.socio_2"></span>
                       <div class="flex items-center gap-1.5">
-                        <!-- M2 Nominal en divisa nativa del Socio 2 (ej: -112.55 PEN para MERLI) -->
+                        <!-- M2 Nominal en divisa nativa del Socio 2 -->
                         <span class="font-mono font-bold" 
                               :class="parseFloat(item.monto_2 !== undefined ? item.monto_2 : item.m2_socio) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
                               x-text="formatMonto(item.monto_2 !== undefined ? item.monto_2 : item.m2_socio) + ' ' + (item.moneda_socio_2 || 'USDT')">
@@ -586,11 +586,11 @@
             </div>
           </div>
 
-          <!-- NATURALEZA Y MONTO LOCAL -->
-          <div class="grid grid-cols-2 gap-3">
+          <!-- NATURALEZA, MONEDA Y MONTO LOCAL -->
+          <div class="grid grid-cols-3 gap-2.5">
             <div>
-              <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Naturaleza Operación</label>
-              <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/40 rounded-xl px-2.5 py-2 text-xs text-amber-300 font-bold outline-none">
+              <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Naturaleza</label>
+              <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/40 rounded-xl px-2 py-2 text-xs text-amber-300 font-bold outline-none">
                 <option value="D">D (Depósito)</option>
                 <option value="P">P (Pago)</option>
                 <option value="A">A (Abono)</option>
@@ -598,7 +598,23 @@
             </div>
 
             <div>
-              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Monto Local Operado</label>
+              <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">Moneda Recibo</label>
+              <select x-model="itemEdicion.moneda" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-2 text-xs text-cyan-300 font-bold outline-none uppercase">
+                <option value="COP">COP (Colombia)</option>
+                <option value="VES">VES (Venezuela)</option>
+                <option value="PEN">PEN (Perú)</option>
+                <option value="ARS">ARS (Argentina)</option>
+                <option value="CLP">CLP (Chile)</option>
+                <option value="BRL">BRL (Brasil)</option>
+                <option value="PYG">PYG (Paraguay)</option>
+                <option value="EUR">EUR (Europa)</option>
+                <option value="USD">USD (EEUU/Zelle)</option>
+                <option value="USDT">USDT (Crypto)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Monto Local</label>
               <input type="number" step="0.01" x-model="itemEdicion.monto" class="w-full bg-[#030611] border border-emerald-500/40 rounded-xl px-2.5 py-2 text-xs text-emerald-400 font-bold outline-none">
             </div>
           </div>
