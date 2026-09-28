@@ -102,7 +102,7 @@ function registrarAppAlpine() {
         this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } finally {
+      } fontal {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -332,7 +332,7 @@ function registrarAppAlpine() {
       const tipoOpBruto = (item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0];
 
       // Fallbacks para NO perder los nombres de socio detectados
-      const fallbackSocio1 = item.nombre_socio_1 || item.socio_1 || item.fb_socio_1 || item.titular || 'GENERAL';
+      const fallbackSocio1 = item.nombre_socio_1 || item.socio_1 || item.fb_socio_1 || 'GENERAL';
       const fallbackSocio2 = item.nombre_socio_2 || item.socio_2 || item.fb_socio_2 || 'GENERAL';
 
       // Fallback de monto
@@ -340,6 +340,9 @@ function registrarAppAlpine() {
 
       this.itemEdicion = { 
         ...item,
+        banco: item.banco && item.banco !== '-' ? item.banco : '',
+        referencia: item.referencia && item.referencia !== '-' ? item.referencia : '',
+        titular: item.titular && item.titular !== '-' ? item.titular : '',
         nombre_socio_1: fallbackSocio1,
         nombre_socio_2: fallbackSocio2,
         tipo_manual: tipoOpBruto,
@@ -353,6 +356,21 @@ function registrarAppAlpine() {
         fecha_hora_input: dateInput
       };
       this.modalAbierto = true;
+    },
+
+    // 🤖 NUEVO: Método para solicitar re-lectura IA desde la UI
+    async releerIAModal() {
+      if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
+      if (!confirm('¿Deseas enviar este comprobante a re-lectura con Gemini?')) return;
+      try {
+        await window.AteneaAPI.releerIA(this.itemEdicion.hash_largo);
+        alert('⚡ Comprobante enviado a la cola de re-lectura IA correctamente.');
+        this.modalAbierto = false;
+        await this.cargarComprobantes();
+      } catch (err) {
+        console.error('Error en re-lectura IA:', err);
+        alert('Error: ' + err.message);
+      }
     },
 
     async guardarCambios() {
