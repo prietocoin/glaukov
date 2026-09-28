@@ -5,7 +5,8 @@ const path = require('path');
 
 // 1. Inicializar Workers en Segundo Plano (BullMQ)
 require('./src/workers/tasas.worker');
-require('./src/workers/liquidacion.worker'); // 👈 Subservicio de liquidación contable
+require('./src/workers/liquidacion.worker'); 
+require('./src/workers/ia.worker'); // 👈 AGREGADO: Worker que procesa las imágenes con IA
 
 // 2. Cargar enrutador modular de Atenea
 const ateneaRoutes = require('./src/modules/atenea/routes/atenea.routes');
