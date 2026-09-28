@@ -1,5 +1,10 @@
+const { Queue } = require('bullmq');
 const db = require('../../../config/db');
+const redisConfig = require('../../../config/redis');
 const { aplicarPrecisionMonto } = require('../../../utils/formatters');
+
+// Queue de BullMQ para re-procesamiento de IA
+const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
 /**
  * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq con fallback seguro
@@ -237,6 +242,45 @@ async function liquidarComprobante(payload) {
   return { success: true };
 }
 
+/**
+ * 🤖 Encola el re-procesamiento de un comprobante con IA Gemini
+ */
+async function releerIA(hashLargo) {
+  const targetHash = (hashLargo || '').trim();
+
+  const { rows } = await db.query(`
+    SELECT c.hash_largo, COALESCE(c.url_r2, i.url_imagen) as url_r2, COALESCE(c.instancia, i.instancia, 'JAIRO') as instancia, i.caption
+    FROM comprobantes_raw c
+    LEFT JOIN impactos_raw i ON LOWER(TRIM(c.hash_largo)) = LOWER(TRIM(i.hash_largo))
+    WHERE LOWER(TRIM(c.hash_largo)) = LOWER(TRIM($1))
+    LIMIT 1;
+  `, [targetHash]);
+
+  if (rows.length === 0) {
+    throw new Error('Comprobante no encontrado en la base de datos.');
+  }
+
+  const comp = rows[0];
+
+  await db.query(`
+    UPDATE comprobantes_raw 
+    SET estado_ia = 'RE-PROCESANDO', procesado_ia = false 
+    WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));
+  `, [targetHash]);
+
+  await pipelineQueue.add('releer-ia', {
+    hash_largo: comp.hash_largo,
+    url_r2: comp.url_r2,
+    instancia: comp.instancia || 'JAIRO',
+    caption: comp.caption
+  }, {
+    attempts: 3,
+    removeOnComplete: true
+  });
+
+  return { success: true, message: 'Re-lectura encolada a la cola-pipeline' };
+}
+
 async function actualizarComprobante(hashLargo, datos) {
   const targetHash = (hashLargo || '').trim();
   const { monto, moneda, banco, referencia, titular } = datos;
@@ -275,6 +319,7 @@ async function eliminarComprobante(hashLargo) {
 module.exports = {
   obtenerComprobantesAuditados,
   liquidarComprobante,
+  releerIA,
   actualizarComprobante,
   eliminarComprobante
 };
