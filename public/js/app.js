@@ -102,7 +102,7 @@ function registrarAppAlpine() {
         this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } fontal {
+      } finally {
         this.cargandoPreviewImagen = false;
       }
     },
