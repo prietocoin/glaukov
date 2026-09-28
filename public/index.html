@@ -241,8 +241,8 @@
                     <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T1: ' + (item.tasa_1 || '1.00')"></span>
                   </div>
                   <span class="col-span-5 font-mono font-bold text-right truncate" 
-                        :class="parseFloat(item.monto_1 !== undefined ? item.monto_1 : item.m1_socio) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
-                        x-text="formatMonto(item.monto_1 !== undefined ? item.monto_1 : item.m1_socio) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
+                        :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
+                        x-text="formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
                 </div>
                 
                 <!-- SOCIO 2 -->
@@ -253,8 +253,8 @@
                       <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T2: ' + (item.tasa_2 || '1.00')"></span>
                     </div>
                     <span class="col-span-5 font-mono font-bold text-right truncate" 
-                          :class="parseFloat(item.monto_2 !== undefined ? item.monto_2 : item.m2_socio) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
-                          x-text="formatMonto(item.monto_2 !== undefined ? item.monto_2 : item.m2_socio) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
+                          :class="parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
+                          x-text="formatMonto(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
                   </div>
                 </template>
               </div>
@@ -283,8 +283,8 @@
                   <!-- Badges D/P/A y x2 -->
                   <div class="flex gap-1 w-full">
                     <span class="flex-1 text-center py-0.5 rounded text-[10px] font-bold border whitespace-nowrap" 
-                          :class="(item.tipo_op1 || item.tipo_op || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40'" 
-                          x-text="(item.tipo_op1 || item.tipo_op || 'D').split('-')[0]"></span>
+                          :class="(item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : ((item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').startsWith('A') ? 'bg-purple-950 text-purple-300 border-purple-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40')" 
+                          x-text="(item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0]"></span>
                     <span x-show="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'" class="flex-1 text-center py-0.5 rounded bg-amber-950 text-amber-300 text-[10px] font-bold border border-amber-500/40 whitespace-nowrap">x2</span>
                   </div>
 
@@ -298,10 +298,10 @@
                   <!-- ME1 Y ME2: SIEMPRE VISIBLES COMO BOTÓN INDEPENDIENTEMENTE DE LA DIVISA -->
                   <div class="flex flex-col gap-1 mt-auto">
                     <div class="w-full text-center py-1 rounded bg-slate-900/90 text-slate-200 font-mono text-[10px] font-bold border border-slate-700/60 shadow truncate px-1" 
-                         x-text="'ME1: ' + formatMonto(item.me1)"></div>
+                         x-text="'ME1: ' + formatMonto(item.me1 !== undefined && item.me1 !== null ? item.me1 : (item.monto_1 || item.monto || 0))"></div>
                     <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
                       <div class="w-full text-center py-1 rounded bg-slate-900/90 text-slate-200 font-mono text-[10px] font-bold border border-slate-700/60 shadow truncate px-1" 
-                           x-text="'ME2: ' + formatMonto(item.me2)"></div>
+                           x-text="'ME2: ' + formatMonto(item.me2 !== undefined && item.me2 !== null ? item.me2 : (item.monto_2 || 0))"></div>
                     </template>
                   </div>
 
