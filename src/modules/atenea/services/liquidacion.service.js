@@ -1,11 +1,7 @@
 const { aplicarReglaPrecisionTasa, aplicarPrecisionMonto } = require('../../../utils/formatters');
 
 /**
- * Calcula el snapshot contable completo para un comprobante
- * @param {Object} raw Datos brutos de comprobantes_raw
- * @param {Object} socio1Data Registro de nombres_fb para Socio 1
- * @param {Object} socio2Data Registro de nombres_fb para Socio 2
- * @param {Object} tasaLote Objeto del lote activo (id_tasa, mapa de tasas base)
+ * Calcula el snapshot contable inmutable con Tasas Comerciales Directas (Vista Cartelera)
  */
 function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const montoRaw = Math.abs(parseFloat(raw.monto) || 0);
@@ -15,7 +11,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const loteCodigo = tasaLote?.id_tasa || 'T041';
   const mapaTasas = tasaLote?.tasas || { USD: 1.0, USDT: 1.0, PEN: 3.75, COP: 3900.0 };
 
-  // 1. Tasa base de la divisa del comprobante frente a USDT (ej. COP = 3900)
+  // Tasa base de la divisa del comprobante frente a USDT (ej. COP = 3253)
   const tasaBaseRawUSDT = parseFloat(mapaTasas[divisaRaw] || 1.0);
 
   // --- SOCIO 1 ---
@@ -24,38 +20,46 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     ? JSON.parse(socio1Data.ajustes || '{}') 
     : (socio1Data?.ajustes || {});
   
-  const factor1 = parseFloat(aj1[`${tipoOp}-${divisaRaw}`]) || 1.0;
+  // Factor siempre positivo para mantener la tasa comercial limpia
+  const factor1 = Math.abs(parseFloat(aj1[`${tipoOp}-${divisaRaw}`]) || 1.0);
   const tasaBaseSocio1USDT = parseFloat(mapaTasas[monedaSocio1] || 1.0);
 
-  // Tasa cruzada efectiva T1: (Moneda Socio 1 / Moneda Comprobante) * Factor
-  const crossBase1 = tasaBaseSocio1USDT / (tasaBaseRawUSDT > 0 ? tasaBaseRawUSDT : 1.0);
+  // Tasa Comercial Directa T1 (ej. COP/USDT = 3253)
+  const crossBase1 = tasaBaseRawUSDT / (tasaBaseSocio1USDT > 0 ? tasaBaseSocio1USDT : 1.0);
   const tasa1Efectiva = aplicarReglaPrecisionTasa(crossBase1 * factor1);
 
-  // M1: Monto nominal en divisa nativa del Socio 1
-  const m1Nominal = aplicarPrecisionMonto(montoRaw * (tasa1Efectiva > 0 ? tasa1Efectiva : 1.0));
+  // Conversión Comercial: Monto Local / Tasa Comercial = USDT
+  const me1USDTCalculado = tasa1Efectiva > 0 ? (montoRaw / tasa1Efectiva) : montoRaw;
+  const signo1 = tipoOp === 'P' ? -1 : 1;
 
-  // ME1: Equivalente SIEMPRE a USDT
-  const me1USDT = aplicarPrecisionMonto((montoRaw / (tasaBaseRawUSDT > 0 ? tasaBaseRawUSDT : 1.0)) * factor1);
+  const m1Nominal = aplicarPrecisionMonto(signo1 * (monedaSocio1 === 'USDT' ? me1USDTCalculado : me1USDTCalculado * tasaBaseSocio1USDT));
+  const me1USDT = aplicarPrecisionMonto(signo1 * me1USDTCalculado);
 
 
   // --- SOCIO 2 (Contraparte) ---
-  const monedaSocio2 = (socio2Data?.moneda_socio || 'USDT').toUpperCase();
-  const aj2 = typeof socio2Data?.ajustes === 'string' 
-    ? JSON.parse(socio2Data.ajustes || '{}') 
-    : (socio2Data?.ajustes || {});
+  let tasa2Efectiva = 1.0;
+  let m2Nominal = 0;
+  let me2USDT = 0;
 
-  const factor2 = parseFloat(aj2[`${tipoOp}-${divisaRaw}`]) || 1.0;
-  const tasaBaseSocio2USDT = parseFloat(mapaTasas[monedaSocio2] || 1.0);
+  if (socio2Data && socio2Data.nombre && socio2Data.nombre !== 'GENERAL') {
+    const monedaSocio2 = (socio2Data?.moneda_socio || 'USDT').toUpperCase();
+    const aj2 = typeof socio2Data?.ajustes === 'string' 
+      ? JSON.parse(socio2Data.ajustes || '{}') 
+      : (socio2Data?.ajustes || {});
 
-  // Tasa cruzada efectiva T2: (Moneda Socio 2 / Moneda Comprobante) * Factor
-  const crossBase2 = tasaBaseSocio2USDT / (tasaBaseRawUSDT > 0 ? tasaBaseRawUSDT : 1.0);
-  const tasa2Efectiva = aplicarReglaPrecisionTasa(crossBase2 * factor2);
+    const factor2 = Math.abs(parseFloat(aj2[`${tipoOp}-${divisaRaw}`]) || 1.0);
+    const tasaBaseSocio2USDT = parseFloat(mapaTasas[monedaSocio2] || 1.0);
 
-  // M2: Monto nominal en divisa nativa del Socio 2 (reflejo contable)
-  const m2Nominal = aplicarPrecisionMonto(-1 * montoRaw * (tasa2Efectiva > 0 ? tasa2Efectiva : 1.0));
+    // Tasa Comercial Directa T2
+    const crossBase2 = tasaBaseRawUSDT / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0);
+    tasa2Efectiva = aplicarReglaPrecisionTasa(crossBase2 * factor2);
 
-  // ME2: Equivalente SIEMPRE a USDT
-  const me2USDT = aplicarPrecisionMonto(-1 * (montoRaw / (tasaBaseRawUSDT > 0 ? tasaBaseRawUSDT : 1.0)) * factor2);
+    const me2USDTCalculado = tasa2Efectiva > 0 ? (montoRaw / tasa2Efectiva) : montoRaw;
+    const signo2 = -1 * signo1; // Espejo contable opuesto
+
+    m2Nominal = aplicarPrecisionMonto(signo2 * (monedaSocio2 === 'USDT' ? me2USDTCalculado : me2USDTCalculado * tasaBaseSocio2USDT));
+    me2USDT = aplicarPrecisionMonto(signo2 * me2USDTCalculado);
+  }
 
   return {
     hash_largo: raw.hash_largo,
@@ -65,7 +69,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     tasa_1: tasa1Efectiva,
     me1: me1USDT,
 
-    socio_2: socio2Data?.nombre || null,
+    socio_2: socio2Data?.nombre && socio2Data.nombre !== 'GENERAL' ? socio2Data.nombre : null,
     tipo_op2: `${tipoOp}-${divisaRaw}`,
     monto_2: m2Nominal,
     tasa_2: tasa2Efectiva,
