@@ -1,3 +1,12 @@
+function truncarTasaComercial(valor) {
+  const num = Math.abs(parseFloat(valor) || 0);
+  if (num === 0) return 1.0;
+  if (num > 99.99) {
+    return Math.trunc(num);
+  }
+  return Math.trunc((num + 0.0000001) * 100) / 100;
+}
+
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
     vistaActiva: 'comprobantes',
@@ -326,11 +335,11 @@ function registrarAppAlpine() {
         nombre_socio_1: item.nombre_socio_1 || 'GENERAL',
         nombre_socio_2: item.nombre_socio_2 || 'GENERAL',
         tipo_manual: tipoOpBruto,
-        monto: item.monto || 0,
-        // Tasas y equivalentes son estrictamente SOLO LECTURA (derivados)
-        tasa_1: item.tasa_1 || 1.0,
+        moneda: (item.moneda || 'COP').toUpperCase(),
+        monto: Math.abs(parseFloat(item.monto || 0)),
+        tasa_1: truncarTasaComercial(item.tasa_1 || 1.0),
         me1: item.me1 !== undefined ? item.me1 : item.monto,
-        tasa_2: item.tasa_2 || 1.0,
+        tasa_2: truncarTasaComercial(item.tasa_2 || 1.0),
         me2: item.me2 || 0,
         lote_tasa_asignado: item.lote_tasa_asignado || this.loteActivo || 'T041',
         fecha_hora_input: dateInput
@@ -346,41 +355,72 @@ function registrarAppAlpine() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
-        const montoEditado = parseFloat(this.itemEdicion.monto || 0);
+        const montoEditado = Math.abs(parseFloat(this.itemEdicion.monto || 0));
+        const divisaEditada = (this.itemEdicion.moneda || 'USDT').toUpperCase();
 
         // 1. Actualizar metadatos brutos en comprobantes_raw
         await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, {
           monto: montoEditado,
-          moneda: this.itemEdicion.moneda,
+          moneda: divisaEditada,
           banco: this.itemEdicion.banco,
           referencia: this.itemEdicion.referencia,
           titular: this.itemEdicion.titular
         });
 
-        // 2. Tasa inmutable del lote y derivación automática de ME (Monto / Tasa)
-        const tasa1 = parseFloat(this.itemEdicion.tasa_1 || 1.0);
-        const tasa2 = parseFloat(this.itemEdicion.tasa_2 || 1.0);
-        const me1Derivado = tasa1 > 0 ? (montoEditado / tasa1) : montoEditado;
+        // 2. Recalcular Tasas Comerciales según la divisa seleccionada y el mercado
+        const tasaBaseDivisa = parseFloat(this.tasasProduccion[divisaEditada] || 1.0);
+
+        const s1Obj = this.directorio.find(d => d.nombre === this.itemEdicion.nombre_socio_1);
+        const s2Obj = this.directorio.find(d => d.nombre === this.itemEdicion.nombre_socio_2);
+
+        const monS1 = (s1Obj?.moneda_socio || 'USDT').toUpperCase();
+        const monS2 = (s2Obj?.moneda_socio || 'USDT').toUpperCase();
+
+        const tasaBaseS1 = parseFloat(this.tasasProduccion[monS1] || 1.0);
+        const tasaBaseS2 = parseFloat(this.tasasProduccion[monS2] || 1.0);
+
+        let aj1 = {}, aj2 = {};
+        try { aj1 = typeof s1Obj?.ajustes === 'string' ? JSON.parse(s1Obj.ajustes || '{}') : (s1Obj?.ajustes || {}); } catch (e) {}
+        try { aj2 = typeof s2Obj?.ajustes === 'string' ? JSON.parse(s2Obj.ajustes || '{}') : (s2Obj?.ajustes || {}); } catch (e) {}
+
+        const tipoOpLetra = (this.itemEdicion.tipo_manual || 'D').toUpperCase().charAt(0);
         
+        const factor1 = Math.abs(parseFloat(aj1[`${tipoOpLetra}-${divisaEditada}`]) || 1.0);
+        const factor2 = Math.abs(parseFloat(aj2[`${tipoOpLetra}-${divisaEditada}`]) || 1.0);
+
+        // Cruce comercial: T1 y T2
+        const cross1 = (tasaBaseDivisa / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0)) * factor1;
+        const tasa1Calculada = truncarTasaComercial(cross1);
+
+        const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
+        const tasa2Calculada = truncarTasaComercial(cross2);
+
+        const signo1 = tipoOpLetra === 'P' ? -1 : 1;
+        const signo2 = -1 * signo1;
         const tieneSocio2 = this.itemEdicion.nombre_socio_2 && this.itemEdicion.nombre_socio_2 !== 'GENERAL';
-        const me2Derivado = tieneSocio2 ? (tasa2 > 0 ? (-1 * montoEditado / tasa2) : 0) : 0;
 
-        const divisa = (this.itemEdicion.moneda || 'USDT').toUpperCase();
-        const tipoOpFinal = `${this.itemEdicion.tipo_manual || 'D'}-${divisa}`;
+        // Montos nominales ($M_1, M_2$) y Equivalentes en USDT ($ME_1, ME_2$)
+        const m1Nominal = tasa1Calculada > 0 ? (signo1 * montoEditado / tasa1Calculada) : (signo1 * montoEditado);
+        const me1USDT = m1Nominal / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0);
 
-        // 3. Congelar instantánea inmutable enviando los valores calculados protegidos
+        const m2Nominal = tieneSocio2 ? (tasa2Calculada > 0 ? (signo2 * montoEditado / tasa2Calculada) : 0) : 0;
+        const me2USDT = tieneSocio2 ? (m2Nominal / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) : 0;
+
+        const tipoOpFinal = `${tipoOpLetra}-${divisaEditada}`;
+
+        // 3. Congelar instantánea inmutable recalculada
         await window.AteneaAPI.liquidarComprobante({
           hash_largo: this.itemEdicion.hash_largo,
           socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
           tipo_op1: tipoOpFinal,
-          monto_1: montoEditado,
-          tasa_1: tasa1,           // Tasa inmutable del lote/socio
-          me1: me1Derivado,        // Calculado automáticamente
+          monto_1: m1Nominal,
+          tasa_1: tasa1Calculada,
+          me1: me1USDT,
           socio_2: tieneSocio2 ? this.itemEdicion.nombre_socio_2 : null,
           tipo_op2: tipoOpFinal,
-          monto_2: tieneSocio2 ? -1 * montoEditado : 0,
-          tasa_2: tasa2,           // Tasa inmutable del lote/socio
-          me2: me2Derivado,        // Calculado automáticamente
+          monto_2: m2Nominal,
+          tasa_2: tasa2Calculada,
+          me2: me2USDT,
           lote_tasa: this.itemEdicion.lote_tasa_asignado || this.loteActivo || 'T041'
         });
 
