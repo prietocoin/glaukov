@@ -8,7 +8,7 @@ const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
 
 /**
  * Consulta de lectura optimizada: Lee desde comprobantes_raw + comprobantes_liq.
- * Evalúa regla 'A' (USDT / Moneda Nativa Socio 1) o columna de moneda en nombres_fb.
+ * Evalúa la naturaleza (D/P/A) y busca el lote de tasa histórico exacto en la tabla mercado.
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -82,6 +82,19 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.tasa_2,
         l.me2,
         l.lote_tasa,
+
+        -- 🟢 CRUCE CON TABLA MERCADO PARA OBTENER LA TASA HISTÓRICA EXACTA
+        (
+          SELECT m.id_tasa 
+          FROM mercado m 
+          WHERE m.creado_en <= COALESCE(
+            c.creado_en, 
+            CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, 
+            NOW()
+          )
+          ORDER BY m.creado_en DESC 
+          LIMIT 1
+        ) AS lote_tasa_historico,
 
         -- MONEDAS Y FILA COMPLETA DE SOCIO 1 (nombres_fb)
         COALESCE(n1.moneda_socio, 'USDT') AS moneda_socio_1,
@@ -162,7 +175,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const monedaSocio1 = (r.moneda_socio_1 || 'USDT').toUpperCase();
       const socio1Row = r.socio1_row || {};
 
-      // 🟢 REGLA: Si la divisa es USDT o coincide con la moneda nativa de Socio 1 -> 'A' (Abono)
+      // 2. REGLA: Si la divisa es USDT o coincide con la moneda nativa de Socio 1 -> 'A' (Abono)
       let naturalezaSocio1;
       if (divisaRecibo === 'USDT' || divisaRecibo === monedaSocio1) {
         naturalezaSocio1 = 'A';
@@ -171,10 +184,8 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         naturalezaSocio1 = (typeof natRaw === 'string' && natRaw.trim() ? natRaw.trim() : 'D').toUpperCase();
       }
 
-      // 2. Tipo de operación para Socio 1
+      // 3. Tipo de operación para Socio 1 y Socio 2 (Hereda)
       const tipoOp1Final = r.tipo_op1 || `${naturalezaSocio1}-${divisaRecibo}`;
-
-      // 3. Socio 2 HEREDA exactamente el mismo tipo de operación que Socio 1
       const tipoOp2Final = r.tipo_op2 || tipoOp1Final;
 
       // 4. Asignación de signos nominales no liquidados
@@ -206,7 +217,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         tasa_1: r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0,
         me1: r.me1 !== null ? parseFloat(r.me1) : montoAbsoluto,
 
-        // SOCIO 2 (Hereda tipo_op1)
+        // SOCIO 2
         nombre_socio_2: socio2Final,
         moneda_socio_2: r.moneda_socio_2 || 'USDT',
         tipo_op2: tipoOp2Final,
@@ -214,10 +225,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         tasa_2: r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0,
         me2: r.me2 !== null ? parseFloat(r.me2) : 0,
 
-        // PROPIEDADES DE COMPATIBILIDAD CON FRONTEND
+        // PROPIEDADES FRONTEND Y LOTE TASA DINÁMICO
         m1_socio: m1Calculado,
         m2_socio: m2Calculado,
-        lote_tasa_asignado: r.lote_tasa || 'T041'
+        
+        // 🟢 Asigna la tasa liquidada, o si no está liquidada, la tasa histórica extraída de mercado
+        lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T-ND'
       };
     });
   } catch (err) {
@@ -272,7 +285,7 @@ async function liquidarComprobante(payload) {
     monto_2 !== undefined ? parseFloat(monto_2) : 0,
     tasa_2 !== undefined ? parseFloat(tasa_2) : 1.0,
     me2 !== undefined ? parseFloat(me2) : 0,
-    lote_tasa || 'T041'
+    lote_tasa || null // 🟢 Removido el 'T041' forzado
   ]);
 
   return { success: true };
@@ -280,7 +293,6 @@ async function liquidarComprobante(payload) {
 
 /**
  * 🤖 Encola el re-procesamiento de un comprobante con IA Gemini
- * PRESERVA EL TIMESTAMP Y FECHA INMUTABLES ORIGINALES
  */
 async function releerIA(hashLargo) {
   const targetHash = (hashLargo || '').trim();
@@ -344,9 +356,6 @@ async function actualizarComprobante(hashLargo, datos) {
   return { success: true };
 }
 
-/**
- * Borrado en cascada consistente en las tres tablas relacionales
- */
 async function eliminarComprobante(hashLargo) {
   const targetHash = (hashLargo || '').trim();
   await db.query(`DELETE FROM comprobantes_raw WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($1));`, [targetHash]);
