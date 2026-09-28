@@ -295,15 +295,13 @@
                     <span x-show="item.procesado_ia" class="flex-1 text-center py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px] font-bold border border-emerald-500/40 flex items-center justify-center whitespace-nowrap">✓ IA</span>
                   </div>
 
-                  <!-- ME1 y ME2 (Equivalentes USDT si la moneda no es USDT) -->
+                  <!-- ME1 Y ME2: SIEMPRE VISIBLES COMO BOTÓN INDEPENDIENTEMENTE DE LA DIVISA -->
                   <div class="flex flex-col gap-1 mt-auto">
-                    <template x-if="(item.moneda_socio_1 || 'USDT') !== 'USDT'">
-                      <div class="w-full text-center py-0.5 rounded bg-slate-900/80 text-slate-300 font-mono text-[9px] border border-slate-800 truncate px-0.5" 
-                            x-text="'ME1: ' + formatMonto(item.me1)"></div>
-                    </template>
-                    <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL' && (item.moneda_socio_2 || 'USDT') !== 'USDT'">
-                      <div class="w-full text-center py-0.5 rounded bg-slate-900/80 text-slate-300 font-mono text-[9px] border border-slate-800 truncate px-0.5" 
-                            x-text="'ME2: ' + formatMonto(item.me2)"></div>
+                    <div class="w-full text-center py-1 rounded bg-slate-900/90 text-slate-200 font-mono text-[10px] font-bold border border-slate-700/60 shadow truncate px-1" 
+                         x-text="'ME1: ' + formatMonto(item.me1)"></div>
+                    <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
+                      <div class="w-full text-center py-1 rounded bg-slate-900/90 text-slate-200 font-mono text-[10px] font-bold border border-slate-700/60 shadow truncate px-1" 
+                           x-text="'ME2: ' + formatMonto(item.me2)"></div>
                     </template>
                   </div>
 
