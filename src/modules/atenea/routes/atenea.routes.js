@@ -15,6 +15,7 @@ router.all('/disparar', ateneaController.dispararWhatsApp);
 router.get('/comprobantes', ateneaController.getComprobantes);
 router.get('/cola', ateneaController.getComprobantes);
 router.post('/comprobantes/liquidar', ateneaController.liquidarComprobante); // 👈 Congela liquidación
+router.post('/comprobantes/:hashLargo/releer', ateneaController.releerIA); // 🤖 Re-lectura Gemini
 router.put('/comprobantes/:hashLargo', ateneaController.updateComprobante);
 router.delete('/comprobantes/:hashLargo', ateneaController.deleteComprobante);
 
