@@ -466,8 +466,8 @@
             </div>
 
             <div>
-              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">WhatsApp Remote JID</label>
-              <input type="text" x-model="socioConfigEdit.whatsapp" placeholder="54911..." class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-2.5 py-1.5 text-xs text-cyan-300 font-mono outline-none focus:border-cyan-400">
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">WhatsApp Remote JID / ID Grupo</label>
+              <input type="text" x-model="socioConfigEdit.whatsapp" placeholder="120363...@g.us" class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-2.5 py-1.5 text-xs text-cyan-300 font-mono outline-none focus:border-cyan-400">
             </div>
           </div>
 
@@ -658,25 +658,53 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API -->
+  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ROBUSTO CON AUTOCARGA Y PROMPT DE RESCATE) -->
   <div x-data="{ 
          modalReporteAbierto: false,
          generandoImagen: false,
          get monedaReporte() {
            const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
-           const socioFound = directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
+           const socioFound = (directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
            if (socioFound && socioFound.moneda_socio) return socioFound.moneda_socio.toUpperCase();
            if (comprobantes && comprobantes.length > 0 && comprobantes[0].moneda_socio_1) return comprobantes[0].moneda_socio_1.toUpperCase();
            return 'USDT';
          },
          async enviarReporteViaEvolution() {
-           const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
-           const socioFound = directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
-           const jid = socioFound?.whatsapp;
+           const socioNom = (filtroSocio || sujetoAuditado || 'SOCIO').trim().toUpperCase();
            
-           if (!jid || jid.trim() === '') {
-             alert(`❌ El socio ${socioNom || 'seleccionado'} no tiene un WhatsApp/JID configurado en el Directorio.`);
-             return;
+           // 1. Cargar directorio si está vacío en memoria
+           if (!directorio || directorio.length === 0) {
+             try {
+               if (window.AteneaAPI && window.AteneaAPI.getDirectorio) {
+                 const dataDir = await window.AteneaAPI.getDirectorio();
+                 if (Array.isArray(dataDir)) directorio.push(...dataDir);
+               }
+             } catch(e) {
+               console.warn('No se pudo precargar el directorio:', e);
+             }
+           }
+
+           // 2. Buscar el socio en el directorio
+           const socioFound = (directorio || []).find(d => (d.nombre || d.socio || '').trim().toUpperCase() === socioNom);
+           
+           // 3. Inspeccionar todos los posibles campos de JID/Grupo/WhatsApp
+           let jid = socioFound?.id_grupo || 
+                     socioFound?.whatsapp || 
+                     socioFound?.jid || 
+                     socioFound?.remoteJid || 
+                     socioFound?.remote_jid || 
+                     socioFound?.id_whatsapp || 
+                     socioFound?.grupo;
+           
+           // 4. Fallback por si no tiene JID guardado en la BD
+           if (!jid || String(jid).trim() === '' || String(jid).trim() === '-') {
+             const inputJid = prompt(
+               `⚠️ El socio/grupo "${socioNom}" no tiene un JID/Grupo registrado en el Directorio.\n\nPor favor ingresa el JID del Grupo (ej: 120363...MD@g.us o número) para enviar este reporte:`
+             );
+             if (!inputJid || inputJid.trim() === '') return;
+             jid = inputJid.trim();
+           } else {
+             jid = String(jid).trim();
            }
 
            this.generandoImagen = true;
@@ -689,29 +717,35 @@
              // 2. Construir el texto del mensaje (Caption)
              const captionText = `*Reporte de ${socioNom}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${this.monedaReporte}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${this.monedaReporte}*`;
 
-             // 3. Enviar la imagen y JID a tu Backend para que consuma Evolution API usando las credenciales del .env
-             const response = await fetch('/api/whatsapp/enviar-media', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({
-                 jid: jid,
-                 instancia: 'JAIRO',
-                 caption: captionText,
-                 base64: base64Image
-               })
-             });
+             // 3. Enviar la imagen y JID a tu Backend vía AteneaAPI o fetch
+             const payload = {
+               jid: jid,
+               instancia: 'JAIRO',
+               caption: captionText,
+               base64: base64Image
+             };
 
-             const resData = await response.json();
-
-             if (response.ok && resData.success) {
-               alert(`✅ Reporte enviado exitosamente al WhatsApp de ${socioNom} (${jid})`);
+             let resData;
+             if (window.AteneaAPI && window.AteneaAPI.enviarMediaWhatsApp) {
+               resData = await window.AteneaAPI.enviarMediaWhatsApp(payload);
              } else {
-               alert(`❌ Error al enviar vía Evolution API: ${JSON.stringify(resData.error || 'Error en el servidor')}`);
+               const response = await fetch('/api/whatsapp/enviar-media', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+               });
+               resData = await response.json();
+             }
+
+             if (resData && (resData.success || resData.key || resData.status === 'SUCCESS')) {
+               alert(`✅ Reporte enviado exitosamente al Grupo/Chat de ${socioNom} (${jid})`);
+             } else {
+               alert(`❌ Error al enviar vía Evolution API: ${JSON.stringify(resData?.error || resData || 'Error en el servidor')}`);
              }
 
            } catch(e) { 
              console.error('Error enviando reporte por Evolution:', e); 
-             alert('❌ Error interno al procesar la captura del reporte.');
+             alert(`❌ Error interno al procesar el reporte: ${e.message || e}`);
            }
            this.generandoImagen = false;
          }
@@ -724,14 +758,13 @@
     <!-- CONTENEDOR VENTANA MODAL -->
     <div class="bg-white border border-slate-300 md:rounded-xl w-full max-w-4xl h-full md:h-auto md:max-h-[92vh] flex flex-col shadow-2xl relative overflow-hidden" @click.away="modalReporteAbierto = false">
       
-      <!-- CONTROLES SUPERIORES (NO IMPRIMIR, NO CAPTURAR) -->
+      <!-- CONTROLES SUPERIORES -->
       <div class="flex items-center justify-between bg-slate-100 border-b border-slate-300 px-4 py-3 shrink-0 no-imprimir shadow-sm z-20 overflow-x-auto">
         <span class="font-bold text-slate-700 text-xs sm:text-sm flex items-center gap-2 whitespace-nowrap">📄 Estado de Cuenta</span>
         
         <div class="flex items-center gap-2">
-          <!-- BOTÓN PRINCIPAL: ENVÍO DIRECTO A WHATSAPP VÍA EVOLUTION API -->
           <button type="button" @click="enviarReporteViaEvolution()" :disabled="generandoImagen" class="px-4 py-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg text-xs font-black shadow-md transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap">
-            <span x-show="!generandoImagen">🤖 Enviar a JID (Evolution API)</span>
+            <span x-show="!generandoImagen">🤖 Enviar a Grupo/JID (Evolution)</span>
             <span x-show="generandoImagen">⏳ Procesando Envío...</span>
           </button>
           
@@ -739,7 +772,7 @@
         </div>
       </div>
 
-      <!-- 🟢 ÁREA DEL DOCUMENTO EN BLANCO Y COLORES INSTITUCIONALES (SE CAPTURA COMO PNG Y SE ENVÍA AL JID) -->
+      <!-- ÁREA DEL DOCUMENTO EN BLANCO -->
       <div id="reporte-html-documento" class="flex-1 overflow-y-auto bg-white text-slate-800 p-4 md:p-8 space-y-6">
         
         <!-- CABECERA INSTITUCIONAL DEL REPORTE -->
@@ -788,7 +821,7 @@
                   </div>
                 </div>
 
-                <!-- IMPACTO (IMPACTO ROJO/VERDE) -->
+                <!-- IMPACTO -->
                 <div class="col-span-2 sm:col-span-2 text-right font-black text-xs font-mono" 
                      :class="parseFloat(item.monto_1 !== undefined ? item.monto_1 : item.monto) < 0 ? 'text-rose-600' : 'text-[#10b981]'"
                      x-text="formatMonto(item.monto_1 !== undefined ? item.monto_1 : item.monto)"></div>
