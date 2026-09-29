@@ -31,6 +31,77 @@ async function enviarReporteWhatsApp(datos) {
   return { success: true, remoteJid };
 }
 
+// 🟢 NUEVA FUNCIÓN: Consulta SQL en nombres_fb + Envío de Imagen a Evolution API
+async function enviarMediaWhatsApp(datos) {
+  const { socio, caption, base64 } = datos;
+
+  if (!socio || !socio.trim()) {
+    throw new Error('El parámetro socio es requerido.');
+  }
+
+  if (!base64) {
+    throw new Error('No se proporcionó la imagen en formato Base64.');
+  }
+
+  // 1. Consulta SQL en nombres_fb: toma id_grupo si existe, si no usa whatsapp
+  const sql = `
+    SELECT 
+      COALESCE(
+        NULLIF(TRIM(id_grupo), ''), 
+        NULLIF(TRIM(whatsapp), '')
+      ) AS jid
+    FROM nombres_fb
+    WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1))
+    LIMIT 1;
+  `;
+
+  const dbRes = await db.query(sql, [socio.trim()]);
+  const row = dbRes.rows?.[0];
+
+  if (!row || !row.jid) {
+    throw new Error(`El socio "${socio}" no posee un "id_grupo" ni "whatsapp" configurado en nombres_fb.`);
+  }
+
+  const jidDestino = row.jid.trim();
+
+  // 2. Preparar credenciales de Evolution API desde el .env
+  const evoUrlBase = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, "");
+  const apiKey = process.env.AUTHENTICATION_API_KEY;
+
+  if (!evoUrlBase || !apiKey) {
+    throw new Error('EVOLUTION_API_URL o AUTHENTICATION_API_KEY no están configuradas en el .env');
+  }
+
+  // 3. Limpiar encabezado del Base64
+  const base64Data = base64.replace(/^data:image\/png;base64,/, "");
+
+  // 4. Disparo directo a la instancia JAIRO de Evolution API
+  const endpoint = `${evoUrlBase}/message/sendMedia/JAIRO`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': apiKey
+    },
+    body: JSON.stringify({
+      number: jidDestino,
+      mediatype: "image",
+      mimetype: "image/png",
+      caption: caption || '',
+      media: base64Data
+    })
+  });
+
+  const responseData = await response.json();
+
+  if (!response.ok) {
+    throw new Error(`Evolution API respondió con error HTTP ${response.status}: ${JSON.stringify(responseData)}`);
+  }
+
+  return { success: true, jid: jidDestino, data: responseData };
+}
+
 async function obtenerFiltrosReportes(rol) {
   const rolesQuery = `
     SELECT DISTINCT UPPER(TRIM(roles)) AS rol 
@@ -80,5 +151,6 @@ async function obtenerFiltrosReportes(rol) {
 
 module.exports = {
   enviarReporteWhatsApp,
+  enviarMediaWhatsApp, // 👈 Exportado
   obtenerFiltrosReportes
 };
