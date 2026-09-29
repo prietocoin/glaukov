@@ -658,7 +658,7 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES ESTILO DOCUMENTO FINANCIERO (HTML/CSS LIMPION EN BLANCO + CAPTURA PNG) -->
+  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API -->
   <div x-data="{ 
          modalReporteAbierto: false,
          generandoImagen: false,
@@ -669,17 +669,49 @@
            if (comprobantes && comprobantes.length > 0 && comprobantes[0].moneda_socio_1) return comprobantes[0].moneda_socio_1.toUpperCase();
            return 'USDT';
          },
-         async descargarImagenReporte() {
+         async enviarReporteViaEvolution() {
+           const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
+           const socioFound = directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
+           const jid = socioFound?.whatsapp;
+           
+           if (!jid || jid.trim() === '') {
+             alert(`❌ El socio ${socioNom || 'seleccionado'} no tiene un WhatsApp/JID configurado en el Directorio.`);
+             return;
+           }
+
            this.generandoImagen = true;
            const elemento = document.getElementById('reporte-html-documento');
            try {
+             // 1. Capturar el HTML a Imagen Base64
              const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-             const link = document.createElement('a');
-             link.download = `Reporte_${(sujetoAuditado || 'Socio').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.png`;
-             link.href = canvas.toDataURL('image/png');
-             link.click();
+             const base64Image = canvas.toDataURL('image/png');
+             
+             // 2. Construir el texto del mensaje (Caption)
+             const captionText = `*Reporte de ${socioNom}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${this.monedaReporte}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${this.monedaReporte}*`;
+
+             // 3. Enviar la imagen y JID a tu Backend para que consuma Evolution API usando las credenciales del .env
+             const response = await fetch('/api/whatsapp/enviar-media', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({
+                 jid: jid,
+                 instancia: 'JAIRO',
+                 caption: captionText,
+                 base64: base64Image
+               })
+             });
+
+             const resData = await response.json();
+
+             if (response.ok && resData.success) {
+               alert(`✅ Reporte enviado exitosamente al WhatsApp de ${socioNom} (${jid})`);
+             } else {
+               alert(`❌ Error al enviar vía Evolution API: ${JSON.stringify(resData.error || 'Error en el servidor')}`);
+             }
+
            } catch(e) { 
-             console.error('Error al generar la imagen PNG del reporte:', e); 
+             console.error('Error enviando reporte por Evolution:', e); 
+             alert('❌ Error interno al procesar la captura del reporte.');
            }
            this.generandoImagen = false;
          }
@@ -689,28 +721,25 @@
        class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6 bg-slate-900/90 backdrop-blur-md" 
        x-cloak>
     
-    <!-- CONTENEDOR VENTANA MODAL (Diseño Dashboard) -->
+    <!-- CONTENEDOR VENTANA MODAL -->
     <div class="bg-white border border-slate-300 md:rounded-xl w-full max-w-4xl h-full md:h-auto md:max-h-[92vh] flex flex-col shadow-2xl relative overflow-hidden" @click.away="modalReporteAbierto = false">
       
-      <!-- CONTROLES SUPERIORES (NO IMPRIMIR, NO CAPTURAR EN IMAGEN) -->
-      <div class="flex items-center justify-between bg-slate-100 border-b border-slate-300 px-4 py-3 shrink-0 no-imprimir shadow-sm z-20">
-        <span class="font-bold text-slate-700 text-xs sm:text-sm flex items-center gap-2">📄 Estado de Cuenta</span>
+      <!-- CONTROLES SUPERIORES (NO IMPRIMIR, NO CAPTURAR) -->
+      <div class="flex items-center justify-between bg-slate-100 border-b border-slate-300 px-4 py-3 shrink-0 no-imprimir shadow-sm z-20 overflow-x-auto">
+        <span class="font-bold text-slate-700 text-xs sm:text-sm flex items-center gap-2 whitespace-nowrap">📄 Estado de Cuenta</span>
         
         <div class="flex items-center gap-2">
-          <button type="button" @click="window.print()" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm flex items-center gap-1">
-            🖨️ Imprimir PDF
+          <!-- BOTÓN PRINCIPAL: ENVÍO DIRECTO A WHATSAPP VÍA EVOLUTION API -->
+          <button type="button" @click="enviarReporteViaEvolution()" :disabled="generandoImagen" class="px-4 py-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg text-xs font-black shadow-md transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap">
+            <span x-show="!generandoImagen">🤖 Enviar a JID (Evolution API)</span>
+            <span x-show="generandoImagen">⏳ Procesando Envío...</span>
           </button>
           
-          <button type="button" @click="descargarImagenReporte()" :disabled="generandoImagen" class="px-3.5 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-lg text-xs font-black shadow-md transition-all flex items-center gap-1.5 active:scale-95">
-            <span x-show="!generandoImagen">📸 Descargar Imagen (WhatsApp)</span>
-            <span x-show="generandoImagen">⏳ Generando...</span>
-          </button>
-          
-          <button type="button" @click="modalReporteAbierto = false" class="px-3 py-1.5 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300 ml-1">✕</button>
+          <button type="button" @click="modalReporteAbierto = false" class="px-3 py-1.5 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300 ml-1">✕ Cerrar</button>
         </div>
       </div>
 
-      <!-- 🟢 ÁREA DEL DOCUMENTO EN BLANCO Y COLORES INSTITUCIONALES (SE CONVIERTE A PNG / PDF) -->
+      <!-- 🟢 ÁREA DEL DOCUMENTO EN BLANCO Y COLORES INSTITUCIONALES (SE CAPTURA COMO PNG Y SE ENVÍA AL JID) -->
       <div id="reporte-html-documento" class="flex-1 overflow-y-auto bg-white text-slate-800 p-4 md:p-8 space-y-6">
         
         <!-- CABECERA INSTITUCIONAL DEL REPORTE -->
