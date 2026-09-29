@@ -126,7 +126,6 @@
               🔄
             </button>
             
-            <!-- 🟢 BOTÓN REPORTES (DISPARA EVENTO GLOBAL) -->
             <button @click="$dispatch('abrir-reporte')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-1.5 active:scale-95">
               📄 Reportes
             </button>
@@ -135,7 +134,7 @@
           </div>
         </div>
 
-        <!-- KPIs SUPERIORES -->
+        <!-- KPIs SUPERIORES CON MONEDA NATIVA DE SOCIO -->
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-3">
           <div class="col-span-2 sm:col-span-1 bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-blue-900/50 shadow-xl">
             <p class="text-[8px] md:text-[9px] font-extrabold text-blue-400/80 uppercase">SUJETO / ENTIDAD AUDITADA</p>
@@ -150,15 +149,15 @@
               <p class="text-[8px] md:text-[9px] font-extrabold text-amber-400 uppercase truncate">SALDO ANTERIOR</p>
               <input type="number" x-model="saldoAnterior" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-1.5 py-0.5 text-xs md:text-sm font-bold text-amber-300 mt-0.5 outline-none">
             </div>
-            <span class="text-[10px] font-bold text-amber-500 mt-3 shrink-0" x-text="monedaSocioDominante"></span>
+            <span class="text-[10px] font-bold text-amber-500 mt-3 shrink-0" x-text="(directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_socio || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></span>
           </div>
           <div class="bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-blue-900/50 shadow-xl col-span-1">
             <p class="text-[8px] md:text-[9px] font-extrabold text-emerald-400 uppercase">MOVIMIENTO</p>
-            <h3 class="text-xs md:text-base font-black text-emerald-400 mt-0.5 truncate" x-text="formatMonto(movimientoFiltradoTotal) + ' ' + monedaSocioDominante"></h3>
+            <h3 class="text-xs md:text-base font-black text-emerald-400 mt-0.5 truncate" x-text="formatMonto(movimientoFiltradoTotal) + ' ' + (directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_socio || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></h3>
           </div>
           <div class="bg-[#010a14] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-emerald-500/40 shadow-xl col-span-2 sm:col-span-1">
             <p class="text-[8px] md:text-[9px] font-extrabold text-emerald-400 uppercase">SALDO ACTUAL TOTAL</p>
-            <h3 class="text-xs md:text-base font-black text-emerald-300 mt-0.5 truncate" x-text="formatMonto(saldoActualTotal) + ' ' + monedaSocioDominante"></h3>
+            <h3 class="text-xs md:text-base font-black text-emerald-300 mt-0.5 truncate" x-text="formatMonto(saldoActualTotal) + ' ' + (directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_socio || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></h3>
           </div>
         </div>
 
@@ -182,7 +181,6 @@
 
             <div>
               <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">2. SOCIO / ENTIDAD</label>
-              <!-- 🟢 CORREGIDO: ITERA SOBRE 'directorio' EN LUGAR DE 'socios' -->
               <select x-model="filtroSocio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
                 <option value="">Todos los Socios</option>
                 <template x-for="s in directorio" :key="'filtro-socio-' + s.nombre">
@@ -664,8 +662,19 @@
     </div>
   </div>
 
-  <!-- 🟢 NUEVO MODAL DE REPORTES (AISLADO PARA PREVENIR ERRORES) -->
-  <div x-data="{ modalReporteAbierto: false }" 
+  <!-- 🟢 MODAL DE REPORTES CON MONEDA NATIVA DE SOCIO CORREGIDA -->
+  <div x-data="{ 
+         modalReporteAbierto: false,
+         get monedaReporte() {
+           const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
+           const socioFound = directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
+           if (socioFound && socioFound.moneda_socio) return socioFound.moneda_socio.toUpperCase();
+           if (comprobantes && comprobantes.length > 0 && comprobantes[0].moneda_socio_1) {
+             return comprobantes[0].moneda_socio_1.toUpperCase();
+           }
+           return 'USDT';
+         }
+       }" 
        x-show="modalReporteAbierto" 
        @abrir-reporte.window="modalReporteAbierto = true"
        class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md" 
@@ -682,7 +691,7 @@
               Reporte de <span class="text-cyan-400 font-extrabold uppercase" x-text="sujetoAuditado || 'SOCIO'"></span>
             </h3>
             <p class="text-xs text-slate-400">
-              Saldo anterior: <strong class="text-amber-300 font-mono font-bold" x-text="formatMonto(saldoAnterior) + ' ' + monedaSocioDominante"></strong>
+              Saldo anterior: <strong class="text-amber-300 font-mono font-bold" x-text="formatMonto(saldoAnterior) + ' ' + monedaReporte"></strong>
             </p>
           </div>
         </div>
@@ -710,7 +719,6 @@
               <!-- DESCRIPCIÓN CON FORMATO DE AUDITORÍA -->
               <div class="col-span-7 sm:col-span-8 space-y-0.5 leading-snug pr-2">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  <!-- TIPO OPERACIÓN Y HASH SEGURO CONTRA NULOS -->
                   <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border font-mono whitespace-nowrap" 
                         :class="(item.tipo_op1 || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : ((item.tipo_op1 || 'D').startsWith('A') ? 'bg-purple-950 text-purple-300 border-purple-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40')"
                         x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + '-' + (item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : 'HASH')) + ']'"></span>
@@ -725,7 +733,7 @@
                 </div>
               </div>
 
-              <!-- IMPACTO NOMINAL EN LA CUENTA -->
+              <!-- IMPACTO NOMINAL EN LA MONEDA DEL SOCIO -->
               <div class="col-span-2 sm:col-span-2 text-right font-bold text-[10px] sm:text-xs font-mono" 
                    :class="parseFloat(item.monto_1 !== undefined ? item.monto_1 : item.monto) < 0 ? 'text-rose-400' : 'text-emerald-400'"
                    x-text="formatMonto(item.monto_1 !== undefined ? item.monto_1 : item.monto)"></div>
@@ -735,13 +743,13 @@
 
       </div>
 
-      <!-- FOOTER DE REPORTE (NUEVO SALDO TOTAL Y ACCIONES) -->
+      <!-- FOOTER DE REPORTE CON MONEDA NATIVA -->
       <div class="border-t border-emerald-500/30 pt-3 shrink-0 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
         
         <!-- CAJA DE NUEVO SALDO -->
         <div class="bg-emerald-950/80 border border-emerald-500/60 p-3 rounded-2xl flex items-center justify-between gap-4">
           <span class="text-[10px] font-black text-emerald-400 uppercase tracking-widest">NUEVO SALDO</span>
-          <span class="text-xl md:text-2xl font-black text-emerald-300 font-mono tracking-tight" x-text="formatMonto(saldoActualTotal) + ' ' + monedaSocioDominante"></span>
+          <span class="text-xl md:text-2xl font-black text-emerald-300 font-mono tracking-tight" x-text="formatMonto(saldoActualTotal) + ' ' + monedaReporte"></span>
         </div>
 
         <!-- ACCIONES MÓVILES / DESKTOP -->
@@ -751,7 +759,7 @@
           </button>
 
           <button type="button" @click="
-            const txt = `*Reporte de ${sujetoAuditado || 'Socio'}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${monedaSocioDominante}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${monedaSocioDominante}*`;
+            const txt = `*Reporte de ${sujetoAuditado || 'Socio'}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${monedaReporte}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${monedaReporte}*`;
             window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(txt), '_blank');
           " class="flex-1 sm:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5 active:scale-95">
             📱 Enviar a WhatsApp
