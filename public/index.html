@@ -316,7 +316,7 @@
 
                   <div class="flex justify-around items-center pt-1 border-t border-blue-900/30">
                     <button @click="eliminarComprobante(item.hash_largo)" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors text-base active:scale-95" title="Eliminar">🗑</button>
-                    <button @click="abrirModal(item)" class="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-base active:scale-95" title="Auditar">✏️</button>
+                    <button @click="abrirModal(item)" class="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-base active:scale-95" title="Auditar">✏️️</button>
                   </div>
                 </div>
 
@@ -680,9 +680,9 @@
            this.generandoImagen = true;
            const elemento = document.getElementById('reporte-html-documento');
            try {
-             // 1. Capturar el HTML del reporte a PNG en Base64
-             const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-             const base64Image = canvas.toDataURL('image/png');
+             // 🟢 Captura comprimida en JPEG al 60% (Calidad n8n) con escala 1.5 (~150 KB)
+             const canvas = await html2canvas(elemento, { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' });
+             const base64Image = canvas.toDataURL('image/jpeg', 0.6);
              
              // 2. Construir el texto descriptivo del mensaje (Caption)
              const captionText = `*Reporte de ${socioNom.toUpperCase()}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${this.getMonedaReporte()}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${this.getMonedaReporte()}*`;
