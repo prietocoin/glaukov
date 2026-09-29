@@ -31,7 +31,7 @@ async function enviarReporteWhatsApp(datos) {
   return { success: true, remoteJid };
 }
 
-// 🟢 NUEVA FUNCIÓN: Consulta SQL en nombres_fb + Envío de Imagen a Evolution API
+// 🟢 FUNCIÓN ACTUALIZADA: Soporta compresión JPEG y limpia el Base64 adecuadamente
 async function enviarMediaWhatsApp(datos) {
   const { socio, caption, base64 } = datos;
 
@@ -72,10 +72,10 @@ async function enviarMediaWhatsApp(datos) {
     throw new Error('EVOLUTION_API_URL o AUTHENTICATION_API_KEY no están configuradas en el .env');
   }
 
-  // 3. Limpiar encabezado del Base64
-  const base64Data = base64.replace(/^data:image\/png;base64,/, "");
+  // 3. Limpiar encabezado del Base64 (soporta PNG, JPEG y JPG)
+  const base64Data = base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
-  // 4. Disparo directo a la instancia JAIRO de Evolution API
+  // 4. Disparo directo a la instancia JAIRO de Evolution API en formato JPEG
   const endpoint = `${evoUrlBase}/message/sendMedia/JAIRO`;
 
   const response = await fetch(endpoint, {
@@ -87,7 +87,7 @@ async function enviarMediaWhatsApp(datos) {
     body: JSON.stringify({
       number: jidDestino,
       mediatype: "image",
-      mimetype: "image/png",
+      mimetype: "image/jpeg",
       caption: caption || '',
       media: base64Data
     })
@@ -151,6 +151,6 @@ async function obtenerFiltrosReportes(rol) {
 
 module.exports = {
   enviarReporteWhatsApp,
-  enviarMediaWhatsApp, // 👈 Exportado
+  enviarMediaWhatsApp,
   obtenerFiltrosReportes
 };
