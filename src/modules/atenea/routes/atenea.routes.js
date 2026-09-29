@@ -47,6 +47,7 @@ router.get('/reportes', ateneaController.getComprobantes);
 router.get('/reportes/operaciones', ateneaController.getComprobantes);
 router.get('/reportes/filtros', ateneaController.getReportesFiltros);
 router.post('/reportes/enviar-whatsapp', ateneaController.postEnviarReporteWhatsApp);
+router.post('/whatsapp/enviar-media', ateneaController.postEnviarMediaWhatsApp); // 🟢 NUEVA RUTA PARA EVOLUTION MEDIA
 
 // ==========================================
 // 6. CONSOLA DE ADMINISTRACIÓN COLA (RAW)
