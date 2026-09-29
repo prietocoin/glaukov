@@ -9,12 +9,13 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#030611">
 
-  <!-- CLIENTE HTTP, VISTAS Y MOTOR ALPINE -->
+  <!-- CLIENTE HTTP, VISTAS, MOTOR ALPINE Y HTML2CANVAS PARA CAPTURA DE IMAGEN -->
   <script src="/js/api.js?v=2.0"></script>
   <script type="module" src="/js/views/comprobantes.js?v=2.0"></script>
   <script type="module" src="/js/views/directorio.js?v=2.0"></script>
   <script src="/js/app.js?v=2.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <link rel="icon" type="image/png" href="/logo-fundablock.png">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -25,13 +26,8 @@
         extend: {
           colors: { 
             glaukov: { 
-              bg: '#030611', 
-              card: '#060c24', 
-              border: '#16224f', 
-              blue: '#2563eb', 
-              neon: '#06b6d4',
-              pink: '#ec4899',
-              green: '#10b981'
+              bg: '#030611', card: '#060c24', border: '#16224f', 
+              blue: '#2563eb', neon: '#06b6d4', pink: '#ec4899', green: '#10b981'
             } 
           }
         }
@@ -50,8 +46,8 @@
 
     @media print {
       body * { visibility: hidden; }
-      #area-impresion-reporte, #area-impresion-reporte * { visibility: visible; }
-      #area-impresion-reporte { position: absolute; left: 0; top: 0; width: 100%; background: #ffffff !important; color: #000000 !important; }
+      #reporte-html-documento, #reporte-html-documento * { visibility: visible; }
+      #reporte-html-documento { position: absolute; left: 0; top: 0; width: 100%; background: #ffffff !important; color: #000000 !important; }
       .no-imprimir { display: none !important; }
     }
   </style>
@@ -134,7 +130,7 @@
           </div>
         </div>
 
-        <!-- KPIs SUPERIORES CON MONEDA NATIVA DE SOCIO -->
+        <!-- KPIs SUPERIORES -->
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-3">
           <div class="col-span-2 sm:col-span-1 bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-blue-900/50 shadow-xl">
             <p class="text-[8px] md:text-[9px] font-extrabold text-blue-400/80 uppercase">SUJETO / ENTIDAD AUDITADA</p>
@@ -662,116 +658,125 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES CON MONEDA NATIVA DE SOCIO CORREGIDA -->
+  <!-- 🟢 MODAL DE REPORTES ESTILO DOCUMENTO FINANCIERO (HTML/CSS LIMPION EN BLANCO + CAPTURA PNG) -->
   <div x-data="{ 
          modalReporteAbierto: false,
+         generandoImagen: false,
          get monedaReporte() {
            const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
            const socioFound = directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
            if (socioFound && socioFound.moneda_socio) return socioFound.moneda_socio.toUpperCase();
-           if (comprobantes && comprobantes.length > 0 && comprobantes[0].moneda_socio_1) {
-             return comprobantes[0].moneda_socio_1.toUpperCase();
-           }
+           if (comprobantes && comprobantes.length > 0 && comprobantes[0].moneda_socio_1) return comprobantes[0].moneda_socio_1.toUpperCase();
            return 'USDT';
+         },
+         async descargarImagenReporte() {
+           this.generandoImagen = true;
+           const elemento = document.getElementById('reporte-html-documento');
+           try {
+             const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+             const link = document.createElement('a');
+             link.download = `Reporte_${(sujetoAuditado || 'Socio').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.png`;
+             link.href = canvas.toDataURL('image/png');
+             link.click();
+           } catch(e) { 
+             console.error('Error al generar la imagen PNG del reporte:', e); 
+           }
+           this.generandoImagen = false;
          }
        }" 
        x-show="modalReporteAbierto" 
        @abrir-reporte.window="modalReporteAbierto = true"
-       class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md" 
+       class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6 bg-slate-900/90 backdrop-blur-md" 
        x-cloak>
     
-    <div class="bg-[#080e26] border border-emerald-500/50 rounded-2xl md:rounded-3xl w-[98vw] max-w-4xl p-4 sm:p-6 space-y-4 shadow-2xl relative max-h-[92vh] flex flex-col justify-between" @click.away="modalReporteAbierto = false">
+    <!-- CONTENEDOR VENTANA MODAL (Diseño Dashboard) -->
+    <div class="bg-white border border-slate-300 md:rounded-xl w-full max-w-4xl h-full md:h-auto md:max-h-[92vh] flex flex-col shadow-2xl relative overflow-hidden" @click.away="modalReporteAbierto = false">
       
-      <!-- HEADER DEL REPORTE -->
-      <div class="flex items-center justify-between border-b border-emerald-500/30 pb-3 shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-emerald-300 text-lg">📄</div>
-          <div>
-            <h3 class="font-black text-white text-base md:text-xl tracking-tight flex items-center gap-2">
-              Reporte de <span class="text-cyan-400 font-extrabold uppercase" x-text="sujetoAuditado || 'SOCIO'"></span>
-            </h3>
-            <p class="text-xs text-slate-400">
-              Saldo anterior: <strong class="text-amber-300 font-mono font-bold" x-text="formatMonto(saldoAnterior) + ' ' + monedaReporte"></strong>
-            </p>
-          </div>
-        </div>
-        <button type="button" @click="modalReporteAbierto = false" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
-      </div>
-
-      <!-- CUERPO DEL REPORTE / ÁREA IMPRESIÓN Y VISTA HTML -->
-      <div id="area-impresion-reporte" class="flex-1 overflow-y-auto space-y-2 pr-1 font-mono text-xs">
+      <!-- CONTROLES SUPERIORES (NO IMPRIMIR, NO CAPTURAR EN IMAGEN) -->
+      <div class="flex items-center justify-between bg-slate-100 border-b border-slate-300 px-4 py-3 shrink-0 no-imprimir shadow-sm z-20">
+        <span class="font-bold text-slate-700 text-xs sm:text-sm flex items-center gap-2">📄 Estado de Cuenta</span>
         
-        <!-- ENCABEZADO DE TABLA -->
-        <div class="grid grid-cols-12 bg-[#030611] p-2.5 rounded-xl border border-blue-900/60 font-sans font-bold text-[10px] text-emerald-400 uppercase tracking-wider sticky top-0 z-10 shadow">
-          <div class="col-span-3 sm:col-span-2">FECHA</div>
-          <div class="col-span-7 sm:col-span-8">DESCRIPCIÓN DE LA OPERACIÓN</div>
-          <div class="col-span-2 sm:col-span-2 text-right">IMPACTO</div>
-        </div>
-
-        <!-- LISTA CRONOLÓGICA / DESGLOSE DE MOVIMIENTOS -->
-        <div class="space-y-1.5">
-          <template x-for="(item, index) in comprobantes" :key="'rep-'+item.hash_largo">
-            <div class="grid grid-cols-12 items-center bg-[#04081c] p-2.5 rounded-xl border border-blue-900/40 hover:border-cyan-500/30 transition-all text-[11px]">
-              
-              <!-- FECHA -->
-              <div class="col-span-3 sm:col-span-2 text-slate-400 font-bold text-[9px] sm:text-[11px]" x-text="item.fecha_hora_comprobante ? item.fecha_hora_comprobante.substring(0,10) : 'N/A'"></div>
-
-              <!-- DESCRIPCIÓN CON FORMATO DE AUDITORÍA -->
-              <div class="col-span-7 sm:col-span-8 space-y-0.5 leading-snug pr-2">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border font-mono whitespace-nowrap" 
-                        :class="(item.tipo_op1 || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : ((item.tipo_op1 || 'D').startsWith('A') ? 'bg-purple-950 text-purple-300 border-purple-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40')"
-                        x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + '-' + (item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : 'HASH')) + ']'"></span>
-                  
-                  <span class="text-slate-200">
-                    Monto: <strong class="text-emerald-400 font-bold" x-text="formatMonto(item.monto)"></strong>, 
-                    Titular: <span class="text-slate-300 uppercase" x-text="item.titular || '-'"></span>, 
-                    Banco: <span class="text-slate-300 uppercase" x-text="item.banco || '-'"></span>, 
-                    Moneda: <strong class="text-cyan-300" x-text="item.moneda || 'USDT'"></strong>, 
-                    Tasa(<span class="text-purple-300 font-bold" x-text="item.lote_tasa_asignado || 'T047'"></span>): <span class="text-slate-300" x-text="item.tasa_1 || 1.0"></span>
-                  </span>
-                </div>
-              </div>
-
-              <!-- IMPACTO NOMINAL EN LA MONEDA DEL SOCIO -->
-              <div class="col-span-2 sm:col-span-2 text-right font-bold text-[10px] sm:text-xs font-mono" 
-                   :class="parseFloat(item.monto_1 !== undefined ? item.monto_1 : item.monto) < 0 ? 'text-rose-400' : 'text-emerald-400'"
-                   x-text="formatMonto(item.monto_1 !== undefined ? item.monto_1 : item.monto)"></div>
-            </div>
-          </template>
-        </div>
-
-      </div>
-
-      <!-- FOOTER DE REPORTE CON MONEDA NATIVA -->
-      <div class="border-t border-emerald-500/30 pt-3 shrink-0 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-        
-        <!-- CAJA DE NUEVO SALDO -->
-        <div class="bg-emerald-950/80 border border-emerald-500/60 p-3 rounded-2xl flex items-center justify-between gap-4">
-          <span class="text-[10px] font-black text-emerald-400 uppercase tracking-widest">NUEVO SALDO</span>
-          <span class="text-xl md:text-2xl font-black text-emerald-300 font-mono tracking-tight" x-text="formatMonto(saldoActualTotal) + ' ' + monedaReporte"></span>
-        </div>
-
-        <!-- ACCIONES MÓVILES / DESKTOP -->
-        <div class="flex items-center gap-2 no-imprimir">
-          <button type="button" @click="window.print()" class="flex-1 sm:flex-none px-4 py-2.5 bg-blue-950 border border-blue-800 text-blue-300 rounded-xl text-xs font-bold hover:bg-blue-900 transition-all flex items-center justify-center gap-1.5">
+        <div class="flex items-center gap-2">
+          <button type="button" @click="window.print()" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all shadow-sm flex items-center gap-1">
             🖨️ Imprimir PDF
           </button>
-
-          <button type="button" @click="
-            const txt = `*Reporte de ${sujetoAuditado || 'Socio'}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${monedaReporte}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${monedaReporte}*`;
-            window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(txt), '_blank');
-          " class="flex-1 sm:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5 active:scale-95">
-            📱 Enviar a WhatsApp
+          
+          <button type="button" @click="descargarImagenReporte()" :disabled="generandoImagen" class="px-3.5 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-lg text-xs font-black shadow-md transition-all flex items-center gap-1.5 active:scale-95">
+            <span x-show="!generandoImagen">📸 Descargar Imagen (WhatsApp)</span>
+            <span x-show="generandoImagen">⏳ Generando...</span>
           </button>
+          
+          <button type="button" @click="modalReporteAbierto = false" class="px-3 py-1.5 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300 ml-1">✕</button>
+        </div>
+      </div>
 
-          <button type="button" @click="modalReporteAbierto = false" class="px-3.5 py-2.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-700">
-            ✕
-          </button>
+      <!-- 🟢 ÁREA DEL DOCUMENTO EN BLANCO Y COLORES INSTITUCIONALES (SE CONVIERTE A PNG / PDF) -->
+      <div id="reporte-html-documento" class="flex-1 overflow-y-auto bg-white text-slate-800 p-4 md:p-8 space-y-6">
+        
+        <!-- CABECERA INSTITUCIONAL DEL REPORTE -->
+        <div class="flex justify-between items-end border-b-2 border-[#1e3a8a] pb-4">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-black text-[#1e3a8a] tracking-tight uppercase">Reporte de <span class="text-slate-900 font-extrabold" x-text="sujetoAuditado || 'SOCIO'"></span></h1>
+            <p class="text-xs md:text-sm text-slate-500 font-bold mt-1">Saldo anterior: <span class="text-slate-900 font-mono font-extrabold" x-text="formatMonto(saldoAnterior) + ' ' + monedaReporte"></span></p>
+          </div>
+          <div class="text-right">
+            <div class="text-xs font-black text-[#10b981] uppercase tracking-widest">FUNDABLOCK</div>
+            <p class="text-[10px] text-slate-400 font-mono" x-text="new Date().toLocaleDateString()"></p>
+          </div>
+        </div>
+
+        <!-- TABLA FINANCIERA LIMPIA -->
+        <div class="border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm">
+          
+          <!-- ENCABEZADOS DE TABLA -->
+          <div class="grid grid-cols-12 bg-slate-50 border-b border-slate-300 p-3 text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
+            <div class="col-span-3 sm:col-span-2">FECHA</div>
+            <div class="col-span-7 sm:col-span-8 pl-2">DESCRIPCIÓN DE LA OPERACIÓN</div>
+            <div class="col-span-2 sm:col-span-2 text-right">IMPACTO</div>
+          </div>
+
+          <!-- FILAS DE MOVIMIENTOS -->
+          <div class="divide-y divide-slate-200">
+            <template x-for="(item, index) in comprobantes" :key="'doc-'+item.hash_largo">
+              <div class="grid grid-cols-12 items-center p-3 text-[11px] hover:bg-slate-50/80 transition-colors">
+                
+                <!-- FECHA -->
+                <div class="col-span-3 sm:col-span-2 text-slate-500 font-mono font-bold" x-text="item.fecha_hora_comprobante ? item.fecha_hora_comprobante.substring(0,10) : 'N/A'"></div>
+
+                <!-- DESCRIPCIÓN CON TAGS ESTILIZADOS DE OPERACIÓN -->
+                <div class="col-span-7 sm:col-span-8 pl-2 leading-relaxed pr-3">
+                  <div class="flex items-center flex-wrap gap-1.5 mb-1">
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold border font-mono bg-white" 
+                          :class="(item.tipo_op1 || 'D').startsWith('P') ? 'text-amber-600 border-amber-300' : ((item.tipo_op1 || 'D').startsWith('A') ? 'text-purple-600 border-purple-300' : 'text-cyan-600 border-cyan-300')"
+                          x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + '-' + (item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : 'HASH')) + ']'"></span>
+                  </div>
+                  <div class="text-slate-600 text-[11px]">
+                    Monto: <strong class="text-[#10b981] font-bold" x-text="formatMonto(item.monto)"></strong>, 
+                    Titular: <span class="uppercase text-slate-800 font-medium" x-text="item.titular || '-'"></span>, 
+                    Banco: <span class="uppercase text-slate-800 font-medium" x-text="item.banco || '-'"></span>, 
+                    Moneda: <strong class="text-[#1e3a8a]" x-text="item.moneda || 'USDT'"></strong>, 
+                    Tasa(<span class="text-purple-600 font-bold" x-text="item.lote_tasa_asignado || 'T047'"></span>): <span class="font-mono text-slate-800 font-semibold" x-text="item.tasa_1 || 1.0"></span>
+                  </div>
+                </div>
+
+                <!-- IMPACTO (IMPACTO ROJO/VERDE) -->
+                <div class="col-span-2 sm:col-span-2 text-right font-black text-xs font-mono" 
+                     :class="parseFloat(item.monto_1 !== undefined ? item.monto_1 : item.monto) < 0 ? 'text-rose-600' : 'text-[#10b981]'"
+                     x-text="formatMonto(item.monto_1 !== undefined ? item.monto_1 : item.monto)"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- RESUMEN FINAL / NUEVO SALDO -->
+        <div class="flex justify-end pt-2 pb-6">
+          <div class="bg-emerald-50 border-2 border-[#10b981] p-4 rounded-xl flex items-center justify-between gap-6 min-w-[280px] shadow-sm">
+            <span class="text-[10px] font-black text-[#1e3a8a] uppercase tracking-widest">NUEVO SALDO</span>
+            <span class="text-2xl font-black text-slate-900 font-mono tracking-tight" x-text="formatMonto(saldoActualTotal) + ' ' + monedaReporte"></span>
+          </div>
         </div>
 
       </div>
-
     </div>
   </div>
 
