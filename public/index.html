@@ -2,7 +2,7 @@
 <html lang="es" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fundablock - Glaukov Engine Atenea V2.0</title>
 
   <!-- CLIENTE HTTP, VISTAS Y MOTOR ALPINE -->
@@ -37,192 +37,207 @@
 
   <style>
     [x-cloak] { display: none !important; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: #030611; }
     ::-webkit-scrollbar-thumb { background: #16224f; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+    
+    /* Previene zoom automático en inputs en iOS Safari */
+    input, select, textarea { font-size: 14px !important; }
   </style>
 </head>
-<body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen" x-data="app" x-cloak>
+<body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-black" x-data="app" x-cloak>
 
   <div class="flex flex-col md:flex-row min-h-screen">
     
-    <!-- BARRA LATERAL NAV -->
-    <aside class="w-full md:w-64 bg-[#050b1e] border-r border-[#16224f] p-4 flex flex-col justify-between shrink-0 shadow-2xl">
+    <!-- BARRA LATERAL NAV (MÓVIL ADAPTABLE) -->
+    <aside class="w-full md:w-64 bg-[#050b1e] border-b md:border-b-0 md:border-r border-[#16224f] p-3 md:p-4 flex flex-col justify-between shrink-0 shadow-2xl sticky top-0 z-40">
       <div>
-        <div class="flex items-center gap-3 px-2 py-3 mb-6 border-b border-blue-900/50">
-          <div class="w-10 h-10 rounded-xl border border-cyan-500/50 bg-[#091333] p-1 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
-            <img src="/logo-fundablock.png" alt="Logo" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/40?text=FB'">
+        <!-- BRANDING / LOGO -->
+        <div class="flex items-center justify-between md:justify-start gap-3 px-1 py-1.5 md:py-3 mb-2 md:mb-6 border-b border-blue-900/40 md:border-blue-900/50">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl border border-cyan-500/50 bg-[#091333] p-1 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+              <img src="/logo-fundablock.png" alt="Logo" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/40?text=FB'">
+            </div>
+            <div>
+              <h1 class="font-black text-white text-sm md:text-base tracking-wider flex items-center gap-1 leading-none">
+                FUNDABLOCK
+              </h1>
+              <p class="text-[9px] md:text-[10px] text-cyan-400 font-bold uppercase tracking-widest mt-0.5">GLAUKOV ENGINE</p>
+            </div>
           </div>
-          <div>
-            <h1 class="font-black text-white text-base tracking-wider flex items-center gap-1">
-              FUNDABLOCK
-            </h1>
-            <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">GLAUKOV ENGINE</p>
+          
+          <div class="md:hidden flex items-center gap-1.5 text-[10px] text-slate-400">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <strong class="text-cyan-400 font-extrabold">JAIRO</strong>
           </div>
         </div>
 
-        <nav class="space-y-2">
-          <p class="px-3 text-[10px] font-bold text-blue-400/70 uppercase tracking-widest mb-1">Auditoría en Vivo</p>
+        <!-- NAV PESTAÑAS (SCROLL HORIZONTAL EN MÓVIL) -->
+        <nav class="flex md:flex-col gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
           <button @click="vistaActiva = 'comprobantes'" 
-                  :class="vistaActiva === 'comprobantes' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white'" 
-                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all">
+                  :class="vistaActiva === 'comprobantes' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white border border-transparent'" 
+                  class="shrink-0 flex items-center gap-2 px-3 py-2 md:py-2.5 rounded-xl font-bold text-xs transition-all">
             📄 Comprobantes
           </button>
 
           <button @click="vistaActiva = 'cartelera'" 
-                  :class="vistaActiva === 'cartelera' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white'" 
-                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all">
-            💲 Baúl & Cartelera Tasas
+                  :class="vistaActiva === 'cartelera' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white border border-transparent'" 
+                  class="shrink-0 flex items-center gap-2 px-3 py-2 md:py-2.5 rounded-xl font-bold text-xs transition-all">
+            💲 Tasas
           </button>
 
-          <p class="px-3 text-[10px] font-bold text-blue-400/70 uppercase tracking-widest mt-6 mb-1">Base de Datos & Matriz</p>
           <button @click="vistaActiva = 'directorio'" 
-                  :class="vistaActiva === 'directorio' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white'" 
-                  class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all">
-            👥 Directorio (nombres_fb)
+                  :class="vistaActiva === 'directorio' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white border border-transparent'" 
+                  class="shrink-0 flex items-center gap-2 px-3 py-2 md:py-2.5 rounded-xl font-bold text-xs transition-all">
+            👥 Directorio
           </button>
         </nav>
       </div>
 
-      <div class="pt-4 border-t border-blue-900/40 text-[11px] text-slate-400 flex justify-between items-center">
+      <div class="hidden md:flex pt-4 border-t border-blue-900/40 text-[11px] text-slate-400 justify-between items-center">
         <span>Instancia: <strong class="text-cyan-400 font-extrabold">JAIRO</strong></span>
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50"></span>
       </div>
     </aside>
 
     <!-- CONTENIDO PRINCIPAL -->
-    <main class="flex-1 p-4 md:p-6 overflow-x-hidden space-y-5">
+    <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
       
       <!-- VISTA 1: COMPROBANTES -->
-      <div x-show="vistaActiva === 'comprobantes'" class="space-y-4">
+      <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4">
         
         <!-- HEADER -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center justify-between gap-2">
           <div>
-            <h2 class="text-2xl font-black text-white tracking-tight">Gestión De Comprobantes & IA</h2>
-            <p class="text-xs text-slate-400">Auditoría centralizada con saldos en vivo, tasas editables y filtrado inteligente.</p>
+            <h2 class="text-lg md:text-2xl font-black text-white tracking-tight leading-tight">Auditoría en Vivo</h2>
+            <p class="text-[10px] md:text-xs text-slate-400">Comprobantes procesados con IA y tasas dinámicas.</p>
           </div>
-          <div class="flex items-center gap-2">
-            <button @click="cargarComprobantes(false)" class="p-2 bg-[#060c24] border border-blue-900/60 rounded-xl hover:bg-blue-900/40 text-slate-300 transition-colors" title="Refrescar">
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button @click="cargarComprobantes(false)" class="p-2 bg-[#060c24] border border-blue-900/60 rounded-xl hover:bg-blue-900/40 text-slate-300 transition-colors active:scale-95" title="Refrescar">
               🔄
             </button>
-            <span class="px-3.5 py-2 bg-purple-950/80 border border-purple-500/40 text-purple-300 rounded-xl text-xs font-bold font-mono" x-text="comprobantes.length + ' ítems'"></span>
+            <span class="px-2.5 py-1.5 bg-purple-950/80 border border-purple-500/40 text-purple-300 rounded-xl text-[11px] md:text-xs font-bold font-mono" x-text="comprobantes.length + ' ítems'"></span>
           </div>
         </div>
 
-        <!-- KPIs SUPERIORES -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div class="bg-[#060c24] p-3.5 rounded-2xl border border-blue-900/50 shadow-xl">
-            <p class="text-[9px] font-extrabold text-blue-400/80 uppercase">SUJETO / ENTIDAD AUDITADA</p>
-            <h3 class="text-base font-black text-white mt-1 truncate" x-text="sujetoAuditado"></h3>
+        <!-- KPIs SUPERIORES (RESPONSIVE GRID) -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-3">
+          <div class="col-span-2 sm:col-span-1 bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-blue-900/50 shadow-xl">
+            <p class="text-[8px] md:text-[9px] font-extrabold text-blue-400/80 uppercase">SUJETO / ENTIDAD AUDITADA</p>
+            <h3 class="text-xs md:text-base font-black text-white mt-0.5 truncate" x-text="sujetoAuditado"></h3>
           </div>
-          <div class="bg-[#060c24] p-3.5 rounded-2xl border border-blue-900/50 shadow-xl">
-            <p class="text-[9px] font-extrabold text-blue-400/80 uppercase">COMPROBANTES FILTRADOS</p>
-            <h3 class="text-base font-black text-pink-400 mt-1" x-text="comprobantes.length + ' operados'"></h3>
+          <div class="bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-blue-900/50 shadow-xl">
+            <p class="text-[8px] md:text-[9px] font-extrabold text-blue-400/80 uppercase">OPERADOS</p>
+            <h3 class="text-xs md:text-base font-black text-pink-400 mt-0.5" x-text="comprobantes.length + ' ítems'"></h3>
           </div>
-          <div class="bg-[#060c24] p-3.5 rounded-2xl border border-amber-500/30 shadow-xl flex items-center gap-2">
-            <div class="flex-1">
-              <p class="text-[9px] font-extrabold text-amber-400 uppercase">SALDO ANTERIOR (EDITABLE)</p>
-              <input type="number" x-model="saldoAnterior" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-0.5 text-sm font-bold text-amber-300 mt-1 outline-none">
+          <div class="bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-amber-500/30 shadow-xl flex items-center gap-1.5">
+            <div class="flex-1 min-w-0">
+              <p class="text-[8px] md:text-[9px] font-extrabold text-amber-400 uppercase truncate">SALDO ANTERIOR</p>
+              <input type="number" x-model="saldoAnterior" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-1.5 py-0.5 text-xs md:text-sm font-bold text-amber-300 mt-0.5 outline-none">
             </div>
-            <span class="text-xs font-bold text-amber-500 mt-3" x-text="monedaSocioDominante"></span>
+            <span class="text-[10px] font-bold text-amber-500 mt-3 shrink-0" x-text="monedaSocioDominante"></span>
           </div>
-          <div class="bg-[#060c24] p-3.5 rounded-2xl border border-blue-900/50 shadow-xl">
-            <p class="text-[9px] font-extrabold text-emerald-400 uppercase">MOVIMIENTO FILTRADO</p>
-            <h3 class="text-base font-black text-emerald-400 mt-1" x-text="formatMonto(movimientoFiltradoTotal) + ' ' + monedaSocioDominante"></h3>
+          <div class="bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-blue-900/50 shadow-xl col-span-1">
+            <p class="text-[8px] md:text-[9px] font-extrabold text-emerald-400 uppercase">MOVIMIENTO</p>
+            <h3 class="text-xs md:text-base font-black text-emerald-400 mt-0.5 truncate" x-text="formatMonto(movimientoFiltradoTotal) + ' ' + monedaSocioDominante"></h3>
           </div>
-          <div class="bg-[#010a14] p-3.5 rounded-2xl border border-emerald-500/40 shadow-xl">
-            <p class="text-[9px] font-extrabold text-emerald-400 uppercase">SALDO ACTUAL (TOTAL)</p>
-            <h3 class="text-base font-black text-emerald-300 mt-1" x-text="formatMonto(saldoActualTotal) + ' ' + monedaSocioDominante"></h3>
+          <div class="bg-[#010a14] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-emerald-500/40 shadow-xl col-span-2 sm:col-span-1">
+            <p class="text-[8px] md:text-[9px] font-extrabold text-emerald-400 uppercase">SALDO ACTUAL TOTAL</p>
+            <h3 class="text-xs md:text-base font-black text-emerald-300 mt-0.5 truncate" x-text="formatMonto(saldoActualTotal) + ' ' + monedaSocioDominante"></h3>
           </div>
         </div>
 
-        <!-- BARRA DE FILTROS AVANZADA -->
-        <div class="bg-[#060c24] p-3 rounded-2xl border border-blue-900/50 shadow-xl grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2.5 items-end">
-          <div>
-            <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">1. ROL</label>
-            <select x-model="filtroRol" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
-              <option value="">Todos los Roles</option>
-              <option value="SOCIO">SOCIOS</option>
-              <option value="MATRIZ_GENERAL">MATRIZ_GENERAL</option>
-              <option value="MATRIZ_1">MATRIZ_1</option>
-            </select>
-          </div>
+        <!-- BARRA DE FILTROS COLAPSABLE EN MÓVIL -->
+        <div x-data="{ filtrosAbiertos: false }" class="bg-[#060c24] rounded-2xl border border-blue-900/50 shadow-xl overflow-hidden">
+          <button @click="filtrosAbiertos = !filtrosAbiertos" class="w-full md:hidden flex items-center justify-between p-3 bg-[#080e26] text-xs font-bold text-cyan-300">
+            <span class="flex items-center gap-2">🔍 Filtros de Auditoría <span x-text="filtrosAbiertos ? '(Toca para ocultar)' : '(Toca para desplegar)'" class="text-[10px] text-slate-400 font-normal"></span></span>
+            <span x-text="filtrosAbiertos ? '▲' : '▼'"></span>
+          </button>
 
-          <div>
-            <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">2. SOCIO / ENTIDAD</label>
-            <select x-model="filtroSocio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
-              <option value="">Todos los Socios</option>
-              <template x-for="s in socios" :key="s.nombre">
-                <option :value="s.nombre" x-text="s.nombre"></option>
-              </template>
-            </select>
-          </div>
+          <div :class="filtrosAbiertos ? 'block' : 'hidden md:grid'" class="p-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2.5 items-end">
+            <div>
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">1. ROL</label>
+              <select x-model="filtroRol" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+                <option value="">Todos los Roles</option>
+                <option value="SOCIO">SOCIOS</option>
+                <option value="MATRIZ_GENERAL">MATRIZ_GENERAL</option>
+                <option value="MATRIZ_1">MATRIZ_1</option>
+              </select>
+            </div>
 
-          <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">3. FECHA INICIO</label>
-            <input type="date" x-model="filtroFechaInicio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
-          </div>
+            <div>
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">2. SOCIO / ENTIDAD</label>
+              <select x-model="filtroSocio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+                <option value="">Todos los Socios</option>
+                <template x-for="s in socios" :key="s.nombre">
+                  <option :value="s.nombre" x-text="s.nombre"></option>
+                </template>
+              </select>
+            </div>
 
-          <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">4. FECHA FIN</label>
-            <input type="date" x-model="filtroFechaFin" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
-          </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">3. FECHA INICIO</label>
+              <input type="date" x-model="filtroFechaInicio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+            </div>
 
-          <div>
-            <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">5. DESDE HASH</label>
-            <select x-model="filtroDesdeHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
-              <option value="">NINGUNO (TODOS)</option>
-              <template x-for="item in comprobantes" :key="'desde'+item.hash_largo">
-                <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
-              </template>
-            </select>
-          </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">4. FECHA FIN</label>
+              <input type="date" x-model="filtroFechaFin" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+            </div>
 
-          <div>
-            <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">6. HASTA HASH</label>
-            <select x-model="filtroHastaHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
-              <option value="">NINGUNO (TODOS)</option>
-              <template x-for="item in comprobantes" :key="'hasta'+item.hash_largo">
-                <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
-              </template>
-            </select>
-          </div>
+            <div>
+              <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">5. DESDE HASH</label>
+              <select x-model="filtroDesdeHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
+                <option value="">TODOS</option>
+                <template x-for="item in comprobantes" :key="'desde'+item.hash_largo">
+                  <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
+                </template>
+              </select>
+            </div>
 
-          <div>
-            <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">7. ORDENAR POR</label>
-            <select x-model="ordenarPor" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
-              <option value="fecha_desc">📅 Fecha: Recientes primero</option>
-              <option value="fecha_asc">📅 Fecha: Antiguos primero</option>
-              <option value="monto_desc">💰 Monto: Mayor a menor</option>
-              <option value="monto_asc">💰 Monto: Menor a mayor</option>
-            </select>
-          </div>
+            <div>
+              <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">6. HASTA HASH</label>
+              <select x-model="filtroHastaHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
+                <option value="">TODOS</option>
+                <template x-for="item in comprobantes" :key="'hasta'+item.hash_largo">
+                  <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
+                </template>
+              </select>
+            </div>
 
-          <div class="flex gap-1.5 items-end">
-            <div class="flex-1">
+            <div>
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">7. ORDENAR</label>
+              <select x-model="ordenarPor" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+                <option value="fecha_desc">Recientes primero</option>
+                <option value="fecha_asc">Antiguos primero</option>
+                <option value="monto_desc">Monto: Mayor a menor</option>
+                <option value="monto_asc">Monto: Menor a mayor</option>
+              </select>
+            </div>
+
+            <div class="col-span-2 md:col-span-1">
               <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">BUSCAR HASH</label>
               <input type="text" x-model="filtroHashBusqueda" @keyup.enter="cargarComprobantes()" placeholder="Buscar..." class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
             </div>
           </div>
         </div>
 
-        <!-- LISTA COMPROBANTES: DISEÑO VERTICAL AUDITORÍA -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+        <!-- LISTA COMPROBANTES: TARJETAS MÓVILES PERFECTAS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5">
           <template x-for="item in comprobantes" :key="item.hash_largo">
-            <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-4 shadow-xl flex flex-col justify-between gap-3 transition-all relative">
+            <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-3 md:p-4 shadow-xl flex flex-col justify-between gap-2.5 transition-all relative">
               
               <!-- 1. BLOQUE SUPERIOR: MONTO EN GRANDE, BANCO Y TITULAR -->
               <div class="flex items-start justify-between gap-2 border-b border-blue-900/30 pb-2">
-                <div class="flex items-baseline gap-1.5 min-w-0">
-                  <span class="text-2xl sm:text-3xl font-black tracking-tight truncate" 
+                <div class="flex items-baseline gap-1 min-w-0">
+                  <span class="text-xl sm:text-2xl font-black tracking-tight truncate" 
                         :class="parseFloat(item.monto || item.monto_local) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
                         x-text="formatMonto(item.monto || item.monto_local)"></span>
-                  <span class="text-sm font-black text-slate-300 whitespace-nowrap" 
+                  <span class="text-xs font-black text-slate-300 whitespace-nowrap" 
                         x-text="item.moneda || item.moneda_local || 'PEN'"></span>
                 </div>
-                <div class="flex flex-col items-end text-right text-[10px] font-mono leading-tight max-w-[140px] shrink-0">
+                <div class="flex flex-col items-end text-right text-[9px] md:text-[10px] font-mono leading-tight max-w-[130px] shrink-0">
                   <span class="text-slate-200 font-bold uppercase truncate w-full" x-text="item.titular || 'TITULAR NO DEFINIDO'"></span>
                   <span class="text-slate-400 uppercase truncate w-full" x-text="item.banco || 'BANCO'"></span>
                   <span class="text-cyan-400 font-bold w-full truncate" x-text="'Ref: ' + (item.referencia || 'N/A')"></span>
@@ -230,74 +245,74 @@
               </div>
 
               <!-- 2. TABLA DUAL DE SOCIOS -->
-              <div class="bg-[#030611] rounded-xl border border-blue-900/50 p-2.5 space-y-1.5">
+              <div class="bg-[#030611] rounded-xl border border-blue-900/50 p-2 space-y-1">
                 <!-- SOCIO 1 -->
                 <div class="grid grid-cols-12 items-center text-xs gap-1">
-                  <span class="col-span-4 font-black text-cyan-300 uppercase truncate" x-text="item.nombre_socio_1 || item.socio_1 || item.titular || 'GENERAL'"></span>
+                  <span class="col-span-4 font-black text-cyan-300 uppercase truncate text-[11px]" x-text="item.nombre_socio_1 || item.socio_1 || item.titular || 'GENERAL'"></span>
                   <div class="col-span-3 text-center">
-                    <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T1: ' + (item.tasa_1 || '1.00')"></span>
+                    <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T1: ' + (item.tasa_1 || '1.00')"></span>
                   </div>
-                  <span class="col-span-5 font-mono font-bold text-right truncate" 
+                  <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
                         :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
                         x-text="formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
                 </div>
                 
                 <!-- SOCIO 2 -->
                 <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
-                  <div class="grid grid-cols-12 items-center text-xs gap-1 border-t border-blue-900/40 pt-1.5">
-                    <span class="col-span-4 font-black text-pink-300 uppercase truncate" x-text="item.nombre_socio_2 || item.socio_2"></span>
+                  <div class="grid grid-cols-12 items-center text-xs gap-1 border-t border-blue-900/40 pt-1">
+                    <span class="col-span-4 font-black text-pink-300 uppercase truncate text-[11px]" x-text="item.nombre_socio_2 || item.socio_2"></span>
                     <div class="col-span-3 text-center">
-                      <span class="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T2: ' + (item.tasa_2 || '1.00')"></span>
+                      <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T2: ' + (item.tasa_2 || '1.00')"></span>
                     </div>
-                    <span class="col-span-5 font-mono font-bold text-right truncate" 
+                    <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
                           :class="parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
                           x-text="formatMonto(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
                   </div>
                 </template>
               </div>
 
-              <!-- 3. BLOQUE INFERIOR: IMAGEN IZQ + BADGES/METADATA DER -->
-              <div class="flex items-stretch gap-3 h-48 sm:h-52">
-                <div class="flex-1 bg-[#010309] border border-blue-900/60 rounded-xl overflow-hidden p-1 flex items-center justify-center relative group">
+              <!-- 3. BLOQUE INFERIOR: IMAGEN IZQ + BADGES DER -->
+              <div class="flex items-stretch gap-2.5 h-44 sm:h-48">
+                <div class="flex-1 bg-[#010309] border border-blue-900/60 rounded-xl overflow-hidden p-1 flex items-center justify-center relative group min-w-0">
                   <button @click="verDetalleImagen(item)" class="w-full h-full flex items-center justify-center">
                     <template x-if="item.url_r2 || item.url_imagen">
                       <img :src="item.url_r2 || item.url_imagen" class="w-full h-full object-contain rounded-lg opacity-90 group-hover:opacity-100 transition-opacity" alt="Recibo">
                     </template>
                     <template x-if="!item.url_r2 && !item.url_imagen">
-                      <span class="text-[10px] text-slate-500 font-bold">SIN IMAGEN</span>
+                      <span class="text-[9px] text-slate-500 font-bold">SIN IMAGEN</span>
                     </template>
                   </button>
                 </div>
 
-                <div class="w-28 shrink-0 flex flex-col justify-between gap-1.5 py-0.5">
-                  <span class="w-full text-center py-1 rounded bg-slate-800/90 text-slate-300 font-mono text-[10px] font-bold border border-slate-700 truncate px-1 shadow" 
+                <div class="w-24 md:w-28 shrink-0 flex flex-col justify-between gap-1 py-0.5">
+                  <span class="w-full text-center py-0.5 rounded bg-slate-800/90 text-slate-300 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700 truncate px-1 shadow" 
                         title="Hash" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></span>
                   
                   <div class="flex gap-1 w-full">
-                    <span class="flex-1 text-center py-0.5 rounded text-[10px] font-bold border whitespace-nowrap" 
+                    <span class="flex-1 text-center py-0.5 rounded text-[9px] font-bold border whitespace-nowrap" 
                           :class="(item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : ((item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').startsWith('A') ? 'bg-purple-950 text-purple-300 border-purple-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40')" 
                           x-text="(item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0]"></span>
-                    <span x-show="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'" class="flex-1 text-center py-0.5 rounded bg-amber-950 text-amber-300 text-[10px] font-bold border border-amber-500/40 whitespace-nowrap">x2</span>
+                    <span x-show="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'" class="flex-1 text-center py-0.5 rounded bg-amber-950 text-amber-300 text-[9px] font-bold border border-amber-500/40 whitespace-nowrap">x2</span>
                   </div>
 
                   <div class="flex gap-1 w-full">
-                    <span class="flex-1 text-center py-0.5 rounded bg-purple-950 text-purple-300 text-[9px] font-bold border border-purple-500/40 truncate px-0.5" 
+                    <span class="flex-1 text-center py-0.5 rounded bg-purple-950 text-purple-300 text-[8px] md:text-[9px] font-bold border border-purple-500/40 truncate px-0.5" 
                           x-text="item.lote_tasa_asignado || item.lote_tasa || loteActivo || 'T-ND'"></span>
-                    <span x-show="item.procesado_ia" class="flex-1 text-center py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px] font-bold border border-emerald-500/40 flex items-center justify-center whitespace-nowrap">✓ IA</span>
+                    <span x-show="item.procesado_ia" class="flex-1 text-center py-0.5 rounded bg-emerald-950 text-emerald-300 text-[9px] font-bold border border-emerald-500/40 flex items-center justify-center whitespace-nowrap">✓ IA</span>
                   </div>
 
-                  <div class="flex flex-col gap-1 mt-auto">
-                    <div class="w-full text-center py-1 rounded bg-slate-900/90 text-slate-200 font-mono text-[10px] font-bold border border-slate-700/60 shadow truncate px-1" 
-                         x-text="'ME1: ' + formatMonto(item.me1 !== undefined && item.me1 !== null ? item.me1 : (item.monto_1 || item.monto || 0))"></div>
+                  <div class="flex flex-col gap-0.5 mt-auto">
+                    <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
+                         x-text="'ME1:' + formatMonto(item.me1 !== undefined && item.me1 !== null ? item.me1 : (item.monto_1 || item.monto || 0))"></div>
                     <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
-                      <div class="w-full text-center py-1 rounded bg-slate-900/90 text-slate-200 font-mono text-[10px] font-bold border border-slate-700/60 shadow truncate px-1" 
-                           x-text="'ME2: ' + formatMonto(item.me2 !== undefined && item.me2 !== null ? item.me2 : (item.monto_2 || 0))"></div>
+                      <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
+                           x-text="'ME2:' + formatMonto(item.me2 !== undefined && item.me2 !== null ? item.me2 : (item.monto_2 || 0))"></div>
                     </template>
                   </div>
 
-                  <div class="flex justify-around items-center pt-1 border-t border-blue-900/30 mt-0.5">
-                    <button @click="eliminarComprobante(item.hash_largo)" class="p-1 text-slate-400 hover:text-rose-400 transition-colors text-base" title="Eliminar">🗑</button>
-                    <button @click="abrirModal(item)" class="p-1 text-slate-400 hover:text-cyan-400 transition-colors text-base" title="Auditar">✏️</button>
+                  <div class="flex justify-around items-center pt-1 border-t border-blue-900/30">
+                    <button @click="eliminarComprobante(item.hash_largo)" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors text-base active:scale-95" title="Eliminar">🗑</button>
+                    <button @click="abrirModal(item)" class="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-base active:scale-95" title="Auditar">✏️</button>
                   </div>
                 </div>
 
@@ -308,116 +323,106 @@
       </div>
 
       <!-- VISTA 2: BAÚL & CARTELERA DE TASAS -->
-      <div x-show="vistaActiva === 'cartelera'" class="space-y-6">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div x-show="vistaActiva === 'cartelera'" class="space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h2 class="text-2xl font-black text-white tracking-tight">Baúl & Cartelera de Tasas</h2>
+            <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Baúl & Cartelera de Tasas</h2>
           </div>
-          <div class="flex items-center gap-3">
-            <button @click="reenviarTasaActual()" class="px-3.5 py-2 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-bold hover:bg-amber-900 transition-all flex items-center gap-1.5 shadow-lg shadow-amber-950/40">
-              ⚡ Reenviar Tasa Actual
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button @click="reenviarTasaActual()" class="flex-1 sm:flex-none px-3 py-2 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-bold hover:bg-amber-900 transition-all flex items-center justify-center gap-1">
+              ⚡ Reenviar Tasa
             </button>
-            <button @click="conectarHooAPI()" class="px-3.5 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-900 transition-all flex items-center gap-1.5 shadow-lg shadow-purple-950/40">
-              ⚡ Conectar Hoo API
+            <button @click="conectarHooAPI()" class="flex-1 sm:flex-none px-3 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-900 transition-all flex items-center justify-center gap-1">
+              ⚡ Conectar Hoo
             </button>
           </div>
         </div>
 
-        <div class="bg-[#060c24] rounded-2xl border border-blue-900/60 p-4 space-y-3 shadow-2xl relative">
-          <div class="flex justify-between items-center border-b border-blue-900/50 pb-2.5">
+        <div class="bg-[#060c24] rounded-2xl border border-blue-900/60 p-3 md:p-4 space-y-3 shadow-2xl">
+          <div class="flex justify-between items-center border-b border-blue-900/50 pb-2">
             <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <h3 class="text-xs font-black text-emerald-400 uppercase tracking-wider">TASAS ACTIVAS EN PRODUCCIÓN (TABLA MERCADO)</h3>
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <h3 class="text-[10px] md:text-xs font-black text-emerald-400 uppercase tracking-wider">TASAS EN PRODUCCIÓN</h3>
             </div>
-            <span class="px-3 py-1 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[11px] font-mono font-bold rounded-lg" x-text="'Lote Activo: ' + (loteActivo || 'CARGANDO...')"></span>
+            <span class="px-2 py-0.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[10px] md:text-[11px] font-mono font-bold rounded-lg" x-text="'Lote: ' + (loteActivo || 'CARGANDO...')"></span>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3">
             <template x-for="(valor, moneda) in tasasProduccion" :key="'prod-'+moneda">
-              <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/50 space-y-1">
-                <p class="text-[10px] font-black text-purple-400 uppercase font-mono" x-text="moneda"></p>
-                <p class="text-base font-black text-emerald-400 font-mono tracking-wide" x-text="formatMonto(valor)"></p>
+              <div class="bg-[#030611] p-2.5 rounded-xl border border-blue-900/50 space-y-0.5">
+                <p class="text-[9px] font-black text-purple-400 uppercase font-mono" x-text="moneda"></p>
+                <p class="text-sm md:text-base font-black text-emerald-400 font-mono tracking-wide" x-text="formatMonto(valor)"></p>
               </div>
             </template>
           </div>
         </div>
 
-        <div class="bg-[#060c24] rounded-2xl border border-blue-900/60 p-4 space-y-4 shadow-2xl">
-          <div class="border-b border-blue-900/50 pb-2.5">
-            <h3 class="text-xs font-black text-slate-300 uppercase tracking-wider">BORRADOR CAPTURADO (PASO PREVIO A PUBLICAR)</h3>
+        <div class="bg-[#060c24] rounded-2xl border border-blue-900/60 p-3 md:p-4 space-y-3 shadow-2xl">
+          <div class="border-b border-blue-900/50 pb-2">
+            <h3 class="text-[10px] md:text-xs font-black text-slate-300 uppercase tracking-wider">BORRADOR CAPTURADO</h3>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3">
             <template x-for="(valor, moneda) in borradorCapturado" :key="'borr-'+moneda">
-              <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/50 space-y-1">
-                <p class="text-[10px] font-black text-purple-400 uppercase font-mono" x-text="moneda"></p>
-                <input type="number" step="0.01" x-model="borradorCapturado[moneda]" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1 text-sm font-black text-emerald-400 font-mono outline-none focus:border-cyan-400">
+              <div class="bg-[#030611] p-2.5 rounded-xl border border-blue-900/50 space-y-1">
+                <p class="text-[9px] font-black text-purple-400 uppercase font-mono" x-text="moneda"></p>
+                <input type="number" step="0.01" x-model="borradorCapturado[moneda]" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1 text-xs md:text-sm font-black text-emerald-400 font-mono outline-none focus:border-cyan-400">
               </div>
             </template>
           </div>
 
-          <div class="flex justify-end pt-2">
-            <button @click="publicarTasaOficial()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2">
-              🚀 Publicar Tasa Oficial a Producción
+          <div class="flex justify-end pt-1">
+            <button @click="publicarTasaOficial()" class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2">
+              🚀 Publicar Tasa Oficial
             </button>
           </div>
         </div>
       </div>
 
       <!-- VISTA 3: DIRECTORIO DE SOCIOS -->
-      <div x-show="vistaActiva === 'directorio'" class="space-y-5">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-blue-900/50 pb-4">
+      <div x-show="vistaActiva === 'directorio'" class="space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-blue-900/50 pb-3">
           <div>
-            <h2 class="text-2xl font-black text-white tracking-tight">Directorio de Socios & Reglas (`nombres_fb`)</h2>
-            <p class="text-xs text-slate-400">Directorio centralizado con perfil y configuración integral.</p>
+            <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Directorio (`nombres_fb`)</h2>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
-            <button @click="abrirConfigSocio({ nombre: 'GENERAL', roles: 'MATRIZ_GENERAL' })" class="px-3 py-1.5 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-bold hover:bg-amber-900">🌐 Config General</button>
-            <button @click="apagarTodosSocios()" class="px-3 py-1.5 bg-rose-950/80 border border-rose-500/50 text-rose-300 rounded-xl text-xs font-bold hover:bg-rose-900">🔴 Apagar Todos</button>
-            <button @click="guardarVigentes()" class="px-3 py-1.5 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-900">📌 Guardar Vigentes</button>
-            <button @click="restaurarVigentes()" class="px-3 py-1.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 rounded-xl text-xs font-bold hover:bg-emerald-900">📄 Restaurar Vigentes</button>
-            <button @click="crearNuevoSocio()" class="px-3 py-1.5 bg-cyan-600 text-white rounded-xl text-xs font-black hover:bg-cyan-500 shadow-lg shadow-cyan-600/20">➕ Nuevo Socio</button>
+          <div class="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
+            <button @click="abrirConfigSocio({ nombre: 'GENERAL', roles: 'MATRIZ_GENERAL' })" class="px-2.5 py-1.5 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-lg text-[10px] md:text-xs font-bold">🌐 General</button>
+            <button @click="apagarTodosSocios()" class="px-2.5 py-1.5 bg-rose-950/80 border border-rose-500/50 text-rose-300 rounded-lg text-[10px] md:text-xs font-bold">🔴 Apagar Todos</button>
+            <button @click="guardarVigentes()" class="px-2.5 py-1.5 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-lg text-[10px] md:text-xs font-bold">📌 Guardar</button>
+            <button @click="restaurarVigentes()" class="px-2.5 py-1.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 rounded-lg text-[10px] md:text-xs font-bold">📄 Restaurar</button>
+            <button @click="crearNuevoSocio()" class="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-black hover:bg-cyan-500 shadow-lg shadow-cyan-600/20">➕ Nuevo</button>
           </div>
         </div>
 
-        <div class="bg-[#060c24] p-3 rounded-2xl border border-blue-900/50 shadow-xl">
-          <input type="text" x-model="busquedaDirectorio" placeholder="Buscar socio por nombre, rol o whatsapp..." class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400">
+        <div class="bg-[#060c24] p-2.5 rounded-2xl border border-blue-900/50 shadow-xl">
+          <input type="text" x-model="busquedaDirectorio" placeholder="Buscar socio..." class="w-full bg-[#030611] border border-blue-900/60 rounded-xl px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
         </div>
 
         <div class="bg-[#060c24] rounded-2xl border border-blue-900/50 shadow-2xl overflow-hidden">
-          <div class="grid grid-cols-12 bg-[#030611] p-3 text-[10px] font-black text-blue-400 uppercase tracking-wider border-b border-blue-900/50">
-            <div class="col-span-4">SOCIO & PERFIL</div>
-            <div class="col-span-4">WHATSAPP / ID GRUPO</div>
-            <div class="col-span-2">ESTADO MAESTRO</div>
-            <div class="col-span-2 text-right">ACCIONES</div>
-          </div>
-
           <div class="divide-y divide-blue-900/40">
             <template x-for="socio in directorioFiltrado" :key="socio.nombre">
-              <div class="grid grid-cols-12 p-3.5 items-center text-xs hover:bg-blue-950/20 transition-colors">
-                <div class="col-span-4 space-y-1">
-                  <h3 class="font-extrabold text-white text-sm" x-text="socio.nombre"></h3>
-                  <div class="flex items-center gap-1.5">
-                    <span class="px-1.5 py-0.5 rounded bg-blue-950 text-cyan-300 text-[9px] font-bold border border-blue-800/40" x-text="socio.roles || 'SOCIO'"></span>
-                    <span class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[9px] font-bold border border-emerald-800/40" x-text="socio.moneda_socio || 'USDT'"></span>
-                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold border" :class="getTallaClass(socio).color" x-text="getTallaClass(socio).label"></span>
+              <div class="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-blue-950/20 transition-colors">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-extrabold text-white text-sm" x-text="socio.nombre"></h3>
+                    <button @click="toggleEstadoSocio(socio)" 
+                            :class="socio.activo ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'"
+                            class="px-2 py-0.5 rounded-lg text-[9px] font-black border transition-all flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full" :class="socio.activo ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'"></span>
+                      <span x-text="socio.activo ? 'ACTIVO' : 'INACTIVO'"></span>
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded bg-blue-950 text-cyan-300 text-[8px] md:text-[9px] font-bold border border-blue-800/40" x-text="socio.roles || 'SOCIO'"></span>
+                    <span class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[8px] md:text-[9px] font-bold border border-emerald-800/40" x-text="socio.moneda_socio || 'USDT'"></span>
+                    <span class="px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-bold border" :class="getTallaClass(socio).color" x-text="getTallaClass(socio).label"></span>
+                    <span class="font-mono text-slate-400 text-[10px] ml-1" x-text="socio.whatsapp || socio.id_grupo || '-'"></span>
                   </div>
                 </div>
 
-                <div class="col-span-4 font-mono text-slate-400 text-[11px]" x-text="socio.whatsapp || socio.id_grupo || '-'"></div>
-
-                <div class="col-span-2">
-                  <button @click="toggleEstadoSocio(socio)" 
-                          :class="socio.activo ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'"
-                          class="px-3 py-1 rounded-xl text-[10px] font-black border transition-all flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full" :class="socio.activo ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'"></span>
-                    <span x-text="socio.activo ? 'ACTIVO' : 'INACTIVO'"></span>
-                  </button>
-                </div>
-
-                <div class="col-span-2 flex justify-end gap-2">
-                  <button @click="abrirConfigSocio(socio)" class="px-3 py-1.5 bg-purple-950/80 border border-purple-600/40 text-purple-300 rounded-xl font-bold text-xs hover:bg-purple-900 transition-all">⚙ Configurar</button>
+                <div class="flex items-center justify-end gap-2 shrink-0 border-t sm:border-t-0 border-blue-900/30 pt-2 sm:pt-0">
+                  <button @click="abrirConfigSocio(socio)" class="px-3 py-1.5 bg-purple-950/80 border border-purple-600/40 text-purple-300 rounded-xl font-bold text-xs hover:bg-purple-900 transition-all flex-1 sm:flex-none text-center">⚙ Configurar</button>
                   <button @click="eliminarSocioDirectorio(socio.nombre)" class="p-1.5 bg-rose-950/80 border border-rose-600/40 text-rose-300 rounded-xl hover:bg-rose-900 transition-all">🗑</button>
                 </div>
               </div>
@@ -429,57 +434,55 @@
     </main>
   </div>
 
-  <!-- MODAL CONFIGURACIÓN SOCIO CON SELECTOR DE NATURALEZA POR MONEDA -->
-  <div x-show="modalConfigSocioAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md" x-cloak>
-    <div class="bg-[#080e26] border border-blue-808/80 rounded-3xl w-full max-w-4xl p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto" @click.away="modalConfigSocioAbierto = false">
-      <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-purple-950 border border-purple-500/40 flex items-center justify-center text-purple-300 text-lg">⚙</div>
+  <!-- MODAL CONFIGURACIÓN SOCIO (MÓVIL ADAPTABLE) -->
+  <div x-show="modalConfigSocioAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/80 backdrop-blur-md" x-cloak>
+    <div class="bg-[#080e26] border border-blue-800/80 rounded-2xl md:rounded-3xl w-[95vw] max-w-4xl p-4 sm:p-5 space-y-3.5 shadow-2xl relative max-h-[90vh] overflow-y-auto" @click.away="modalConfigSocioAbierto = false">
+      <div class="flex items-center justify-between border-b border-blue-900/60 pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-purple-950 border border-purple-500/40 flex items-center justify-center text-purple-300 text-base">⚙</div>
           <div>
-            <h3 class="font-black text-white text-base">Configuración Integral del Socio</h3>
-            <p class="text-xs text-slate-400">Valores calculados en vivo con el lote <strong class="text-cyan-400" x-text="loteActivo || 'CARGANDO...'"></strong>.</p>
+            <h3 class="font-black text-white text-sm sm:text-base">Configuración Integral</h3>
+            <p class="text-[10px] text-slate-400">Valores con lote <strong class="text-cyan-400" x-text="loteActivo || 'ACTIVO'"></strong>.</p>
           </div>
         </div>
-        <button type="button" @click="modalConfigSocioAbierto = false" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+        <button type="button" @click="modalConfigSocioAbierto = false" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
       </div>
 
       <template x-if="socioConfigEdit">
-        <div class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#030611] p-3 rounded-2xl border border-blue-900/60">
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-[#030611] p-3 rounded-2xl border border-blue-900/60">
             <div>
-              <label class="block text-[10px] font-bold text-purple-400 uppercase mb-1">Perfil / Nombre Socio</label>
-              <input type="text" x-model="socioConfigEdit.nombre" class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-3 py-1.5 text-xs text-white font-bold outline-none focus:border-cyan-400 uppercase">
+              <label class="block text-[9px] font-bold text-purple-400 uppercase mb-1">Nombre Socio</label>
+              <input type="text" x-model="socioConfigEdit.nombre" class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold outline-none focus:border-cyan-400 uppercase">
             </div>
 
             <div>
-              <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Saldo Anterior Base</label>
-              <input type="number" step="0.01" x-model="socioConfigEdit.saldo_anterior" class="w-full bg-[#080e26] border border-amber-500/40 rounded-xl px-3 py-1.5 text-xs font-black text-amber-300 outline-none focus:border-amber-400">
+              <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">Saldo Anterior Base</label>
+              <input type="number" step="0.01" x-model="socioConfigEdit.saldo_anterior" class="w-full bg-[#080e26] border border-amber-500/40 rounded-xl px-2.5 py-1.5 text-xs font-black text-amber-300 outline-none focus:border-amber-400">
             </div>
 
             <div>
-              <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">WhatsApp Remote JID</label>
-              <input type="text" x-model="socioConfigEdit.whatsapp" placeholder="54911...@s.whatsapp.net" class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-3 py-1.5 text-xs text-cyan-300 font-mono outline-none focus:border-cyan-400">
+              <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">WhatsApp Remote JID</label>
+              <input type="text" x-model="socioConfigEdit.whatsapp" placeholder="54911..." class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-2.5 py-1.5 text-xs text-cyan-300 font-mono outline-none focus:border-cyan-400">
             </div>
           </div>
 
           <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <h4 class="text-xs font-black text-white uppercase tracking-wider">Reglas por País (Naturaleza & Factores)</h4>
-            </div>
+            <h4 class="text-xs font-black text-white uppercase tracking-wider">Reglas por País</h4>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               <template x-for="p in socioConfigEdit.paises" :key="p.code">
-                <div class="bg-[#030611] rounded-2xl p-3 border transition-all space-y-2" :class="p.activo ? 'border-purple-500/60 bg-[#060c24]' : 'border-blue-900/40 opacity-60'">
+                <div class="bg-[#030611] rounded-2xl p-2.5 border transition-all space-y-2" :class="p.activo ? 'border-purple-500/60 bg-[#060c24]' : 'border-blue-900/40 opacity-60'">
                   <div class="flex items-center justify-between border-b border-blue-900/40 pb-1.5">
                     <label class="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" x-model="p.activo" class="w-4 h-4 rounded bg-[#080e26] border-blue-800 text-purple-600 focus:ring-0">
-                      <span class="text-sm font-black text-white" x-text="p.bandera + ' ' + p.nombre"></span>
+                      <span class="text-xs font-black text-white" x-text="p.bandera + ' ' + p.nombre"></span>
                     </label>
 
                     <div class="flex items-center gap-1">
-                      <span class="text-[9px] font-bold text-slate-400">DEF:</span>
+                      <span class="text-[8px] font-bold text-slate-400">DEF:</span>
                       <select x-model="p.naturaleza" 
-                              class="bg-[#080e26] border border-blue-900 text-cyan-300 font-bold text-xs rounded px-1.5 py-0.5 outline-none">
+                              class="bg-[#080e26] border border-blue-900 text-cyan-300 font-bold text-xs rounded px-1 py-0.5 outline-none">
                         <option value="D">D (Depósito)</option>
                         <option value="P">P (Pago)</option>
                         <option value="A">A (Abono)</option>
@@ -489,25 +492,19 @@
 
                   <div class="grid grid-cols-2 gap-2">
                     <div class="bg-[#080e26] p-2 rounded-xl border border-cyan-500/30 space-y-1">
-                      <div class="flex justify-between text-[9px] font-extrabold">
-                        <span class="text-cyan-400 uppercase">DEPÓSITO (D)</span>
+                      <div class="flex justify-between text-[8px] font-extrabold">
+                        <span class="text-cyan-400">DEPÓSITO (D)</span>
                         <span class="text-slate-400 font-mono" x-text="calcularTasaEnVivo(p.code, p.factorD, true)"></span>
                       </div>
-                      <div class="flex items-center gap-1 text-[9px]">
-                        <span class="text-slate-500 font-bold uppercase">FACTOR:</span>
-                        <input type="number" step="0.001" x-model="p.factorD" class="w-full bg-[#030611] border border-cyan-500/40 text-cyan-300 text-center font-mono font-bold rounded px-1 py-0.5 text-xs outline-none">
-                      </div>
+                      <input type="number" step="0.001" x-model="p.factorD" class="w-full bg-[#030611] border border-cyan-500/40 text-cyan-300 text-center font-mono font-bold rounded px-1 py-0.5 text-xs outline-none">
                     </div>
 
                     <div class="bg-[#080e26] p-2 rounded-xl border border-amber-500/30 space-y-1">
-                      <div class="flex justify-between text-[9px] font-extrabold">
-                        <span class="text-amber-400 uppercase">PAGO (P)</span>
+                      <div class="flex justify-between text-[8px] font-extrabold">
+                        <span class="text-amber-400">PAGO (P)</span>
                         <span class="text-slate-400 font-mono" x-text="calcularTasaEnVivo(p.code, p.factorP, false)"></span>
                       </div>
-                      <div class="flex items-center gap-1 text-[9px]">
-                        <span class="text-slate-500 font-bold uppercase">FACTOR:</span>
-                        <input type="number" step="0.001" x-model="p.factorP" class="w-full bg-[#030611] border border-amber-500/40 text-amber-300 text-center font-mono font-bold rounded px-1 py-0.5 text-xs outline-none">
-                      </div>
+                      <input type="number" step="0.001" x-model="p.factorP" class="w-full bg-[#030611] border border-amber-500/40 text-amber-300 text-center font-mono font-bold rounded px-1 py-0.5 text-xs outline-none">
                     </div>
                   </div>
                 </div>
@@ -515,73 +512,70 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-between pt-3 border-t border-blue-900/60">
-            <span class="text-xs text-slate-400">Socio en edición: <strong class="text-white uppercase" x-text="socioConfigEdit.nombre || 'NUEVO'"></strong></span>
-            <div class="flex gap-2">
-              <button type="button" @click="modalConfigSocioAbierto = false" class="px-4 py-2 bg-blue-950 text-slate-300 rounded-xl text-xs font-bold border border-blue-900 hover:bg-blue-900">Cancelar</button>
-              <button type="button" @click="guardarConfigSocioModal()" class="px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-black hover:bg-purple-500 shadow-lg shadow-purple-600/30">💾 Guardar Cambios</button>
-            </div>
+          <div class="flex items-center justify-between pt-2 border-t border-blue-900/60 gap-2">
+            <button type="button" @click="modalConfigSocioAbierto = false" class="flex-1 sm:flex-none px-3 py-2 bg-blue-950 text-slate-300 rounded-xl text-xs font-bold border border-blue-900">Cancelar</button>
+            <button type="button" @click="guardarConfigSocioModal()" class="flex-1 sm:flex-none px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-600/30">💾 Guardar</button>
           </div>
         </div>
       </template>
     </div>
   </div>
 
-  <!-- MODAL AUDITAR COMPROBANTE -->
-  <div x-show="modalAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md" x-cloak>
-    <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-full max-w-2xl p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto" @click.away="modalAbierto = false">
+  <!-- MODAL AUDITAR COMPROBANTE (MÓVIL ADAPTABLE) -->
+  <div x-show="modalAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/80 backdrop-blur-md" x-cloak>
+    <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-[95vw] max-w-2xl p-4 sm:p-5 space-y-3.5 shadow-2xl relative max-h-[90vh] overflow-y-auto" @click.away="modalAbierto = false">
       
       <!-- HEADER -->
-      <div class="flex items-center justify-between border-b border-blue-900/60 pb-3">
+      <div class="flex items-center justify-between border-b border-blue-900/60 pb-2.5">
         <div class="flex items-center gap-2">
-          <span class="text-cyan-400 font-black text-base">✏️ Auditar & Liquidar Comprobante</span>
+          <span class="text-cyan-400 font-black text-sm sm:text-base">✏️ Auditar & Liquidar Comprobante</span>
         </div>
-        <button type="button" @click="modalAbierto = false" class="text-slate-400 hover:text-white text-sm font-bold">✕</button>
+        <button type="button" @click="modalAbierto = false" class="text-slate-400 hover:text-white text-base font-bold p-1">✕</button>
       </div>
 
       <template x-if="itemEdicion">
-        <div class="space-y-4 text-xs">
+        <div class="space-y-3 text-xs">
           
           <!-- BLOQUE 1: HASH & FECHA -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#030611] p-3 rounded-xl border border-blue-900/60">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[#030611] p-2.5 rounded-xl border border-blue-900/60">
             <div>
-              <span class="text-[9px] font-bold text-slate-400 uppercase block">Hash Largo Referencia</span>
-              <span class="font-mono text-cyan-300 font-bold truncate block" x-text="itemEdicion.hash_largo"></span>
+              <span class="text-[8px] font-bold text-slate-400 uppercase block">Hash Largo Referencia</span>
+              <span class="font-mono text-cyan-300 font-bold truncate block text-[11px]" x-text="itemEdicion.hash_largo"></span>
             </div>
             <div>
-              <span class="text-[9px] font-bold text-slate-400 uppercase block">Fecha / Timestamp Input</span>
-              <input type="datetime-local" x-model="itemEdicion.fecha_hora_input" class="w-full bg-[#080e26] border border-blue-900/80 rounded px-2.5 py-1 text-slate-200 outline-none text-[11px]">
+              <span class="text-[8px] font-bold text-slate-400 uppercase block">Fecha Input</span>
+              <input type="datetime-local" x-model="itemEdicion.fecha_hora_input" class="w-full bg-[#080e26] border border-blue-900/80 rounded px-2 py-1 text-slate-200 outline-none text-[11px]">
             </div>
           </div>
 
-          <!-- BLOQUE 2: METADATOS EXTRAÍDOS POR IA (BANCO, REFERENCIA, TITULAR) -->
-          <div class="space-y-1.5">
-            <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">1. Datos Extraídos / Banco</span>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-[#030611] p-3 rounded-xl border border-blue-900/60">
+          <!-- BLOQUE 2: METADATOS BANCO -->
+          <div class="space-y-1">
+            <span class="text-[9px] font-bold text-cyan-400 uppercase tracking-wider block">1. Datos Extraídos / Banco</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#030611] p-2.5 rounded-xl border border-blue-900/60">
               <div>
-                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Banco</label>
-                <input type="text" x-model="itemEdicion.banco" placeholder="Ej: YAPE, BCP, BBVA..." class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold outline-none uppercase focus:border-cyan-400">
+                <label class="block text-[8px] font-bold text-slate-400 uppercase mb-0.5">Banco</label>
+                <input type="text" x-model="itemEdicion.banco" placeholder="Ej: YAPE" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1.5 text-xs text-white font-bold outline-none uppercase focus:border-cyan-400">
               </div>
 
               <div>
-                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nº Referencia</label>
-                <input type="text" x-model="itemEdicion.referencia" placeholder="Ej: 08635297" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono font-bold outline-none focus:border-cyan-400">
+                <label class="block text-[8px] font-bold text-slate-400 uppercase mb-0.5">Nº Referencia</label>
+                <input type="text" x-model="itemEdicion.referencia" placeholder="Ej: 08635297" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1.5 text-xs text-cyan-300 font-mono font-bold outline-none focus:border-cyan-400">
               </div>
 
               <div>
-                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Titular Cuenta</label>
-                <input type="text" x-model="itemEdicion.titular" placeholder="Nombre titular..." class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold outline-none uppercase focus:border-cyan-400">
+                <label class="block text-[8px] font-bold text-slate-400 uppercase mb-0.5">Titular Cuenta</label>
+                <input type="text" x-model="itemEdicion.titular" placeholder="Titular..." class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1.5 text-xs text-white font-bold outline-none uppercase focus:border-cyan-400">
               </div>
             </div>
           </div>
 
           <!-- BLOQUE 3: REASIGNACIÓN DE SOCIOS -->
-          <div class="space-y-1.5">
-            <span class="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">2. Asignación de Socios</span>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <span class="text-[9px] font-bold text-purple-400 uppercase tracking-wider block">2. Asignación de Socios</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">Socio 1 (Primer Impacto)</label>
-                <select x-model="itemEdicion.nombre_socio_1" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2.5 py-2 text-xs text-white font-bold outline-none">
+                <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-0.5">Socio 1 (Impacto)</label>
+                <select x-model="itemEdicion.nombre_socio_1" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
                   <option value="GENERAL">GENERAL</option>
                   <template x-if="itemEdicion.nombre_socio_1 && itemEdicion.nombre_socio_1 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_1)">
                     <option :value="itemEdicion.nombre_socio_1" x-text="itemEdicion.nombre_socio_1" selected></option>
@@ -593,8 +587,8 @@
               </div>
 
               <div>
-                <label class="block text-[10px] font-bold text-pink-400 uppercase mb-1">Socio 2 (Contraparte)</label>
-                <select x-model="itemEdicion.nombre_socio_2" class="w-full bg-[#030611] border border-pink-500/40 rounded-xl px-2.5 py-2 text-xs text-white font-bold outline-none">
+                <label class="block text-[9px] font-bold text-pink-400 uppercase mb-0.5">Socio 2 (Contraparte)</label>
+                <select x-model="itemEdicion.nombre_socio_2" class="w-full bg-[#030611] border border-pink-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
                   <option value="GENERAL">GENERAL</option>
                   <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_2)">
                     <option :value="itemEdicion.nombre_socio_2" x-text="itemEdicion.nombre_socio_2" selected></option>
@@ -607,13 +601,13 @@
             </div>
           </div>
 
-          <!-- BLOQUE 4: NATURALEZA, MONEDA RECIBO, MONTO LOCAL Y LOTE TASA -->
-          <div class="space-y-1.5">
-            <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">3. Reglas de Operación</span>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- BLOQUE 4: REGLAS & LOTE TASA (4 COLUMNAS GRID EN MÓVIL Y DESKTOP) -->
+          <div class="space-y-1">
+            <span class="text-[9px] font-bold text-amber-400 uppercase tracking-wider block">3. Reglas de Operación</span>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div>
-                <label class="block text-[10px] font-bold text-amber-400 uppercase mb-1">Naturaleza</label>
-                <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/40 rounded-xl px-2 py-2 text-xs text-amber-300 font-bold outline-none">
+                <label class="block text-[8px] font-bold text-amber-400 uppercase mb-0.5">Naturaleza</label>
+                <select x-model="itemEdicion.tipo_manual" class="w-full bg-[#030611] border border-amber-500/40 rounded-xl px-1.5 py-1.5 text-xs text-amber-300 font-bold outline-none">
                   <option value="D">D (Depósito)</option>
                   <option value="P">P (Pago)</option>
                   <option value="A">A (Abono)</option>
@@ -621,43 +615,43 @@
               </div>
 
               <div>
-                <label class="block text-[10px] font-bold text-cyan-400 uppercase mb-1">Moneda Recibo</label>
-                <select x-model="itemEdicion.moneda" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-2 text-xs text-cyan-300 font-bold outline-none uppercase">
-                  <option value="COP">COP (Colombia)</option>
-                  <option value="VES">VES (Venezuela)</option>
-                  <option value="PEN">PEN (Perú)</option>
-                  <option value="ARS">ARS (Argentina)</option>
-                  <option value="CLP">CLP (Chile)</option>
-                  <option value="BRL">BRL (Brasil)</option>
-                  <option value="PYG">PYG (Paraguay)</option>
-                  <option value="EUR">EUR (Europa)</option>
-                  <option value="USD">USD (EEUU/Zelle)</option>
-                  <option value="USDT">USDT (Crypto)</option>
+                <label class="block text-[8px] font-bold text-cyan-400 uppercase mb-0.5">Moneda Recibo</label>
+                <select x-model="itemEdicion.moneda" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-1.5 py-1.5 text-xs text-cyan-300 font-bold outline-none uppercase">
+                  <option value="COP">COP</option>
+                  <option value="VES">VES</option>
+                  <option value="PEN">PEN</option>
+                  <option value="ARS">ARS</option>
+                  <option value="CLP">CLP</option>
+                  <option value="BRL">BRL</option>
+                  <option value="PYG">PYG</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                  <option value="USDT">USDT</option>
                 </select>
               </div>
 
               <div>
-                <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Monto Local</label>
-                <input type="number" step="0.01" x-model="itemEdicion.monto" class="w-full bg-[#030611] border border-emerald-500/40 rounded-xl px-2.5 py-2 text-xs text-emerald-400 font-bold outline-none">
+                <label class="block text-[8px] font-bold text-emerald-400 uppercase mb-0.5">Monto Local</label>
+                <input type="number" step="0.01" x-model="itemEdicion.monto" class="w-full bg-[#030611] border border-emerald-500/40 rounded-xl px-2 py-1.5 text-xs text-emerald-400 font-bold outline-none">
               </div>
 
               <div>
-                <label class="block text-[10px] font-bold text-purple-400 uppercase mb-1">Lote Tasa</label>
-                <input type="text" x-model="itemEdicion.lote_tasa_asignado" placeholder="ej. T047" class="w-full bg-[#030611] border border-purple-500/40 rounded-xl px-2.5 py-2 text-xs text-purple-300 font-bold font-mono outline-none uppercase">
+                <label class="block text-[8px] font-bold text-purple-400 uppercase mb-0.5">Lote Tasa</label>
+                <input type="text" x-model="itemEdicion.lote_tasa_asignado" placeholder="ej. T047" class="w-full bg-[#030611] border border-purple-500/40 rounded-xl px-2 py-1.5 text-xs text-purple-300 font-bold font-mono outline-none uppercase">
               </div>
             </div>
           </div>
 
-          <!-- BOTONES Y ACCIONES DEL MODAL -->
-          <div class="flex flex-wrap justify-between items-center pt-3 border-t border-blue-900/60 gap-2">
-            <div class="flex gap-2">
-              <button type="button" @click="eliminarComprobante(itemEdicion.hash_largo)" class="px-3 py-1.5 bg-rose-950/80 border border-rose-500/40 text-rose-300 rounded-xl font-bold hover:bg-rose-900 transition-colors">🗑 Eliminar</button>
-              <button type="button" @click="releerIAModal()" class="px-3 py-1.5 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl font-bold hover:bg-purple-900 transition-colors flex items-center gap-1.5">🤖 Releer IA</button>
+          <!-- BOTONES MODAL EN MÓVIL (TAMAÑO TÁCTIL) -->
+          <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center pt-2 border-t border-blue-900/60 gap-2">
+            <div class="flex gap-1.5">
+              <button type="button" @click="eliminarComprobante(itemEdicion.hash_largo)" class="flex-1 sm:flex-none px-3 py-2 bg-rose-950/80 border border-rose-500/40 text-rose-300 rounded-xl font-bold active:scale-95 transition-all text-center">🗑 Eliminar</button>
+              <button type="button" @click="releerIAModal()" class="flex-1 sm:flex-none px-3 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl font-bold active:scale-95 transition-all text-center flex items-center justify-center gap-1">🤖 Releer IA</button>
             </div>
 
-            <div class="flex gap-2">
-              <button type="button" @click="modalAbierto = false" class="px-3.5 py-1.5 bg-blue-950 text-slate-300 rounded-xl font-bold border border-blue-900 hover:bg-blue-900">Cancelar</button>
-              <button type="button" @click="guardarCambios()" class="px-5 py-1.5 bg-cyan-600 text-white rounded-xl font-black hover:bg-cyan-500 shadow-lg shadow-cyan-600/30">💾 Guardar & Congelar</button>
+            <div class="flex gap-1.5">
+              <button type="button" @click="modalAbierto = false" class="flex-1 sm:flex-none px-3.5 py-2 bg-blue-950 text-slate-300 rounded-xl font-bold border border-blue-900 text-center">Cancelar</button>
+              <button type="button" @click="guardarCambios()" class="flex-1 sm:flex-none px-4 py-2 bg-cyan-600 text-white rounded-xl font-black shadow-lg shadow-cyan-600/30 text-center active:scale-95 transition-all">💾 Guardar & Congelar</button>
             </div>
           </div>
 
@@ -667,15 +661,15 @@
   </div>
 
   <!-- MODAL VISOR IMAGEN R2 -->
-  <div x-show="modalImagenAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" @click.self="modalImagenAbierto = false" x-cloak>
-    <div class="bg-[#080e26] border border-blue-500/40 rounded-2xl max-w-2xl w-full p-4 space-y-3 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-blue-900/60 pb-2">
+  <div x-show="modalImagenAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md" @click.self="modalImagenAbierto = false" x-cloak>
+    <div class="bg-[#080e26] border border-blue-500/40 rounded-2xl max-w-2xl w-[95vw] p-3 space-y-2 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-blue-900/60 pb-1.5">
         <h3 class="font-bold text-white text-xs font-mono truncate" x-text="itemSeleccionado?.hash_largo"></h3>
-        <button @click="modalImagenAbierto = false" class="text-slate-400 hover:text-white font-bold">✕</button>
+        <button @click="modalImagenAbierto = false" class="text-slate-400 hover:text-white font-bold p-1">✕</button>
       </div>
       <template x-if="itemSeleccionado?.url_r2 || itemSeleccionado?.url_imagen">
-        <div class="max-h-96 overflow-hidden rounded-xl border border-blue-900/60 flex justify-center bg-black">
-          <img :src="itemSeleccionado.url_r2 || itemSeleccionado.url_imagen" class="max-h-96 object-contain" alt="Comprobante">
+        <div class="max-h-[75vh] overflow-hidden rounded-xl border border-blue-900/60 flex justify-center bg-black">
+          <img :src="itemSeleccionado.url_r2 || itemSeleccionado.url_imagen" class="max-h-[75vh] object-contain" alt="Comprobante">
         </div>
       </template>
     </div>
