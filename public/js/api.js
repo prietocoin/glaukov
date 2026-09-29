@@ -30,7 +30,7 @@ window.AteneaAPI = {
     return await res.json();
   },
 
-  // 🔴 NUEVO ENDPOINT: Congelar la liquidación financiera en comprobantes_liq
+  // 🔴 Congelar la liquidación financiera en comprobantes_liq
   async liquidarComprobante(payload) {
     const res = await fetch('/api/comprobantes/liquidar', {
       method: 'POST',
@@ -41,7 +41,7 @@ window.AteneaAPI = {
     return await res.json();
   },
 
-  // 🤖 NUEVO: Enviar comprobante a re-lectura con IA Gemini
+  // 🤖 Enviar comprobante a re-lectura con IA Gemini
   async releerIA(hashLargo) {
     const res = await fetch('/api/comprobantes/' + encodeURIComponent(hashLargo) + '/releer', {
       method: 'POST'
@@ -150,7 +150,7 @@ window.AteneaAPI = {
     return await res.json();
   },
 
-  // 4. REPORTES Y ADMIN
+  // 4. REPORTES Y EVOLUTION API
   async enviarWhatsApp(payload) {
     const res = await fetch('/api/reportes/enviar-whatsapp', {
       method: 'POST',
@@ -158,6 +158,20 @@ window.AteneaAPI = {
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error('Error al enviar reporte a WhatsApp');
+    return await res.json();
+  },
+
+  // 🟢 Envío directo de captura PNG al JID del socio usando Evolution API
+  async enviarMediaWhatsApp(payload) {
+    const res = await fetch('/api/whatsapp/enviar-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Error al enviar imagen vía Evolution API');
+    }
     return await res.json();
   },
 
