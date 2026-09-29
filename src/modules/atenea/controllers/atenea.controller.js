@@ -262,6 +262,18 @@ async function postEnviarReporteWhatsApp(req, res) {
   }
 }
 
+// 🟢 Enviar captura en Base64 vía Evolution API
+async function postEnviarMediaWhatsApp(req, res) {
+  try {
+    const fn = reportesService.enviarMediaWhatsApp || reportesService.enviarReporteMediaWhatsApp;
+    const resultado = await fn(req.body);
+    res.json({ success: true, message: 'Reporte en imagen enviado con éxito.', ...resultado });
+  } catch (err) {
+    console.error('❌ Error POST /api/whatsapp/enviar-media:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 // ==========================================
 // 6. CONSOLA DE ADMINISTRACIÓN COLA (RAW)
 // ==========================================
@@ -320,6 +332,7 @@ module.exports = {
   deleteSocio,
   getReportesFiltros,
   postEnviarReporteWhatsApp,
+  postEnviarMediaWhatsApp, // 👈 Exportación agregada
   getColaAdmin,
   updateColaAdmin,
   deleteColaAdmin
