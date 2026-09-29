@@ -573,32 +573,32 @@
             </div>
           </div>
 
-          <!-- BLOQUE 3: REASIGNACIÓN DE SOCIOS -->
+          <!-- BLOQUE 3: REASIGNACIÓN DE SOCIOS (CON BINDING SEGURO SIN RACE CONDITION) -->
           <div class="space-y-1">
             <span class="text-[9px] font-bold text-purple-400 uppercase tracking-wider block">2. Asignación de Socios</span>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-0.5">Socio 1 (Impacto)</label>
-                <select x-model="itemEdicion.nombre_socio_1" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
+                <select :value="itemEdicion.nombre_socio_1 || 'GENERAL'" @change="itemEdicion.nombre_socio_1 = $event.target.value" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
                   <option value="GENERAL">GENERAL</option>
                   <template x-if="itemEdicion.nombre_socio_1 && itemEdicion.nombre_socio_1 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_1)">
-                    <option :value="itemEdicion.nombre_socio_1" x-text="itemEdicion.nombre_socio_1" selected></option>
+                    <option :value="itemEdicion.nombre_socio_1" x-text="itemEdicion.nombre_socio_1"></option>
                   </template>
                   <template x-for="s in directorio" :key="'ed-s1-'+s.nombre">
-                    <option :value="s.nombre" x-text="s.nombre"></option>
+                    <option :value="s.nombre" x-text="s.nombre" :selected="s.nombre === itemEdicion.nombre_socio_1"></option>
                   </template>
                 </select>
               </div>
 
               <div>
                 <label class="block text-[9px] font-bold text-pink-400 uppercase mb-0.5">Socio 2 (Contraparte)</label>
-                <select x-model="itemEdicion.nombre_socio_2" class="w-full bg-[#030611] border border-pink-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
+                <select :value="itemEdicion.nombre_socio_2 || 'GENERAL'" @change="itemEdicion.nombre_socio_2 = $event.target.value" class="w-full bg-[#030611] border border-pink-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
                   <option value="GENERAL">GENERAL</option>
                   <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL' && !directorio.some(d => d.nombre === itemEdicion.nombre_socio_2)">
-                    <option :value="itemEdicion.nombre_socio_2" x-text="itemEdicion.nombre_socio_2" selected></option>
+                    <option :value="itemEdicion.nombre_socio_2" x-text="itemEdicion.nombre_socio_2"></option>
                   </template>
                   <template x-for="s in directorio" :key="'ed-s2-'+s.nombre">
-                    <option :value="s.nombre" x-text="s.nombre"></option>
+                    <option :value="s.nombre" x-text="s.nombre" :selected="s.nombre === itemEdicion.nombre_socio_2"></option>
                   </template>
                 </select>
               </div>
@@ -678,6 +678,7 @@
       </template>
     </div>
   </div>
+
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
