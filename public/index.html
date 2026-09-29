@@ -658,11 +658,10 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ROBUSTO CON AUTOCARGA Y PROMPT DE RESCATE) -->
+  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (USO DE BÚSQUEDA SQL EN BACKEND) -->
   <div x-data="{ 
-         modalReporteAbierto: false,
          generandoImagen: false,
-         get monedaReporte() {
+         getMonedaReporte() {
            const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
            const socioFound = (directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
            if (socioFound && socioFound.moneda_socio) return socioFound.moneda_socio.toUpperCase();
@@ -670,57 +669,26 @@
            return 'USDT';
          },
          async enviarReporteViaEvolution() {
-           const socioNom = (filtroSocio || sujetoAuditado || 'SOCIO').trim().toUpperCase();
-           
-           // 1. Cargar directorio si está vacío en memoria
-           if (!directorio || directorio.length === 0) {
-             try {
-               if (window.AteneaAPI && window.AteneaAPI.getDirectorio) {
-                 const dataDir = await window.AteneaAPI.getDirectorio();
-                 if (Array.isArray(dataDir)) directorio.push(...dataDir);
-               }
-             } catch(e) {
-               console.warn('No se pudo precargar el directorio:', e);
-             }
-           }
+           const socioNom = (filtroSocio || sujetoAuditado || '').trim();
 
-           // 2. Buscar el socio en el directorio
-           const socioFound = (directorio || []).find(d => (d.nombre || d.socio || '').trim().toUpperCase() === socioNom);
-           
-           // 3. Inspeccionar todos los posibles campos de JID/Grupo/WhatsApp
-           let jid = socioFound?.id_grupo || 
-                     socioFound?.whatsapp || 
-                     socioFound?.jid || 
-                     socioFound?.remoteJid || 
-                     socioFound?.remote_jid || 
-                     socioFound?.id_whatsapp || 
-                     socioFound?.grupo;
-           
-           // 4. Fallback por si no tiene JID guardado en la BD
-           if (!jid || String(jid).trim() === '' || String(jid).trim() === '-') {
-             const inputJid = prompt(
-               `⚠️ El socio/grupo "${socioNom}" no tiene un JID/Grupo registrado en el Directorio.\n\nPor favor ingresa el JID del Grupo (ej: 120363...MD@g.us o número) para enviar este reporte:`
-             );
-             if (!inputJid || inputJid.trim() === '') return;
-             jid = inputJid.trim();
-           } else {
-             jid = String(jid).trim();
+           if (!socioNom) {
+             alert('⚠️ Por favor selecciona un socio en los filtros antes de enviar el reporte.');
+             return;
            }
 
            this.generandoImagen = true;
            const elemento = document.getElementById('reporte-html-documento');
            try {
-             // 1. Capturar el HTML a Imagen Base64
+             // 1. Capturar el HTML del reporte a PNG en Base64
              const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
              const base64Image = canvas.toDataURL('image/png');
              
-             // 2. Construir el texto del mensaje (Caption)
-             const captionText = `*Reporte de ${socioNom}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${this.monedaReporte}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${this.monedaReporte}*`;
+             // 2. Construir el texto descriptivo del mensaje (Caption)
+             const captionText = `*Reporte de ${socioNom.toUpperCase()}*\nSaldo anterior: ${formatMonto(saldoAnterior)} ${this.getMonedaReporte()}\n\n*NUEVO SALDO: ${formatMonto(saldoActualTotal)} ${this.getMonedaReporte()}*`;
 
-             // 3. Enviar la imagen y JID a tu Backend vía AteneaAPI o fetch
+             // 3. Enviar el nombre del socio al Backend para resolución SQL en nombres_fb
              const payload = {
-               jid: jid,
-               instancia: 'JAIRO',
+               socio: socioNom,
                caption: captionText,
                base64: base64Image
              };
@@ -737,17 +705,18 @@
                resData = await response.json();
              }
 
-             if (resData && (resData.success || resData.key || resData.status === 'SUCCESS')) {
-               alert(`✅ Reporte enviado exitosamente al Grupo/Chat de ${socioNom} (${jid})`);
+             if (resData && (resData.success || resData.status === 'SUCCESS')) {
+               alert(`✅ Reporte enviado exitosamente al Grupo/Chat de ${socioNom.toUpperCase()} (${resData.jid || 'JID resoluto por SQL'})`);
              } else {
-               alert(`❌ Error al enviar vía Evolution API: ${JSON.stringify(resData?.error || resData || 'Error en el servidor')}`);
+               alert(`❌ Error al enviar vía Evolution API: ${resData?.error || JSON.stringify(resData)}`);
              }
 
            } catch(e) { 
              console.error('Error enviando reporte por Evolution:', e); 
-             alert(`❌ Error interno al procesar el reporte: ${e.message || e}`);
+             alert(`❌ Error al procesar o enviar el reporte: ${e.message || e}`);
+           } finally {
+             this.generandoImagen = false;
            }
-           this.generandoImagen = false;
          }
        }" 
        x-show="modalReporteAbierto" 
@@ -764,7 +733,7 @@
         
         <div class="flex items-center gap-2">
           <button type="button" @click="enviarReporteViaEvolution()" :disabled="generandoImagen" class="px-4 py-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg text-xs font-black shadow-md transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap">
-            <span x-show="!generandoImagen">🤖 Enviar a Grupo/JID (Evolution)</span>
+            <span x-show="!generandoImagen">🤖 Enviar a Grupo/JID (Evolution API)</span>
             <span x-show="generandoImagen">⏳ Procesando Envío...</span>
           </button>
           
@@ -779,7 +748,7 @@
         <div class="flex justify-between items-end border-b-2 border-[#1e3a8a] pb-4">
           <div>
             <h1 class="text-2xl md:text-3xl font-black text-[#1e3a8a] tracking-tight uppercase">Reporte de <span class="text-slate-900 font-extrabold" x-text="sujetoAuditado || 'SOCIO'"></span></h1>
-            <p class="text-xs md:text-sm text-slate-500 font-bold mt-1">Saldo anterior: <span class="text-slate-900 font-mono font-extrabold" x-text="formatMonto(saldoAnterior) + ' ' + monedaReporte"></span></p>
+            <p class="text-xs md:text-sm text-slate-500 font-bold mt-1">Saldo anterior: <span class="text-slate-900 font-mono font-extrabold" x-text="formatMonto(saldoAnterior) + ' ' + getMonedaReporte()"></span></p>
           </div>
           <div class="text-right">
             <div class="text-xs font-black text-[#10b981] uppercase tracking-widest">FUNDABLOCK</div>
@@ -834,7 +803,7 @@
         <div class="flex justify-end pt-2 pb-6">
           <div class="bg-emerald-50 border-2 border-[#10b981] p-4 rounded-xl flex items-center justify-between gap-6 min-w-[280px] shadow-sm">
             <span class="text-[10px] font-black text-[#1e3a8a] uppercase tracking-widest">NUEVO SALDO</span>
-            <span class="text-2xl font-black text-slate-900 font-mono tracking-tight" x-text="formatMonto(saldoActualTotal) + ' ' + monedaReporte"></span>
+            <span class="text-2xl font-black text-slate-900 font-mono tracking-tight" x-text="formatMonto(saldoActualTotal) + ' ' + getMonedaReporte()"></span>
           </div>
         </div>
 
