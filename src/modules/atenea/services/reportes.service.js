@@ -31,7 +31,6 @@ async function enviarReporteWhatsApp(datos) {
   return { success: true, remoteJid };
 }
 
-// 🟢 FUNCIÓN ACTUALIZADA: Soporta compresión JPEG y limpia el Base64 adecuadamente
 async function enviarMediaWhatsApp(datos) {
   const { socio, caption, base64 } = datos;
 
@@ -67,16 +66,17 @@ async function enviarMediaWhatsApp(datos) {
   // 2. Preparar credenciales de Evolution API desde el .env
   const evoUrlBase = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, "");
   const apiKey = process.env.AUTHENTICATION_API_KEY;
+  const instance = process.env.EVOLUTION_INSTANCE || 'Jairo'; // 🟢 Usa 'Jairo' exacto como está registrado
 
   if (!evoUrlBase || !apiKey) {
     throw new Error('EVOLUTION_API_URL o AUTHENTICATION_API_KEY no están configuradas en el .env');
   }
 
-  // 3. Limpiar encabezado del Base64 (soporta PNG, JPEG y JPG)
+  // 3. Limpiar encabezado del Base64
   const base64Data = base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
-  // 4. Disparo directo a la instancia JAIRO de Evolution API en formato JPEG
-  const endpoint = `${evoUrlBase}/message/sendMedia/JAIRO`;
+  // 4. Disparo a la instancia exacta 'Jairo'
+  const endpoint = `${evoUrlBase}/message/sendMedia/${instance}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
