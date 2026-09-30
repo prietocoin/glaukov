@@ -28,16 +28,12 @@ async function previewImage(req, res) {
     let data = [];
     try { data = (await fn()) || []; } catch (e) { console.error('⚠️ DB Timeout:', e.message); }
 
-    const socioBuscado = (
-      req.params.identificador || 
-      req.params.socio || 
-      req.query.socio || 
-      'GENERAL'
-    ).trim().toUpperCase();
+    const rawSocio = (req.params.identificador || req.params.socio || req.query.socio || 'GENERAL');
+    const socioBuscado = String(rawSocio).trim().toUpperCase();
 
     // 1. Intentar buscar en la cartelera consolidada
     let foundData = data.find(d => {
-      const nombreItem = (d.nombre_socio || d.nombre || d.socio || '').trim().toUpperCase();
+      const nombreItem = String(d.nombre_socio || d.nombre || d.socio || '').trim().toUpperCase();
       return nombreItem === socioBuscado;
     });
 
@@ -46,7 +42,7 @@ async function previewImage(req, res) {
       try {
         const fnDir = directorioService.obtenerDirectorio || directorioService.obtenerDirectorioCompleto;
         const directorio = (await fnDir()) || [];
-        const socioObj = directorio.find(s => (s.nombre || '').trim().toUpperCase() === socioBuscado);
+        const socioObj = directorio.find(s => String(s.nombre || '').trim().toUpperCase() === socioBuscado);
 
         if (socioObj) {
           if (typeof tasasService.procesarTasasSocio === 'function') {
@@ -114,11 +110,12 @@ async function dispararWhatsApp(req, res) {
 
     const esModoPrueba = bodyObj.modoPrueba === true || bodyObj.esPrueba === true || queryObj.modoPrueba === 'true';
     
-    // Si el switch está ON, usa la variable del .env (TEST_JID_OVERRIDE). Si no, usa el valor normal
-    const jidPrueba = esModoPrueba 
+    // 🛡️ Lógica estricta: Si el switch está ON -> usa TEST_JID_OVERRIDE. Si está OFF -> null (envío oficial).
+    const jidPruebaRaw = esModoPrueba 
       ? process.env.TEST_JID_OVERRIDE 
-      : (process.env.TEST_JID_OVERRIDE || bodyObj.jidPrueba || queryObj.jidPrueba || null);
+      : (bodyObj.jidPrueba || queryObj.jidPrueba || null);
 
+    const jidPrueba = jidPruebaRaw ? String(jidPruebaRaw).trim() : null;
     const delayMs = parseInt(bodyObj.delayMs || process.env.WHATSAPP_DELAY_MS || '3000', 10);
 
     if (jidPrueba) {
@@ -154,7 +151,7 @@ async function dispararWhatsApp(req, res) {
     const envios = [];
     for (let i = 0; i < carteleras.length; i++) {
       const targetData = carteleras[i];
-      const socioNombre = (targetData.nombre_socio || targetData.nombre || 'SOCIO').toUpperCase();
+      const socioNombre = String(targetData.nombre_socio || targetData.nombre || 'SOCIO').toUpperCase().trim();
 
       console.log(`[Batch WA 📤 (${i + 1}/${carteleras.length})] Generando cartelera para ${socioNombre}...`);
       const imageBuffer = await generarImagenTasa(targetData);
@@ -336,7 +333,9 @@ async function postPublicarTasa(req, res) {
 
 // 🟢 REENVÍO DE TASA (Redirige 'GENERAL' a la ráfaga masiva)
 async function postReenviarTasa(req, res) {
-  const socioBuscado = (req.body.socio || 'GENERAL').trim().toUpperCase();
+  const rawSocio = req.body && typeof req.body.socio === 'string' ? req.body.socio : 'GENERAL';
+  const socioBuscado = String(rawSocio).trim().toUpperCase();
+
   console.log(`[Reenviar Tasa ⚡] Solicitud de reenvío recibida para: ${socioBuscado}`);
 
   try {
@@ -346,21 +345,23 @@ async function postReenviarTasa(req, res) {
       return await dispararWhatsApp(req, res);
     }
 
-    const jidPrueba = req.body?.modoPrueba ? process.env.TEST_JID_OVERRIDE : (process.env.TEST_JID_OVERRIDE || req.body?.jidPrueba || null);
+    const esModoPrueba = req.body?.modoPrueba === true || req.body?.esPrueba === true;
+    const jidPruebaRaw = esModoPrueba ? process.env.TEST_JID_OVERRIDE : (req.body?.jidPrueba || null);
+    const jidPrueba = jidPruebaRaw ? String(jidPruebaRaw).trim() : null;
 
     const fn = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
     let data = [];
     try { data = (await fn()) || []; } catch (e) { console.error('⚠️ DB Timeout:', e.message); }
 
     let targetData = data.find(d => {
-      const n = (d.nombre_socio || d.nombre || d.socio || '').trim().toUpperCase();
+      const n = String(d.nombre_socio || d.nombre || d.socio || '').trim().toUpperCase();
       return n === socioBuscado;
     });
 
     if (!targetData) {
       const fnDir = directorioService.obtenerDirectorio || directorioService.obtenerDirectorioCompleto;
       const directorio = (await fnDir()) || [];
-      const socioObj = directorio.find(s => (s.nombre || '').trim().toUpperCase() === socioBuscado);
+      const socioObj = directorio.find(s => String(s.nombre || '').trim().toUpperCase() === socioBuscado);
       if (socioObj) {
         targetData = {
           nombre_socio: socioObj.nombre,
@@ -389,7 +390,7 @@ async function postReenviarTasa(req, res) {
     if (typeof fnMedia === 'function') {
       envRes = await fnMedia({ socio: socioBuscado, base64: base64Image, jidOverride: jidPrueba });
     } else {
-      envRes = await mercadoService.reenviarTasa(req.body.id_tasa, socioBuscado, jidPrueba);
+      envRes = await mercadoService.reenviarTasa(req.body.id_tasa, socioNombre, jidPrueba);
     }
 
     console.log(`[Reenviar Tasa ⚡] ✅ Enviado con éxito a ${socioBuscado}`);
