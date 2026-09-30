@@ -2,8 +2,7 @@ const { Worker, Queue } = require('bullmq');
 const redisConnection = require('../config/redis');
 // ✅ Ruta corregida apuntando a modules/render:
 const { generarImagenTasa } = require('../modules/render/services/puppeteer.service');
-// Al momento de enviar por Evolution API / WhatsApp:
-const destinoFinal = process.env.TEST_JID_OVERRIDE || socio.whatsapp_jid;
+
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
 /**
@@ -60,14 +59,18 @@ const tasasWorker = new Worker(
     const datosSocio = job.data;
     console.log(`[Glaukov Worker ⚙️] Procesando imagen para: ${datosSocio.nombre_socio}`);
 
-    // 1. Renderizar imagen 1080x1350 vía Puppeteer
+    // 🟢 1. PRIORIDAD DE DESTINO: Respetar si la tarea trae un jidOverride (Modo Prueba),
+    // o fallback a remoteJid del socio.
+    const destinoFinal = datosSocio.jidOverride || datosSocio.destinationJid || datosSocio.remoteJid;
+
+    // 2. Renderizar imagen 1080x1350 vía Puppeteer
     const imageBuffer = await generarImagenTasa(datosSocio);
 
-    // 2. Despachar a WhatsApp si existe un remoteJid válido
-    if (datosSocio.remoteJid) {
-      console.log(`[Glaukov Worker 📤] Enviando tasa a WhatsApp JID: ${datosSocio.remoteJid}`);
+    // 3. Despachar a WhatsApp si existe un JID final válido
+    if (destinoFinal) {
+      console.log(`[Glaukov Worker 📤] Enviando tasa a WhatsApp JID: ${destinoFinal}`);
       await enviarImagenWhatsApp(
-        datosSocio.remoteJid,
+        destinoFinal,
         imageBuffer,
         `Hola 👋 *${datosSocio.nombre_socio}*. Adjunto la actualización de tasas 📊.`
       );
@@ -75,7 +78,7 @@ const tasasWorker = new Worker(
       console.log(`[Glaukov Worker ℹ️] ${datosSocio.nombre_socio} no posee remoteJid asignado.`);
     }
 
-    return { status: 'completado', socio: datosSocio.nombre_socio };
+    return { status: 'completado', socio: datosSocio.nombre_socio, destino: destinoFinal };
   },
   {
     connection: redisConnection,
