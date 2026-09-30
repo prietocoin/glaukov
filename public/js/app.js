@@ -102,12 +102,16 @@ function registrarAppAlpine() {
       }
     },
 
-    async generarPreviewImagen(socioNombre = 'GENERAL') {
+  async generarPreviewImagen(socioNombre = 'GENERAL') {
       this.cargandoPreviewImagen = true;
       this.socioPreviewSeleccionado = socioNombre;
       try {
         const timestamp = new Date().getTime();
         this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
+        
+        // ¡ESTA ES LA LÍNEA QUE FALTABA! Abre la imagen en una nueva pestaña
+        window.open(this.imagenPreviewUrl, '_blank');
+        
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
       } finally {
@@ -115,6 +119,7 @@ function registrarAppAlpine() {
       }
     },
 
+    
     async publicarTasaOficial() {
       if (!this.borradorCapturado || Object.keys(this.borradorCapturado).length === 0) {
         alert('No hay borrador capturado para publicar.');
