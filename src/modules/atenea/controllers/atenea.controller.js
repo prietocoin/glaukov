@@ -6,6 +6,9 @@ const reportesService = require('../services/reportes.service');
 const adminService = require('../services/admin.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
 
+// Helper de pausa para rate-limiting en envíos masivos de WhatsApp
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // ==========================================
 // 1. PREVISUALIZACIÓN Y DISPARO DE CARTELERAS
 // ==========================================
@@ -103,13 +106,77 @@ async function previewImage(req, res) {
   }
 }
 
+// 🟢 DISPARO MASIVO DE CARTELERAS (Con soporte de JID de prueba y espera entre envíos)
 async function dispararWhatsApp(req, res) {
   try {
-    const fn = tasasService.dispararPublicacionCartelera || tasasService.encolarNotificacionesTasas;
-    const resultado = await fn();
-    res.json({ success: true, ...resultado });
+    const jidPrueba = process.env.TEST_JID_OVERRIDE || req.body?.jidPrueba || req.query?.jidPrueba || null;
+    const delayMs = parseInt(req.body?.delayMs || process.env.WHATSAPP_DELAY_MS || '3000', 10);
+
+    if (jidPrueba) {
+      console.log(`🧪 [MODO PRUEBA BATCH] Redirigiendo carteleras al grupo: ${jidPrueba}`);
+    } else {
+      console.log(`🚀 [MODO OFICIAL] Disparando ráfaga masiva con pausa de ${delayMs}ms entre socios.`);
+    }
+
+    // Si el servicio soporta la llamada consolidada
+    if (typeof tasasService.dispararPublicacionCartelera === 'function') {
+      const resultado = await tasasService.dispararPublicacionCartelera({ 
+        jidOverride: jidPrueba, 
+        destinationJid: jidPrueba,
+        delayMs 
+      });
+      return res.json({ 
+        success: true, 
+        ...resultado, 
+        message: jidPrueba ? `🧪 Lote enviado al grupo de prueba ${jidPrueba}` : '🚀 Carteleras enviadas a todos los socios' 
+      });
+    }
+
+    // Fallback: Procesamiento secuencial manual con PAUSA PRUDENTE de seguridad entre imágenes
+    const fnConsolidada = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
+    const carteleras = (await fnConsolidada()) || [];
+    const fnMedia = reportesService.enviarMediaWhatsApp || reportesService.enviarReporteMediaWhatsApp;
+
+    const envios = [];
+    for (let i = 0; i < carteleras.length; i++) {
+      const targetData = carteleras[i];
+      const socioNombre = (targetData.nombre_socio || targetData.nombre || 'SOCIO').toUpperCase();
+
+      console.log(`[Batch WA 📤 (${i + 1}/${carteleras.length})] Generando cartelera para ${socioNombre}...`);
+      const imageBuffer = await generarImagenTasa(targetData);
+      const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+
+      let envRes;
+      if (typeof fnMedia === 'function') {
+        envRes = await fnMedia({ 
+          socio: socioNombre, 
+          base64: base64Image,
+          jidOverride: jidPrueba 
+        });
+      } else {
+        envRes = await mercadoService.reenviarTasa(req.body?.id_tasa, socioNombre, jidPrueba);
+      }
+
+      envios.push({ socio: socioNombre, ok: true, detail: envRes });
+
+      // ⏳ PAUSA PRUDENTE: Espera 3 segundos antes de enviar el siguiente para evitar bloqueos
+      if (i < carteleras.length - 1) {
+        console.log(`⏳ Esperando ${delayMs / 1000}s antes de enviar la siguiente imagen...`);
+        await sleep(delayMs);
+      }
+    }
+
+    return res.json({
+      success: true,
+      procesados: envios.length,
+      modoPrueba: !!jidPrueba,
+      destino: jidPrueba || 'GRUPOS_OFICIALES',
+      envios
+    });
+
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('❌ Error en disparo masivo de WhatsApp:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
 
@@ -229,16 +296,15 @@ async function postPublicarTasa(req, res) {
   }
 }
 
-// 🟢 FUNCIÓN CORREGIDA PARA ENVÍO REAL INDIVIDUAL A WHATSAPP
 async function postReenviarTasa(req, res) {
   const socioBuscado = (req.body.socio || 'GENERAL').trim().toUpperCase();
+  const jidPrueba = process.env.TEST_JID_OVERRIDE || req.body?.jidPrueba || null;
   console.log(`[Reenviar Tasa ⚡] Solicitud de reenvío recibida para: ${socioBuscado}`);
 
   try {
-    // 1. Buscar datos del socio
     const fn = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
     let data = [];
-    try { data = (await fn()) || []; } catch (e) { console.error('⚠️ DB Timeout:', e.message); }
+    try { data = (await fn()) || []; } catch (e) { console.error('⚠️️ DB Timeout:', e.message); }
 
     let targetData = data.find(d => {
       const n = (d.nombre_socio || d.nombre || d.socio || '').trim().toUpperCase();
@@ -266,20 +332,18 @@ async function postReenviarTasa(req, res) {
     targetData.nombre_socio = socioBuscado;
     targetData.nombre = socioBuscado;
 
-    // 2. Renderizar la imagen PNG con Puppeteer
     console.log(`[Reenviar Tasa ⚡] Renderizando PNG para ${socioBuscado}...`);
     const imageBuffer = await generarImagenTasa(targetData);
     const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
 
-    // 3. Despachar imagen a WhatsApp
-    console.log(`[Reenviar Tasa ⚡] Despachando a WhatsApp (${socioBuscado})...`);
+    console.log(`[Reenviar Tasa ⚡] Despachando a WhatsApp (${socioBuscado}${jidPrueba ? ' -> MODO PRUEBA' : ''})...`);
     const fnMedia = reportesService.enviarMediaWhatsApp || reportesService.enviarReporteMediaWhatsApp;
     
     let envRes;
     if (typeof fnMedia === 'function') {
-      envRes = await fnMedia({ socio: socioBuscado, base64: base64Image });
+      envRes = await fnMedia({ socio: socioBuscado, base64: base64Image, jidOverride: jidPrueba });
     } else {
-      envRes = await mercadoService.reenviarTasa(req.body.id_tasa, socioBuscado);
+      envRes = await mercadoService.reenviarTasa(req.body.id_tasa, socioBuscado, jidPrueba);
     }
 
     console.log(`[Reenviar Tasa ⚡] ✅ Enviado con éxito a ${socioBuscado}`);
