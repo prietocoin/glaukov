@@ -187,7 +187,7 @@ async reenviarTasaSocio(id_tasa, socio) {
     throw new Error(data.error || 'Error al solicitar reenvío individual');
   }
   return data;
-}
+},
   
   async getColaAdmin(claveAdmin) {
     const res = await fetch('/api/admin/cola', {
