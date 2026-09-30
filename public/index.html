@@ -658,7 +658,7 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ETIQUETA DE MONEDA EN MEMBRETE, VALORES NUMÉRICOS LIMPIOS Y ALTURA ADAPTATIVA SIN RECORTE) -->
+  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ESTRUCTURA DOBLE LÍNEA HÍBRIDA 100% NÍTIDA PARA CELULAR) -->
   <div x-data="{ 
          modalReporteAbierto: false,
          generandoImagen: false,
@@ -703,7 +703,7 @@
            const socioNom = (filtroSocio || sujetoAuditado || '').trim();
 
            if (!socioNom) {
-             alert('⚠️️ Por favor selecciona un socio en los filtros antes de enviar el reporte.');
+             alert('⚠️ Por favor selecciona un socio en los filtros antes de enviar el reporte.');
              return;
            }
 
@@ -714,7 +714,7 @@
                scale: 2, 
                useCORS: true, 
                backgroundColor: '#ffffff',
-               windowWidth: 540
+               windowWidth: 520
              });
              const base64Image = canvas.toDataURL('image/jpeg', 0.85);
 
@@ -782,19 +782,19 @@
       <!-- ÁREA DE VISTA PREVIA -->
       <div class="flex-1 overflow-y-auto p-2 md:p-4 flex justify-center bg-[#030611]">
         
-        <!-- 🟢 DOCUMENTO REPORTE: CON ETIQUETA DE MONEDA EN MEMBRETE Y FILAS FLUIDAS SIN CORTES -->
-        <div id="reporte-html-documento" class="bg-white text-slate-900 p-4 rounded-xl space-y-2.5 shadow-2xl w-full max-w-[500px] mx-auto border border-slate-200" style="box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif;">
+        <!-- 🟢 DOCUMENTO REPORTE: TICKET VERTICAL DE ALTA LEGIBILIDAD (500px ANCHO) -->
+        <div id="reporte-html-documento" class="bg-white text-slate-900 p-4 rounded-xl space-y-3 shadow-2xl w-full max-w-[500px] mx-auto border border-slate-200" style="box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif;">
           
-          <!-- 1. MEMBRETE COMPACTO CON BADGE DE MONEDA -->
-          <div class="border-b-2 border-slate-900 pb-2 flex justify-between items-center" style="line-height: 1.2;">
-            <div class="flex items-center gap-2">
+          <!-- 1. MEMBRETE COMPACTO CON BADGE DE MONEDA DE SOCIO -->
+          <div class="border-b-2 border-slate-900 pb-2.5 flex justify-between items-center" style="line-height: 1.2;">
+            <div class="flex items-center gap-2.5">
               <div class="w-8 h-8 rounded-lg bg-[#050b1e] p-1 flex items-center justify-center shrink-0">
                 <img src="/logo-fundablock.png" alt="Logo" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/32?text=FB'">
               </div>
               <div>
                 <div class="flex items-center gap-1.5">
                   <h1 class="text-sm font-black text-slate-900 tracking-tight uppercase" style="margin: 0;" x-text="'REPORTE DE ' + (sujetoAuditado || 'SOCIO')"></h1>
-                  <!-- BADGE DE MONEDA SOCIO -->
+                  <!-- BADGE MONEDA USUARIO -->
                   <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-mono font-black text-[9px] shadow-sm uppercase shrink-0" x-text="getMonedaReporte()"></span>
                 </div>
                 <p class="text-[10px] text-slate-500 font-bold" style="margin: 2px 0 0 0;" x-text="'Emisión: ' + new Date().toLocaleDateString() + ' • Pág. ' + paginaActual + ' de ' + totalPaginas"></p>
@@ -806,8 +806,8 @@
             </div>
           </div>
 
-          <!-- 2. FRANJA DE SALDOS (VALORES NUMÉRICOS PUROS) -->
-          <div class="bg-slate-900 text-white px-3 py-1.5 rounded-lg shadow-inner flex justify-between items-center font-mono text-xs" style="line-height: 1.2;">
+          <!-- 2. FRANJA DE SALDOS (EN MONEDA SOCIO) -->
+          <div class="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-inner flex justify-between items-center font-mono text-xs" style="line-height: 1.2;">
             <div class="text-left">
               <span class="text-[8px] font-bold text-slate-400 uppercase block">Saldo Anterior</span>
               <span class="font-black text-amber-400" x-text="formatMonto(saldoAnteriorPagina)"></span>
@@ -822,47 +822,42 @@
             </div>
           </div>
 
-          <!-- 3. LISTADO DE TRANSACCIONES SIN DEFORMACIONES NI US_DT REPETIDO -->
-          <div class="divide-y divide-slate-100 border-t border-b border-slate-200 py-0.5">
+          <!-- 3. LISTADO DE TRANSACCIONES - ESTRUCTURA 2 LÍNEAS HÍBRIDA PERFECTA -->
+          <div class="divide-y divide-slate-200 border-t border-b border-slate-300 py-0.5">
             <template x-for="(item, index) in comprobantesPagina" :key="'doc-'+item.hash_largo">
-              <div class="py-1.5 px-1 flex items-center justify-between text-[9px]" style="box-sizing: border-box; line-height: 1.3;">
+              <div class="py-2 px-1 flex flex-col justify-center space-y-1 hover:bg-slate-50 transition-colors" style="box-sizing: border-box; line-height: 1.3;">
                 
-                <!-- COLUMNA IZQUIERDA: [TIPO] HASH FECHA | MONTO_ORIGEN (TASA) • TITULAR(1palabra) / BANCO -->
-                <div class="flex items-center gap-1.5 min-w-0 pr-1 overflow-hidden whitespace-nowrap">
-                  <!-- Tag Tipo -->
-                  <span class="px-1 py-0.2 rounded text-[8px] font-black font-mono shrink-0" 
-                        :class="(item.tipo_op1 || 'D').startsWith('P') ? 'bg-amber-100 text-amber-800' : ((item.tipo_op1 || 'D').startsWith('A') ? 'bg-purple-100 text-purple-800' : 'bg-cyan-100 text-cyan-800')"
-                        x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + ']'"></span>
-                  
-                  <!-- Hash Corto -->
-                  <span class="font-mono font-bold text-blue-700 text-[8.5px] shrink-0" 
-                        x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : '')"></span>
+                <!-- LÍNEA 1: TIPO + HASH CORTO + IMPACTO EN GRANDE (MONEDA USUARIO) -->
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-black font-mono shrink-0" 
+                          :class="(item.tipo_op1 || 'D').startsWith('P') ? 'bg-amber-100 text-amber-900 border border-amber-300' : ((item.tipo_op1 || 'D').startsWith('A') ? 'bg-purple-100 text-purple-900 border border-purple-300' : 'bg-cyan-100 text-cyan-900 border border-cyan-300')"
+                          x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + ']'"></span>
+                    
+                    <span class="font-mono font-black text-blue-900 text-[11px] tracking-tight" 
+                          x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : '')"></span>
+                  </div>
 
-                  <!-- Fecha MM-DD -->
-                  <span class="text-slate-400 font-mono text-[8px] shrink-0" 
-                        x-text="item.fecha_hora_comprobante ? item.fecha_hora_comprobante.substring(5,10) : ''"></span>
-
-                  <!-- MONTO ORIGEN Y TASA -->
-                  <span class="font-mono font-bold text-slate-900 text-[9px] shrink-0">
-                    <span x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></span>
-                    <span class="text-purple-700 font-bold" x-text="'(' + (item.tasa_1 || 1.0) + ')'"></span>
-                  </span>
-
-                  <span class="text-slate-300 font-bold shrink-0">•</span>
-
-                  <!-- TITULAR (SOLO 1RA PALABRA) / BANCO -->
-                  <span class="text-slate-600 font-medium uppercase truncate text-[8.5px]">
-                    <span x-text="(item.titular || 'N/D').trim().split(' ')[0]"></span>
-                    <span class="text-slate-300">/</span>
-                    <span x-text="item.banco || 'BANCO'"></span>
-                  </span>
+                  <!-- IMPACTO DESTACADO Y LEGIBLE -->
+                  <span class="font-black font-mono text-[13px]" 
+                        :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-600' : 'text-emerald-700'"
+                        x-text="(parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) >= 0 ? '+' : '') + formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto))"></span>
                 </div>
 
-                <!-- COLUMNA DERECHA: IMPACTO NUMÉRICO LIMPIO SIN US_DT -->
-                <div class="text-right shrink-0 font-mono whitespace-nowrap pl-2">
-                  <span class="font-black text-[10.5px]" 
-                        :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-600' : 'text-emerald-600'"
-                        x-text="(parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) >= 0 ? '+' : '') + formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto))"></span>
+                <!-- LÍNEA 2: DETALLES SECUNDARIOS (FECHA • TITULAR / BANCO • MONTO ORIGEN (TASA)) -->
+                <div class="flex items-center justify-between text-[10px] text-slate-600 font-medium">
+                  <div class="flex items-center gap-1.5 truncate pr-2">
+                    <span class="text-slate-400 font-mono text-[9.5px]" x-text="item.fecha_hora_comprobante ? item.fecha_hora_comprobante.substring(5,10) : ''"></span>
+                    <span class="text-slate-300">•</span>
+                    <span class="text-slate-800 font-bold uppercase truncate">
+                      <span x-text="(item.titular || 'N/D').trim().split(' ')[0]"></span> / <span x-text="item.banco || 'BANCO'"></span>
+                    </span>
+                  </div>
+
+                  <div class="shrink-0 font-mono text-[10px] text-slate-500 font-semibold">
+                    <span x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></span>
+                    <span class="text-purple-700 font-bold" x-text="'(' + (item.tasa_1 || 1.0) + ')'"></span>
+                  </div>
                 </div>
 
               </div>
@@ -870,7 +865,7 @@
           </div>
 
           <!-- 4. PIE DE PÁGINA RESUMEN -->
-          <div class="pt-0.5 flex items-center justify-between text-[8.5px] text-slate-400 font-mono" style="line-height: 1.1;">
+          <div class="pt-1 flex items-center justify-between text-[9px] text-slate-400 font-mono" style="line-height: 1.1;">
             <span>GLAUKOV ENGINE • ATENEA V2.0</span>
             <span class="font-bold text-slate-700" x-text="'PÁGINA ' + paginaActual + ' DE ' + totalPaginas"></span>
             <span class="text-emerald-600 font-bold">NUEVO SALDO: <strong x-text="formatMonto(saldoFinalPagina)"></strong></span>
