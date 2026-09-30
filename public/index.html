@@ -316,7 +316,7 @@
 
                   <div class="flex justify-around items-center pt-1 border-t border-blue-900/30">
                     <button @click="eliminarComprobante(item.hash_largo)" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors text-base active:scale-95" title="Eliminar">🗑</button>
-                    <button @click="abrirModal(item)" class="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-base active:scale-95" title="Auditar">✏️️</button>
+                    <button @click="abrirModal(item)" class="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-base active:scale-95" title="Auditar">✏️</button>
                   </div>
                 </div>
 
@@ -658,7 +658,7 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (TABLAS HTML PURAS - SOCIO Y MONEDA A LA IZQUIERDA DIRECTOS SIN ETIQUETAS "TITULAR...", SALDO ANTERIOR CON SUBTITULO VISIBLE Y NUEVO SALDO EN 28px) -->
+  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ESTRUCTURA DE TABLAS PURAS NATIVAS PARA GARANTIZAR VISIBILIDAD DE SUBTITULOS Y SOCIO A LA IZQUIERDA) -->
   <div x-data="{ 
          modalReporteAbierto: false,
          generandoImagen: false,
@@ -811,24 +811,28 @@
               </table>
             </div>
 
-            <!-- 2. FILA DE SOCIO Y MONEDA (IZQUIERDA) JUNTO A LA CARD DE SALDO ANTERIOR (DERECHA) -->
+            <!-- 2. FILA EN TABLA NATIVA CON SOCIO Y MONEDA (IZQUIERDA) Y CARD SALDO ANTERIOR (DERECHA) -->
             <div style="margin-bottom: 14px;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
-                  <!-- A LA IZQUIERDA: NOMBRE DEL SOCIO EN TAMAÑO GRANDE Y MONEDA AL LADO (SIN TEXTO "TITULAR...") -->
+                  <!-- A LA IZQUIERDA: NOMBRE DEL SOCIO Y MONEDA DIRECTOS SIN ETIQUETA "TITULAR..." -->
                   <td style="vertical-align: middle; text-align: left;">
                     <div style="font-size: 24px; font-weight: 900; color: #0f172a; line-height: 1.1; text-transform: uppercase; letter-spacing: -0.5px;">
                       <span x-text="sujetoAuditado || 'SOCIO'"></span>
-                      <span style="color: #059669; font-size: 20px; margin-left: 6px;" x-text="'(' + getMonedaReporte() + ')'"></span>
+                      <span style="color: #059669; font-size: 20px; font-weight: 900; margin-left: 6px;" x-text="'(' + getMonedaReporte() + ')'"></span>
                     </div>
                   </td>
 
-                  <!-- A LA DERECHA: CARD / BOTÓN SALDO ANTERIOR CON SUBTÍTULO CLARO Y DESTACADO -->
+                  <!-- A LA DERECHA: CARD SALDO ANTERIOR NATIVA -->
                   <td style="vertical-align: middle; text-align: right; width: 250px;">
-                    <div style="background-color: #0f172a; color: #ffffff; padding: 12px 22px; border-radius: 10px; display: inline-block; width: 100%; box-sizing: border-box; text-align: right; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                      <div style="font-size: 11px; color: #94a3b8; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; display: block;">SALDO ANTERIOR</div>
-                      <div style="font-weight: 900; color: #fbbf24; font-size: 24px; font-family: monospace; line-height: 1;" x-text="formatMonto(saldoAnteriorPagina)"></div>
-                    </div>
+                    <table style="width: 100%; background-color: #0f172a; border-radius: 10px; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 12px 18px; text-align: right;">
+                          <span style="font-size: 11px; color: #94a3b8 !important; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 4px; font-family: Arial, sans-serif;">SALDO ANTERIOR</span>
+                          <span style="font-size: 24px; color: #fbbf24 !important; font-weight: 900; font-family: monospace; display: block; line-height: 1.1;" x-text="formatMonto(saldoAnteriorPagina)"></span>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -890,18 +894,22 @@
             </table>
           </div>
 
-          <!-- BLOQUE INFERIOR (EMPUJADO AL FINAL DEL LIENZO) -->
+          <!-- BLOQUE INFERIOR -->
           <div>
-            <!-- 4. CARD INFERIOR DERECHA: NUEVO SALDO CON SUBTÍTULO VISIBLE Y NÚMERO EN 28px -->
+            <!-- 4. CARD INFERIOR DERECHA: NUEVO SALDO NATIVA CON SUBTÍTULO NÍTIDO -->
             <div style="margin-bottom: 14px;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td></td>
                   <td style="width: 280px; text-align: right;">
-                    <div style="background-color: #064e3b; border: 1.5px solid #10b981; color: #ffffff; padding: 14px 22px; border-radius: 10px; display: inline-block; width: 100%; box-sizing: border-box; text-align: right; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                      <div style="font-size: 11px; color: #a7f3d0; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; display: block;">NUEVO SALDO</div>
-                      <div style="font-weight: 900; color: #6ee7b7; font-size: 28px; font-family: monospace; line-height: 1; letter-spacing: -0.5px;" x-text="formatMonto(saldoFinalPagina)"></div>
-                    </div>
+                    <table style="width: 100%; background-color: #064e3b; border: 1.5px solid #10b981; border-radius: 10px; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 14px 22px; text-align: right;">
+                          <span style="font-size: 11px; color: #a7f3d0 !important; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 4px; font-family: Arial, sans-serif;">NUEVO SALDO</span>
+                          <span style="font-size: 28px; color: #6ee7b7 !important; font-weight: 900; font-family: monospace; display: block; line-height: 1.1; letter-spacing: -0.5px;" x-text="formatMonto(saldoFinalPagina)"></span>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
