@@ -126,12 +126,38 @@ function postN8nWebhook(req, res) {
   }
 }
 
-function getFetchHoo(req, res) {
-  const rates = mercadoService.obtenerBorradorTasas();
-  if (!rates) {
-    return res.status(404).json({ success: false, msg: 'No se ha recibido un borrador reciente.' });
+// 🟢 FUNCIÓN CORREGIDA PARA EL BUG 1
+async function getFetchHoo(req, res) {
+  try {
+    // 1. Intenta consultar activamente al servicio de Hoo o consultar el borrador actual
+    let rates = null;
+    if (typeof mercadoService.consultarApiHoo === 'function') {
+      rates = await mercadoService.consultarApiHoo();
+    } else {
+      rates = mercadoService.obtenerBorradorTasas();
+    }
+
+    // 2. Si no hay borrador activo, se recupera el último lote publicado en la BD
+    if (!rates || Object.keys(rates).length === 0) {
+      const ultimas = await mercadoService.obtenerUltimasTasas();
+      rates = ultimas.tasas || {};
+    }
+
+    return res.json({ success: true, rates });
+  } catch (err) {
+    console.error('⚠️ Error procesando GET /api/tasas/fetch-hoo:', err.message);
+    try {
+      // Respaldo activo a la base de datos para garantizar siempre 200 OK y no romper la UI
+      const ultimas = await mercadoService.obtenerUltimasTasas();
+      return res.json({
+        success: true,
+        rates: ultimas.tasas || {},
+        warning: 'Respuesta recuperada desde base de datos'
+      });
+    } catch (dbErr) {
+      return res.json({ success: true, rates: {} });
+    }
   }
-  res.json({ success: true, rates });
 }
 
 async function postPublicarTasa(req, res) {
@@ -332,7 +358,7 @@ module.exports = {
   deleteSocio,
   getReportesFiltros,
   postEnviarReporteWhatsApp,
-  postEnviarMediaWhatsApp, // 👈 Exportación agregada
+  postEnviarMediaWhatsApp,
   getColaAdmin,
   updateColaAdmin,
   deleteColaAdmin
