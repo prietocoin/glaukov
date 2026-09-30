@@ -53,7 +53,7 @@ async function previewImage(req, res) {
             foundData = {
               nombre_socio: socioObj.nombre,
               roles: socioObj.roles,
-              moneda_socio: socioObj.moneda_socio,
+              moneda_socio: socioObj.moneda_socio || socioObj.monedasocio || 'USDT',
               ajustes: typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}),
               cartelera_paises: socioObj.cartelera_paises || []
             };
@@ -110,7 +110,7 @@ async function dispararWhatsApp(req, res) {
 
     const esModoPrueba = bodyObj.modoPrueba === true || bodyObj.esPrueba === true || queryObj.modoPrueba === 'true';
     
-    // 🛡️ Lógica estricta: Si el switch está ON -> usa TEST_JID_OVERRIDE. Si está OFF -> null (envío oficial).
+    // 🛡️ Lógica estricta: Si el switch está ON -> usa TEST_JID_OVERRIDE del .env. Si está OFF -> null (envío oficial a cada socio).
     const jidPruebaRaw = esModoPrueba 
       ? process.env.TEST_JID_OVERRIDE 
       : (bodyObj.jidPrueba || queryObj.jidPrueba || null);
@@ -119,7 +119,7 @@ async function dispararWhatsApp(req, res) {
     const delayMs = parseInt(bodyObj.delayMs || process.env.WHATSAPP_DELAY_MS || '3000', 10);
 
     if (jidPrueba) {
-      console.log(`🧪 [MODO PRUEBA BATCH] Redirigiendo carteleras al grupo: ${jidPrueba}`);
+      console.log(`🧪 [MODO PRUEBA BATCH] Redirigiendo carteleras al grupo test: ${jidPrueba}`);
     } else {
       console.log(`🚀 [MODO OFICIAL] Disparando ráfaga masiva a canales oficiales con pausa de ${delayMs}ms.`);
     }
@@ -153,7 +153,7 @@ async function dispararWhatsApp(req, res) {
       const targetData = carteleras[i];
       const socioNombre = String(targetData.nombre_socio || targetData.nombre || 'SOCIO').toUpperCase().trim();
 
-      console.log(`[Batch WA 📤 (${i + 1}/${carteleras.length})] Generando cartelera para ${socioNombre}...`);
+      console.log(`[Batch WA 📤 (${i + 1}/${carteleras.length})] Generando cartelera para ${socioNombre} (Moneda: ${targetData.moneda_socio || 'USDT'})...`);
       const imageBuffer = await generarImagenTasa(targetData);
       const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
 
@@ -366,7 +366,7 @@ async function postReenviarTasa(req, res) {
         targetData = {
           nombre_socio: socioObj.nombre,
           roles: socioObj.roles,
-          moneda_socio: socioObj.moneda_socio,
+          moneda_socio: socioObj.moneda_socio || socioObj.monedasocio || 'USDT',
           ajustes: typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}),
           cartelera_paises: socioObj.cartelera_paises || []
         };
@@ -390,7 +390,7 @@ async function postReenviarTasa(req, res) {
     if (typeof fnMedia === 'function') {
       envRes = await fnMedia({ socio: socioBuscado, base64: base64Image, jidOverride: jidPrueba });
     } else {
-      envRes = await mercadoService.reenviarTasa(req.body.id_tasa, socioNombre, jidPrueba);
+      envRes = await mercadoService.reenviarTasa(req.body.id_tasa, socioBuscado, jidPrueba);
     }
 
     console.log(`[Reenviar Tasa ⚡] ✅ Enviado con éxito a ${socioBuscado}`);
