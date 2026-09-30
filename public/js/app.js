@@ -82,9 +82,18 @@ function registrarAppAlpine() {
     async conectarHooAPI() {
       try {
         const res = await window.AteneaAPI.fetchHoo();
-        if (res && res.rates) {
-          this.borradorCapturado = res.rates;
-          alert('Borrador capturado desde Hoo API con éxito.');
+        if (res && (res.rates || res.rates_draft)) {
+          const rawRates = res.rates || res.rates_draft;
+          const ratesNormalizadas = {};
+          
+          // Normalización estricta de llaves a MAYÚSCULAS para sincronizar con tasasProduccion
+          Object.keys(rawRates).forEach(k => {
+            ratesNormalizadas[k.toUpperCase()] = rawRates[k];
+          });
+          
+          // Clonación del objeto para gatillar la reactividad inmediata en Alpine
+          this.borradorCapturado = { ...ratesNormalizadas };
+          alert('✅ Borrador capturado e inyectado con éxito.');
         } else {
           alert('No hay un borrador reciente enviado por n8n / Hoo API.');
         }
@@ -102,7 +111,7 @@ function registrarAppAlpine() {
         this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } finally {
+      } fontal {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -330,14 +339,9 @@ function registrarAppAlpine() {
         }
       }
 
-      // Rastrear la naturaleza (D/P/A) desde todas las fuentes posibles
       const tipoOpBruto = (item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0];
-
-      // Fallbacks para NO perder los nombres de socio detectados
       const fallbackSocio1 = item.nombre_socio_1 || item.socio_1 || item.fb_socio_1 || 'GENERAL';
       const fallbackSocio2 = item.nombre_socio_2 || item.socio_2 || item.fb_socio_2 || 'GENERAL';
-
-      // Fallback de monto
       const fallbackMonto = Math.abs(parseFloat(item.monto || item.monto_local || item.m1_socio || item.monto_1 || 0));
 
       this.itemEdicion = { 
@@ -360,7 +364,6 @@ function registrarAppAlpine() {
       this.modalAbierto = true;
     },
 
-    // 🤖 Método para solicitar re-lectura IA desde la UI
     async releerIAModal() {
       if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
       if (!confirm('¿Deseas enviar este comprobante a re-lectura con Gemini?')) return;
@@ -386,7 +389,6 @@ function registrarAppAlpine() {
         const montoEditado = Math.abs(parseFloat(this.itemEdicion.monto || 0));
         const divisaEditada = (this.itemEdicion.moneda || 'USDT').toUpperCase();
 
-        // 1. Actualizar metadatos brutos en comprobantes_raw
         await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, {
           monto: montoEditado,
           moneda: divisaEditada,
@@ -395,7 +397,6 @@ function registrarAppAlpine() {
           titular: this.itemEdicion.titular
         });
 
-        // 2. Recalcular Tasas Comerciales según la divisa seleccionada y el mercado
         const tasaBaseDivisa = parseFloat(this.tasasProduccion[divisaEditada] || 1.0);
 
         const s1Obj = this.directorio.find(d => d.nombre === this.itemEdicion.nombre_socio_1);
@@ -416,7 +417,6 @@ function registrarAppAlpine() {
         const factor1 = Math.abs(parseFloat(aj1[`${tipoOpLetra}-${divisaEditada}`]) || 1.0);
         const factor2 = Math.abs(parseFloat(aj2[`${tipoOpLetra}-${divisaEditada}`]) || 1.0);
 
-        // Cruce comercial: T1 y T2
         const cross1 = (tasaBaseDivisa / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0)) * factor1;
         const tasa1Calculada = truncarTasaComercial(cross1);
 
@@ -427,7 +427,6 @@ function registrarAppAlpine() {
         const signo2 = -1 * signo1;
         const tieneSocio2 = this.itemEdicion.nombre_socio_2 && this.itemEdicion.nombre_socio_2 !== 'GENERAL';
 
-        // Montos nominales ($M_1, M_2$) y Equivalentes en USDT ($ME_1, ME_2$)
         const m1Nominal = tasa1Calculada > 0 ? (signo1 * montoEditado / tasa1Calculada) : (signo1 * montoEditado);
         const me1USDT = m1Nominal / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0);
 
@@ -436,7 +435,6 @@ function registrarAppAlpine() {
 
         const tipoOpFinal = `${tipoOpLetra}-${divisaEditada}`;
 
-        // 3. Congelar instantánea inmutable recalculada
         await window.AteneaAPI.liquidarComprobante({
           hash_largo: this.itemEdicion.hash_largo,
           socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
