@@ -354,53 +354,37 @@
             <span class="px-2 py-0.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[10px] md:text-[11px] font-mono font-bold rounded-lg" x-text="'Lote en Prod: ' + (loteActivo || 'CARGANDO...')"></span>
           </div>
 
-          <!-- GRILLA DE MONEDAS: Tarjetas (Cards) con Componente Inteligente -->
+          <!-- GRILLA DE MONEDAS: Conexión directa y estricta a la variable de n8n -->
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             <template x-for="(valorProd, moneda) in tasasProduccion" :key="'card-'+moneda">
               
-              <!-- FILTRO: Ignorar metadatos -->
               <template x-if="!['id', 'created_at', 'success', 'message'].includes(moneda.toLowerCase())">
                 
-                <!-- COMPONENTE AISLADO: Calcula su propio estado a prueba de balas (ignora si viene en mayúscula o minúscula) -->
-                <div x-data="{
-                        get valBorrador() {
-                            if (!borradorCapturado) return valorProd;
-                            let val = borradorCapturado[moneda] ?? borradorCapturado[moneda.toLowerCase()] ?? borradorCapturado[moneda.toUpperCase()];
-                            return val !== undefined ? val : valorProd;
-                        },
-                        set valBorrador(newVal) {
-                            if (!borradorCapturado) borradorCapturado = {};
-                            if (borradorCapturado[moneda.toLowerCase()] !== undefined) borradorCapturado[moneda.toLowerCase()] = newVal;
-                            else if (borradorCapturado[moneda.toUpperCase()] !== undefined) borradorCapturado[moneda.toUpperCase()] = newVal;
-                            else borradorCapturado[moneda] = newVal;
-                        },
-                        get modificado() {
-                            return parseFloat(this.valBorrador) !== parseFloat(valorProd);
-                        }
-                     }"
-                     class="bg-[#030611] p-3 rounded-xl border transition-all relative overflow-hidden"
-                     :class="modificado ? 'border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.15)]' : 'border-blue-900/50'">
+                <!-- EVALUADOR DIRECTO: Compara Producción vs HTTP (en minúscula) -->
+                <div class="bg-[#030611] p-3 rounded-xl border transition-all relative overflow-hidden"
+                     :class="(borradorCapturado && borradorCapturado[moneda.toLowerCase()] !== undefined && parseFloat(borradorCapturado[moneda.toLowerCase()]) !== parseFloat(valorProd)) ? 'border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.15)]' : 'border-blue-900/50'">
                   
-                  <!-- Cabecera de la moneda -->
                   <div class="flex justify-between items-center mb-2">
                     <span class="text-sm font-black text-purple-400 uppercase font-mono" x-text="moneda"></span>
-                    <span x-show="modificado" class="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Cambio detectado"></span>
+                    <span x-show="borradorCapturado && borradorCapturado[moneda.toLowerCase()] !== undefined && parseFloat(borradorCapturado[moneda.toLowerCase()]) !== parseFloat(valorProd)" 
+                          class="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Cambio detectado"></span>
                   </div>
                   
                   <div class="space-y-2.5">
-                    <!-- Fila 1: Valor actual en producción (Solo Lectura Formateada) -->
+                    <!-- PROD: Tabla tasas_mercado -->
                     <div class="flex items-center justify-between text-[10px] bg-[#060c24] px-1.5 py-1 rounded border border-blue-900/40">
                       <span class="text-slate-500 font-bold uppercase">PROD:</span>
                       <span class="font-mono font-bold text-slate-300" x-text="formatMonto(valorProd)"></span>
                     </div>
                     
-                    <!-- Fila 2: Nuevo valor borrador (Editable y enlazado reactivamente) -->
+                    <!-- HTTP: Lectura directa del webhook de n8n -->
                     <div class="relative">
                       <span class="absolute -top-2 left-2 bg-[#030611] px-1 text-[8px] font-bold text-emerald-400 uppercase">NUEVO LOTE</span>
                       <input type="number" step="any" 
-                             x-model="valBorrador" 
+                             :value="(borradorCapturado && borradorCapturado[moneda.toLowerCase()] !== undefined) ? borradorCapturado[moneda.toLowerCase()] : valorProd" 
+                             @input="if (!borradorCapturado) borradorCapturado = {}; borradorCapturado[moneda.toLowerCase()] = $event.target.value"
                              class="w-full bg-[#080e26] border border-emerald-900/60 rounded-lg px-2 py-1.5 text-sm font-black font-mono outline-none focus:border-cyan-400 transition-colors"
-                             :class="modificado ? 'text-amber-400 border-amber-900/60' : 'text-emerald-400'">
+                             :class="(borradorCapturado && borradorCapturado[moneda.toLowerCase()] !== undefined && parseFloat(borradorCapturado[moneda.toLowerCase()]) !== parseFloat(valorProd)) ? 'text-amber-400 border-amber-900/60' : 'text-emerald-400'">
                     </div>
                   </div>
 
