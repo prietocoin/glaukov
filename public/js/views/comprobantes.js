@@ -1,5 +1,3 @@
-import { AteneaAPI } from '../api.js';
-
 export function comprobantesView() {
   return {
     items: [],
@@ -56,7 +54,7 @@ export function comprobantesView() {
           }
         }
 
-        this.items = await AteneaAPI.getComprobantes(filtros);
+        this.items = await window.AteneaAPI.getComprobantes(filtros);
       } catch (err) {
         console.error('[Glaukov Comprobantes ❌]', err);
       }
@@ -64,7 +62,7 @@ export function comprobantesView() {
 
     async cargarSocios() {
       try {
-        const res = await AteneaAPI.getSocios();
+        const res = await window.AteneaAPI.getSocios();
         this.socios = Array.isArray(res) ? res.map(s => s.nombre || s) : [];
       } catch (err) {
         console.error('[Glaukov Socios ❌]', err);
@@ -73,7 +71,7 @@ export function comprobantesView() {
 
     async cargarDirectorio() {
       try {
-        this.directorio = await AteneaAPI.getDirectorio();
+        this.directorio = await window.AteneaAPI.getDirectorio();
       } catch (err) {
         console.error('[Glaukov Directorio ❌]', err);
       }
@@ -173,7 +171,7 @@ export function comprobantesView() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
-        await AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, this.itemEdicion);
+        await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, this.itemEdicion);
         this.modalEdicionAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
@@ -184,7 +182,7 @@ export function comprobantesView() {
     async eliminarComprobante(hashLargo) {
       if (!confirm('¿Deseas eliminar este comprobante de la base de datos?')) return;
       try {
-        await AteneaAPI.eliminarComprobante(hashLargo);
+        await window.AteneaAPI.eliminarComprobante(hashLargo);
         this.modalEdicionAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
@@ -200,7 +198,7 @@ export function comprobantesView() {
 
       this.enviandoReporte = true;
       try {
-        await AteneaAPI.enviarWhatsApp({
+        await window.AteneaAPI.enviarWhatsApp({
           socio: this.filtroSocio,
           remoteJid: this.jidSocioActual,
           saldoAnterior: this.saldoAnteriorReporte,
