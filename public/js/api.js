@@ -175,6 +175,20 @@ window.AteneaAPI = {
     return await res.json();
   },
 
+  // En js/api.js
+async reenviarTasaSocio(id_tasa, socio) {
+  const res = await fetch('/api/tasas/reenviar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_tasa, socio })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Error al solicitar reenvío individual');
+  }
+  return data;
+}
+  
   async getColaAdmin(claveAdmin) {
     const res = await fetch('/api/admin/cola', {
       headers: { 'x-admin-key': claveAdmin }
