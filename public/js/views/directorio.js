@@ -1,5 +1,3 @@
-import { AteneaAPI } from '../api.js';
-
 export function directorioView() {
   return {
     socios: [],
@@ -9,7 +7,7 @@ export function directorioView() {
     async cargar() {
       this.loading = true;
       try {
-        this.socios = await AteneaAPI.getDirectorio();
+        this.socios = await window.AteneaAPI.getDirectorio();
       } catch (err) {
         console.error('[Glaukov UI ❌]', err.message);
       } finally {
@@ -28,8 +26,8 @@ export function directorioView() {
 
     async toggleEstado(socio) {
       try {
-        const result = await AteneaAPI.patchEstadoSocio(socio.nombre, !socio.activo);
-        if (result.success) socio.activo = !socio.activo;
+        const result = await window.AteneaAPI.patchEstadoSocio(socio.nombre, !socio.activo);
+        if (result && result.success) socio.activo = !socio.activo;
       } catch (err) {
         console.error('[Glaukov UI ❌]', err.message);
       }
