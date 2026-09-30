@@ -362,13 +362,13 @@
                 
                 <!-- CARD DINÁMICA: Se ilumina si el borrador es diferente a producción -->
                 <div class="bg-[#030611] p-3 rounded-xl border transition-all relative overflow-hidden"
-                     :class="parseFloat(borradorCapturado[moneda]) !== parseFloat(tasasProduccion[moneda]) ? 'border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.15)]' : 'border-blue-900/50'">
+                     :class="parseFloat(borradorCapturado[moneda]) !== parseFloat(tasasProduccion[moneda.toUpperCase()] || 0) ? 'border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.15)]' : 'border-blue-900/50'">
                   
                   <!-- Cabecera de la moneda -->
                   <div class="flex justify-between items-center mb-2">
                     <span class="text-sm font-black text-purple-400 uppercase font-mono" x-text="moneda"></span>
                     <!-- Indicador visual de cambio -->
-                    <span x-show="parseFloat(borradorCapturado[moneda]) !== parseFloat(tasasProduccion[moneda])" 
+                    <span x-show="parseFloat(borradorCapturado[moneda]) !== parseFloat(tasasProduccion[moneda.toUpperCase()] || 0)" 
                           class="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Cambio detectado"></span>
                   </div>
                   
@@ -376,7 +376,7 @@
                     <!-- Fila 1: Valor actual en producción (Solo Lectura) -->
                     <div class="flex items-center justify-between text-[10px] bg-[#060c24] px-1.5 py-1 rounded border border-blue-900/40">
                       <span class="text-slate-500 font-bold uppercase">PROD:</span>
-                      <span class="font-mono font-bold text-slate-300" x-text="formatMonto(tasasProduccion[moneda] || 0)"></span>
+                      <span class="font-mono font-bold text-slate-300" x-text="formatMonto(tasasProduccion[moneda.toUpperCase()] || 0)"></span>
                     </div>
                     
                     <!-- Fila 2: Nuevo valor borrador (Editable) -->
@@ -401,7 +401,6 @@
           
         </div>
       </div>
-
       <!-- VISTA 3: DIRECTORIO DE SOCIOS -->
       <div x-show="vistaActiva === 'directorio'" class="space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-blue-900/50 pb-3">
