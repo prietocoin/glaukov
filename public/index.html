@@ -658,7 +658,7 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ESTRUCTURA DE TABLAS HTML NATIVAS 100% NÍTIDAS SIN ERRORES DE BASELINE) -->
+  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ESTRUCTURA BASADA EN TABLAS HTML PURAS SIN RECORTE/APLASTAMIENTO Y SIN SUBRAYADOS) -->
   <div x-data="{ 
          modalReporteAbierto: false,
          generandoImagen: false,
@@ -703,7 +703,7 @@
            const socioNom = (filtroSocio || sujetoAuditado || '').trim();
 
            if (!socioNom) {
-             alert('⚠️️ Por favor selecciona un socio en los filtros antes de enviar el reporte.');
+             alert('⚠️ Por favor selecciona un socio en los filtros antes de enviar el reporte.');
              return;
            }
 
@@ -758,14 +758,14 @@
     <!-- CONTENEDOR VENTANA MODAL -->
     <div class="bg-[#060c24] border border-blue-900/80 rounded-2xl w-full max-w-xl h-full md:h-auto md:max-h-[92vh] flex flex-col shadow-2xl relative overflow-hidden" @click.away="modalReporteAbierto = false">
       
-      <!-- CONTROLES SUPERIORES DE NAVEGACIÓN -->
+      <!-- CONTROLES SUPERIORES DE NAVEGACIÓN DE PÁGINAS -->
       <div class="flex items-center justify-between bg-[#080e26] border-b border-blue-900/60 px-3 py-2.5 shrink-0 no-imprimir z-20 flex-wrap gap-2">
         <div class="flex items-center gap-2">
           <span class="font-black text-cyan-300 text-xs">📄 Estado de Cuenta</span>
           <div class="flex items-center bg-[#030611] border border-blue-900 rounded-lg px-2 py-0.5 text-xs text-slate-300 font-mono">
-            <button @click="if (paginaActual > 1) paginaActual--" :disabled="paginaActual <= 1" class="px-1 text-cyan-400 disabled:opacity-30 hover:font-bold">◀</button>
+            <button type="button" @click="if (paginaActual > 1) paginaActual--" :disabled="paginaActual <= 1" class="px-1 text-cyan-400 disabled:opacity-30 hover:font-bold">◀</button>
             <span class="px-2" x-text="paginaActual + ' / ' + totalPaginas"></span>
-            <button @click="if (paginaActual < totalPaginas) paginaActual++" :disabled="paginaActual >= totalPaginas" class="px-1 text-cyan-400 disabled:opacity-30 hover:font-bold">▶</button>
+            <button type="button" @click="if (paginaActual < totalPaginas) paginaActual++" :disabled="paginaActual >= totalPaginas" class="px-1 text-cyan-400 disabled:opacity-30 hover:font-bold">▶</button>
           </div>
         </div>
         
@@ -782,7 +782,7 @@
       <!-- ÁREA DE VISTA PREVIA -->
       <div class="flex-1 overflow-y-auto p-2 md:p-4 flex justify-center bg-[#030611]">
         
-        <!-- 🟢 DOCUMENTO REPORTE: TABLAS NATIVAS PURAS SINO DEFORMACIONES EN HTML2CANVAS -->
+        <!-- 🟢 DOCUMENTO REPORTE: MAQUETACIÓN BASADA EN TABLAS HTML PURAS SIN SUBRAYADOS SINO BLOQUES LIMPIOS -->
         <div id="reporte-html-documento" class="bg-white text-slate-900 p-4 rounded-xl space-y-3 shadow-2xl w-full max-w-[500px] mx-auto border border-slate-200" style="box-sizing: border-box; font-family: Arial, sans-serif;">
           
           <!-- 1. MEMBRETE COMPACTO -->
@@ -809,7 +809,7 @@
           </div>
 
           <!-- 2. FRANJA DE SALDOS NATIVA -->
-          <div style="background-color: #0f172a; color: #ffffff; padding: 8px 10px; border-radius: 8px; margin-bottom: 10px;">
+          <div style="background-color: #0f172a; color: #ffffff; padding: 8px 10px; border-radius: 8px; margin-bottom: 8px;">
             <table style="width: 100%; border-collapse: collapse; text-align: center; font-family: monospace; font-size: 11px;">
               <tr>
                 <td style="text-align: left; width: 33%;">
@@ -828,12 +828,12 @@
             </table>
           </div>
 
-          <!-- 3. LISTADO DE TRANSACCIONES BASADO EN TABLAS LIMPIAS (SIN RECORTE/APLASTAMIENTO DE LETRAS) -->
+          <!-- 3. LISTADO DE TRANSACCIONES BASADO EN TABLAS LIMPIAS (SIN RECORTE/APLASTAMIENTO DE LETRAS Y SIN BORDES/SUBRAYADOS CORTANTES) -->
           <div style="padding: 2px 0;">
             <template x-for="(item, index) in comprobantesPagina" :key="'doc-'+item.hash_largo">
-              <div style="padding: 5px 0; box-sizing: border-box;">
+              <div style="padding: 4px 6px; margin-bottom: 3px; background-color: #f8fafc; border-radius: 6px; box-sizing: border-box;">
                 <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                  <!-- FILA 1: TIPO + HASH CORTO + MONTO ORIGEN (TASA) | SUBTOTAL/IMPACTO (14px) -->
+                  <!-- FILA 1: [TIPO] HASH MONTO_ORIGEN (TASA) | SUBTOTAL/IMPACTO (14px) -->
                   <tr>
                     <td style="text-align: left; vertical-align: middle; width: 72%;">
                       <span style="font-family: monospace; font-weight: 900; font-size: 11px; color: #0f172a;" 
@@ -869,7 +869,7 @@
           </div>
 
           <!-- 4. PIE DE PÁGINA RESUMEN -->
-          <div style="border-top: 2px solid #0f172a; padding-top: 6px; margin-top: 8px;">
+          <div style="border-top: 2px solid #0f172a; padding-top: 6px; margin-top: 6px;">
             <table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 8.5px; color: #64748b;">
               <tr>
                 <td style="text-align: left;">GLAUKOV ENGINE • ATENEA V2.0</td>
