@@ -147,6 +147,34 @@ function registrarAppAlpine() {
       }
     },
 
+    // 🟢 NUEVA FUNCIÓN BUG 2: Envío Individual a Socio
+    async enviarTasaIndividual(socioObj) {
+      if (!this.loteActivo) {
+        alert('No hay un lote activo en producción para enviar.');
+        return;
+      }
+      if (!socioObj || !socioObj.nombre) {
+        alert('No se ha definido un socio válido para enviar.');
+        return;
+      }
+      
+      // Validación extra para evitar errores de envío
+      if (!socioObj.whatsapp && !socioObj.id_grupo) {
+         if (!confirm(`⚠️ El socio ${socioObj.nombre} NO parece tener un número de WhatsApp configurado. ¿Intentar enviar de todas formas?`)) return;
+      } else {
+         if (!confirm(`⚡ ¿Enviar la cartelera oficial [${this.loteActivo}] a ${socioObj.nombre} por WhatsApp?`)) return;
+      }
+      
+      try {
+        // Ejecuta la función en el cliente HTTP (asegúrate de que reenviarTasaSocio esté en api.js)
+        await window.AteneaAPI.reenviarTasaSocio(this.loteActivo, socioObj.nombre);
+        alert(`✅ Cartelera enviada exitosamente a ${socioObj.nombre}.`);
+      } catch (err) {
+        console.error(err);
+        alert('❌ Error al enviar tasa individual: ' + err.message);
+      }
+    },
+
     // ==========================================
     // COMPROBANTES, DIRECTORIO & MODALES
     // ==========================================
