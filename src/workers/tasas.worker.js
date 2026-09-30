@@ -2,7 +2,8 @@ const { Worker, Queue } = require('bullmq');
 const redisConnection = require('../config/redis');
 // ✅ Ruta corregida apuntando a modules/render:
 const { generarImagenTasa } = require('../modules/render/services/puppeteer.service');
-
+// Al momento de enviar por Evolution API / WhatsApp:
+const destinoFinal = process.env.TEST_JID_OVERRIDE || socio.whatsapp_jid;
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
 /**
