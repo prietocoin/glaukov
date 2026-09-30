@@ -30,7 +30,7 @@ function parseCartelera(rawInput) {
 }
 
 async function obtenerSociosYProcesarTasas(filtroNombre = null) {
-  // 🟢 1. Obtener la última tasa y la penúltima desde la nueva tabla 'tasas_glaukov'
+  // 🟢 1. Obtener la última tasa y la penúltima desde 'tasas_glaukov'
   const sqlTasas = `
     SELECT id_tasa, tasas, created_at 
     FROM tasas_glaukov 
@@ -63,7 +63,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
-    // 🟢 CORRECCIÓN DE MONEDA: Leer 'moneda_socio' respetando el nombre exacto de la columna
+    // 🟢 MONEDA BASE DEL SOCIO: Lectura correcta desde la columna PostgreSQL
     const monedaRaw = socioData.moneda_socio || socioData.monedasocio || socioData.moneda || "USDT";
     const monedaExtraida = String(monedaRaw).toUpperCase().trim();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
@@ -92,7 +92,6 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const ajustes = typeof socioData.ajustes === 'string' ? JSON.parse(socioData.ajustes || '{}') : (socioData.ajustes || {});
     const tarjetasPaises = [];
 
-    // Función para comparar tendencias basada en 4 decimales
     const getTrend = (actualNum, antNum) => {
       const a = parseFloat(actualNum.toFixed(4));
       const b = parseFloat(antNum.toFixed(4));
@@ -116,7 +115,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       const factorD = Math.abs(parseFloat(rawFactorD) || 0);
       const factorP = Math.abs(parseFloat(rawFactorP) || 0);
 
-      // CÁLCULO ACTUAL
+      // CÁLCULO DE TASAS CON MONEDA DEL SOCIO
       const tasaBaseDestino = parseFloat(tasasMercado[codeP] || 1.0);
       let tasaBaseSocio = 1.0;
       if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocio = parseFloat(tasasMercado[monedaProcesada] || 1.0);
@@ -126,7 +125,6 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       const numCompraActual = crossBaseActual * factorD;
       const numVentaActual = crossBaseActual * factorP;
 
-      // CÁLCULO ANTERIOR (Para comparar)
       const tasaBaseDestinoAnt = parseFloat(tasasMercadoAnterior[codeP] || tasaBaseDestino);
       let tasaBaseSocioAnt = 1.0;
       if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocioAnt = parseFloat(tasasMercadoAnterior[monedaProcesada] || tasaBaseSocio);
@@ -136,7 +134,6 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       const numCompraAnt = crossBaseAnt * factorD;
       const numVentaAnt = crossBaseAnt * factorP;
 
-      // FORMATEO FINAL Y ASIGNACIÓN DE TENDENCIAS
       const valCompraStr = (factorD > 0) ? truncarTasaOficial(numCompraActual) : "-";
       const valVentaStr = (factorP > 0) ? truncarTasaOficial(numVentaActual) : "-";
 
@@ -160,7 +157,6 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     });
   }
 
-  // 🛡️ CORRECCIÓN DE TIPO: Evita error .trim is not a function si llega un objeto
   if (filtroNombre && typeof filtroNombre === 'string') {
     const busqueda = filtroNombre.trim().toLowerCase();
     listaSociosProcesados = listaSociosProcesados.filter(s => s.nombre_socio.toLowerCase().includes(busqueda));
@@ -169,7 +165,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   return listaSociosProcesados;
 }
 
-// 🟢 ENCOLADO A BULLMQ CON PROTECCIÓN TOTAL DE JID DE PRUEBA
+// 🟢 ENCOLADO A BULLMQ CON INYECCIÓN ESTRICTA DE MODO PRUEBA
 async function encolarNotificacionesTasas(options = null) {
   let filtroNombre = null;
   let jidOverride = null;
@@ -185,13 +181,15 @@ async function encolarNotificacionesTasas(options = null) {
   console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
   
   for (const socio of socios) {
-    // 🛡️ Si hay jidOverride (Modo Prueba ON), se sobreescribe explícitamente en todos los campos de destino
-    const targetJid = jidOverride ? String(jidOverride).trim() : socio.remoteJid;
+    // 🛡️ SOBREESCRITURA DIRECTA: Si existe jidOverride, forzar el destino a la variable de prueba
+    const targetJid = (jidOverride && String(jidOverride).trim().length > 0) 
+      ? String(jidOverride).trim() 
+      : socio.remoteJid;
 
     const payloadJob = {
       ...socio,
       remoteJid: targetJid,
-      jidOverride: jidOverride ? String(jidOverride).trim() : null,
+      jidOverride: targetJid,
       destinationJid: targetJid
     };
 
