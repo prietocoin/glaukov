@@ -7,13 +7,13 @@ async function obtenerUltimasTasas() {
   const lastLotRes = await db.query(`
     SELECT id_tasa, tasas, created_at 
     FROM tasas_glaukov 
-    ORDER BY id DESC 
+    ORDER BY created_at DESC, id DESC 
     LIMIT 1;
   `);
 
   if (lastLotRes.rows.length === 0) {
     return { 
-      id_tasa: 'T360', 
+      id_tasa: 'T001', 
       tasas: { USD: 1.0, USDT: 1.0, PYUSD: 1.2, ECU: 1.0, PAN: 1.0 } 
     };
   }
@@ -99,7 +99,7 @@ async function publicarTasaOficial(id_tasa, tasas) {
   let codigoTasa = id_tasa;
 
   if (!codigoTasa) {
-    const lastRes = await db.query("SELECT id_tasa FROM tasas_glaukov ORDER BY id DESC LIMIT 1;");
+    const lastRes = await db.query("SELECT id_tasa FROM tasas_glaukov ORDER BY created_at DESC, id DESC LIMIT 1;");
     if (lastRes.rows.length > 0) {
       const lastLot = lastRes.rows[0].id_tasa;
       const match = lastLot.match(/\d+/);
@@ -139,7 +139,7 @@ async function reenviarTasa(id_tasa) {
   let codigoTasa = id_tasa;
 
   if (!codigoTasa) {
-    const lastRes = await db.query("SELECT id_tasa FROM tasas_glaukov ORDER BY id DESC LIMIT 1;");
+    const lastRes = await db.query("SELECT id_tasa FROM tasas_glaukov ORDER BY created_at DESC, id DESC LIMIT 1;");
     if (lastRes.rows.length === 0) {
       throw new Error('No hay tasas registradas para reenviar.');
     }
