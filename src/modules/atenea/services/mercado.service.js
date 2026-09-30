@@ -29,6 +29,7 @@ function guardarBorradorTasas(payload) {
   let data = payload;
   if (Array.isArray(data)) data = data[0] || {};
   if (data.json) data = data.json;
+  if (data.rates) data = data.rates;
   borradorTasas = data;
   return borradorTasas;
 }
@@ -38,6 +39,42 @@ function obtenerBorradorTasas() {
     return null;
   }
   return borradorTasas;
+}
+
+// 🟢 FUNCIÓN AGREGADA PARA RESOLVER EL BUG 1 (CONSULTA ACTIVA A HOO / RENDER)
+async function consultarApiHoo() {
+  const urlHoo = process.env.HOO_API_URL;
+
+  if (urlHoo) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout de 8s
+
+      const res = await fetch(urlHoo, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const json = await res.json();
+        let ratesObj = json.rates || json.tasas || json.data || json;
+        if (Array.isArray(ratesObj)) ratesObj = ratesObj[0]?.rates || ratesObj[0] || {};
+
+        if (ratesObj && typeof ratesObj === 'object' && Object.keys(ratesObj).length > 0) {
+          borradorTasas = ratesObj;
+          return borradorTasas;
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ No se pudo obtener respuesta directa de HOO_API_URL en Render:', err.message);
+    }
+  }
+
+  // Fallback 1: Retornar borrador previo si existía en memoria
+  const borrador = obtenerBorradorTasas();
+  if (borrador) return borrador;
+
+  // Fallback 2: Retornar las últimas tasas registradas en la base de datos
+  const ultimas = await obtenerUltimasTasas();
+  return ultimas.tasas || {};
 }
 
 async function publicarTasaOficial(id_tasa, tasas) {
@@ -96,6 +133,7 @@ module.exports = {
   obtenerUltimasTasas,
   guardarBorradorTasas,
   obtenerBorradorTasas,
+  consultarApiHoo, // 👈 Exportado
   publicarTasaOficial,
   reenviarTasa
 };
