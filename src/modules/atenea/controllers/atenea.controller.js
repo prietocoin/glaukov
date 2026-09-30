@@ -125,11 +125,15 @@ async function dispararWhatsApp(req, res) {
         destinationJid: jidPrueba,
         delayMs 
       });
-      return res.json({ 
-        success: true, 
-        ...resultado, 
-        message: jidPrueba ? `🧪 Lote enviado al grupo de prueba ${jidPrueba}` : '🚀 Carteleras enviadas a todos los socios' 
-      });
+      
+      if (res && typeof res.json === 'function') {
+        return res.json({ 
+          success: true, 
+          ...resultado, 
+          message: jidPrueba ? `🧪 Lote enviado al grupo de prueba ${jidPrueba}` : '🚀 Carteleras enviadas a todos los socios' 
+        });
+      }
+      return resultado;
     }
 
     // Fallback: Procesamiento secuencial manual con PAUSA PRUDENTE de seguridad entre imágenes
@@ -166,17 +170,25 @@ async function dispararWhatsApp(req, res) {
       }
     }
 
-    return res.json({
+    const responsePayload = {
       success: true,
       procesados: envios.length,
       modoPrueba: !!jidPrueba,
       destino: jidPrueba || 'GRUPOS_OFICIALES',
       envios
-    });
+    };
+
+    if (res && typeof res.json === 'function') {
+      return res.json(responsePayload);
+    }
+    return responsePayload;
 
   } catch (err) {
     console.error('❌ Error en disparo masivo de WhatsApp:', err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    if (res && typeof res.status === 'function') {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    throw err;
   }
 }
 
@@ -286,13 +298,30 @@ async function getFetchHoo(req, res) {
   }
 }
 
+// 🟢 FUNCIÓN PUBLICAR TASA CORREGIDA PARA DISPARAR WHATSAPP AUTOMÁTICAMENTE
 async function postPublicarTasa(req, res) {
   try {
     const { id_tasa, tasas } = req.body;
+    
+    // 1. Guardar el nuevo lote en la tabla unificada tasas_glaukov
     const resultado = await mercadoService.publicarTasaOficial(id_tasa, tasas);
-    res.json({ success: true, ...resultado, message: `Tasa ${resultado.id_tasa} publicada correctamente` });
+    console.log(`[Publicar Tasa 🚀] Lote ${resultado.id_tasa} guardado en tasas_glaukov.`);
+
+    // 2. Disparar el envío masivo en segundo plano
+    dispararWhatsApp(req, null)
+      .then(resWa => console.log('✅ Despacho masivo de WhatsApp completado:', resWa?.procesados || 0, 'socios'))
+      .catch(errWa => console.error('❌ Error en disparo masivo de WhatsApp:', errWa.message));
+
+    // 3. Responder de inmediato al Dashboard
+    return res.json({ 
+      success: true, 
+      ...resultado, 
+      message: `Tasa oficial ${resultado.id_tasa} publicada correctamente. Enviando carteleras por WhatsApp...` 
+    });
+
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('❌ Error en postPublicarTasa:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
 
@@ -304,7 +333,7 @@ async function postReenviarTasa(req, res) {
   try {
     const fn = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
     let data = [];
-    try { data = (await fn()) || []; } catch (e) { console.error('⚠️️ DB Timeout:', e.message); }
+    try { data = (await fn()) || []; } catch (e) { console.error('⚠️ DB Timeout:', e.message); }
 
     let targetData = data.find(d => {
       const n = (d.nombre_socio || d.nombre || d.socio || '').trim().toUpperCase();
