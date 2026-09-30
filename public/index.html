@@ -332,11 +332,22 @@
           <div>
             <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Gestión Unificada de Tasas</h2>
           </div>
-          <div class="flex items-center gap-2 w-full sm:w-auto">
-            <button @click="reenviarTasaActual()" class="flex-1 sm:flex-none px-3 py-2 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-bold hover:bg-amber-900 transition-all flex items-center justify-center gap-1">
+          
+          <div class="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
+            
+            <!-- 🟢 SWITCH TOGGLE MODO PRUEBA -->
+            <div class="flex items-center gap-2 bg-[#060c24] px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-md">
+              <span class="text-xs font-bold text-cyan-300">🧪 Modo Prueba:</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" x-model="modoPruebaActivo" class="sr-only peer">
+                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+              </label>
+            </div>
+
+            <button @click="reenviarTasaActual()" class="flex-1 sm:flex-none px-3 py-2 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-bold hover:bg-amber-900 transition-all flex items-center justify-center gap-1 active:scale-95">
               ⚡ Reenviar Tasa
             </button>
-            <button @click="conectarHooAPI()" class="flex-1 sm:flex-none px-3 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-900 transition-all flex items-center justify-center gap-1">
+            <button @click="conectarHooAPI()" class="flex-1 sm:flex-none px-3 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-900 transition-all flex items-center justify-center gap-1 active:scale-95">
               🔄 Traer Borrador Hoo
             </button>
           </div>
@@ -350,7 +361,12 @@
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <h3 class="text-[10px] md:text-xs font-black text-emerald-400 uppercase tracking-wider">Monitor de Variación & Publicación</h3>
             </div>
-            <span class="px-2 py-0.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[10px] md:text-[11px] font-mono font-bold rounded-lg" x-text="'Lote en Prod: ' + (loteActivo || 'CARGANDO...')"></span>
+            <div class="flex items-center gap-2">
+              <span x-show="modoPruebaActivo" class="px-2 py-0.5 bg-cyan-950/90 border border-cyan-400/80 text-cyan-300 text-[10px] font-bold rounded-lg font-mono animate-pulse">
+                🧪 DESTINO: GRUPO PRUEBA
+              </span>
+              <span class="px-2 py-0.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[10px] md:text-[11px] font-mono font-bold rounded-lg" x-text="'Lote en Prod: ' + (loteActivo || 'CARGANDO...')"></span>
+            </div>
           </div>
 
           <!-- GRILLA DE MONEDAS (MONEDAS BASE AL FINAL) -->
@@ -533,7 +549,7 @@
             </div>
           </div>
 
-          <!-- BOTONES DE ACCIÓN DEL MODAL (CON PREVIA Y ENVÍO INDIVIDUAL) -->
+          <!-- BOTONES DE ACCIÓN DEL MODAL -->
           <div class="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-blue-900/60 gap-3">
             <div class="flex items-center gap-2 w-full sm:w-auto">
               <button type="button" 
