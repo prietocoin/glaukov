@@ -658,7 +658,7 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (TABLA HORIZONTAL DENTRO DE LIENZO DE 1200px - 1 SOLA LÍNEA NÍTIDA POR REGISTRO) -->
+  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (FORMATO VERTICAL 1200px x 1600px NATIVO) -->
   <div x-data="{ 
          modalReporteAbierto: false,
          generandoImagen: false,
@@ -779,116 +779,115 @@
         </div>
       </div>
 
-      <!-- ÁREA DE VISTA PREVIA (CON DESPLAZAMIENTO HORIZONTAL SI SE REQUIERE EN MÓVILES) -->
-      <div class="flex-1 overflow-x-auto overflow-y-auto p-3 md:p-5 flex justify-center bg-[#030611]">
+      <!-- ÁREA DE VISTA PREVIA (CON SCROLL PENSADA PARA 1200x1600) -->
+      <div class="flex-1 overflow-x-auto overflow-y-auto p-3 md:p-6 flex justify-center bg-[#030611]">
         
-        <!-- 🟢 DOCUMENTO REPORTE: ANCHO FIJO RÍGIDO DE 1200px (1 SOLA LÍNEA NÍTIDA POR MOVIMIENTO) -->
-        <div id="reporte-html-documento" class="bg-white text-slate-900 p-6 rounded-xl shadow-2xl shrink-0 border border-slate-200" style="width: 1200px; min-width: 1200px; box-sizing: border-box; font-family: Arial, sans-serif; line-height: 1.2;">
+        <!-- 🟢 DOCUMENTO REPORTE: TAMAÑO VERTICAL RÍGIDO (1200px ANCHO x 1600px ALTO) -->
+        <div id="reporte-html-documento" class="bg-white text-slate-900 p-10 rounded-xl shadow-2xl shrink-0 border border-slate-200 flex flex-col justify-between" style="width: 1200px; min-width: 1200px; height: 1600px; min-height: 1600px; box-sizing: border-box; font-family: Arial, sans-serif; line-height: 1.3;">
           
-          <!-- 1. MEMBRETE COMPACTO -->
-          <div style="border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px;">
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="width: 42px; vertical-align: middle;">
-                  <div style="width: 36px; height: 36px; background-color: #050b1e; border-radius: 8px; padding: 2px; box-sizing: border-box;">
-                    <img src="/logo-fundablock.png" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='https://via.placeholder.com/36?text=FB'">
-                  </div>
-                </td>
-                <td style="vertical-align: middle; padding-left: 8px;">
-                  <h1 style="font-size: 16px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase;">
-                    REPORTE DE ESTADO DE CUENTA — <span x-text="sujetoAuditado || 'SOCIO'"></span> (<span x-text="getMonedaReporte()"></span>)
-                  </h1>
-                  <p style="font-size: 11px; color: #64748b; margin: 2px 0 0 0; font-weight: 700;" x-text="'Emisión: ' + new Date().toLocaleDateString() + ' • Página ' + paginaActual + ' de ' + totalPaginas"></p>
-                </td>
-                <td style="vertical-align: middle; text-align: right; width: 140px;">
-                  <span style="font-size: 11px; font-weight: 900; color: #059669; letter-spacing: 1px; display: block;">FUNDABLOCK</span>
-                  <span style="font-size: 9px; font-family: monospace; color: #94a3b8;">GLAUKOV ENGINE IA</span>
-                </td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- 2. FRANJA DE SALDOS ANCHO COMPLETO -->
-          <div style="background-color: #0f172a; color: #ffffff; padding: 10px 16px; border-radius: 8px; margin-bottom: 12px;">
-            <table style="width: 100%; border-collapse: collapse; text-align: center; font-family: monospace; font-size: 13px;">
-              <tr>
-                <td style="text-align: left; width: 33%;">
-                  <span style="font-size: 9px; color: #94a3b8; display: block; font-weight: bold; text-transform: uppercase;">Saldo Anterior</span>
-                  <span style="font-weight: 900; color: #fbbf24; font-size: 14px;" x-text="formatMonto(saldoAnteriorPagina) + ' ' + getMonedaReporte()"></span>
-                </td>
-                <td style="text-align: center; width: 34%; border-left: 1px solid #334155; border-right: 1px solid #334155;">
-                  <span style="font-size: 9px; color: #94a3b8; display: block; font-weight: bold; text-transform: uppercase;">Movimiento Página</span>
-                  <span style="font-weight: 900; font-size: 14px;" :class="movimientoPagina < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="(movimientoPagina >= 0 ? '+' : '') + formatMonto(movimientoPagina) + ' ' + getMonedaReporte()"></span>
-                </td>
-                <td style="text-align: right; width: 33%;">
-                  <span style="font-size: 9px; color: #34d399; display: block; font-weight: bold; text-transform: uppercase;">Saldo Final Página</span>
-                  <span style="font-weight: 900; color: #6ee7b7; font-size: 15px;" x-text="formatMonto(saldoFinalPagina) + ' ' + getMonedaReporte()"></span>
-                </td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- 3. TABLA DE TRANSACCIONES NATIVA (MÁXIMA EFICIENCIA HORIZONTAL Y CERO ENVOLTURAS VERTICALES) -->
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-            <thead>
-              <tr style="border-bottom: 2px solid #e2e8f0; font-size: 10px; font-weight: 900; color: #64748b; text-transform: uppercase; text-align: left;">
-                <th style="padding: 4px 6px; width: 50px;">Tipo</th>
-                <th style="padding: 4px 6px; width: 90px;">Hash</th>
-                <th style="padding: 4px 6px; width: 70px;">Fecha</th>
-                <th style="padding: 4px 6px;">Titular / Banco</th>
-                <th style="padding: 4px 6px; text-align: right; width: 260px;">Monto Origen (Tasa)</th>
-                <th style="padding: 4px 6px; text-align: right; width: 160px;">Impacto (<span x-text="getMonedaReporte()"></span>)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="(item, index) in comprobantesPagina" :key="'doc-'+item.hash_largo">
-                <tr style="border-bottom: 1px solid #f1f5f9; height: 28px; box-sizing: border-box;">
-                  <!-- TIPO OP -->
-                  <td style="padding: 2px 6px; font-family: monospace; font-size: 11px; font-weight: 900; vertical-align: middle;">
-                    <span :class="(item.tipo_op1 || 'D').startsWith('P') ? 'text-amber-700' : ((item.tipo_op1 || 'D').startsWith('A') ? 'text-purple-700' : 'text-cyan-700')"
-                          x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + ']'"></span>
+          <div>
+            <!-- 1. MEMBRETE INSTITUCIONAL COMPACTO -->
+            <div style="border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="width: 50px; vertical-align: middle;">
+                    <div style="width: 44px; height: 44px; background-color: #050b1e; border-radius: 8px; padding: 3px; box-sizing: border-box;">
+                      <img src="/logo-fundablock.png" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='https://via.placeholder.com/44?text=FB'">
+                    </div>
                   </td>
-
-                  <!-- HASH CORTO -->
-                  <td style="padding: 2px 6px; font-family: monospace; font-size: 11px; font-weight: 900; color: #1e40af; vertical-align: middle;">
-                    <span x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : '')"></span>
+                  <td style="vertical-align: middle; padding-left: 10px;">
+                    <h1 style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: -0.5px;">
+                      REPORTE DE ESTADO DE CUENTA — <span x-text="sujetoAuditado || 'SOCIO'"></span> (<span x-text="getMonedaReporte()"></span>)
+                    </h1>
+                    <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0; font-weight: 700;" x-text="'Emisión: ' + new Date().toLocaleDateString() + ' • Página ' + paginaActual + ' de ' + totalPaginas"></p>
                   </td>
-
-                  <!-- FECHA -->
-                  <td style="padding: 2px 6px; font-family: monospace; font-size: 10px; color: #64748b; vertical-align: middle;">
-                    <span x-text="item.fecha_hora_comprobante ? item.fecha_hora_comprobante.substring(5,10) : ''"></span>
-                  </td>
-
-                  <!-- TITULAR / BANCO -->
-                  <td style="padding: 2px 6px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; vertical-align: middle;">
-                    <span x-text="(item.titular || 'N/D').trim().split(' ')[0]"></span>
-                    <span style="color: #cbd5e1; margin: 0 2px;">/</span>
-                    <span x-text="item.banco || 'BANCO'"></span>
-                  </td>
-
-                  <!-- MONTO ORIGEN (TASA) -->
-                  <td style="padding: 2px 6px; font-family: monospace; font-size: 11px; font-weight: 700; color: #1e293b; text-align: right; vertical-align: middle;">
-                    <span x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></span>
-                    <span style="color: #6b21a8; font-weight: 800; margin-left: 4px;" x-text="'(' + (item.tasa_1 || 1.0) + ')'"></span>
-                  </td>
-
-                  <!-- SUBTOTAL / IMPACTO EN 14px NEGRITA -->
-                  <td style="padding: 2px 6px; font-family: monospace; font-size: 14px; font-weight: 900; text-align: right; vertical-align: middle;"
-                      :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-600' : 'text-emerald-700'"
-                      x-text="(parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) >= 0 ? '+' : '') + formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto))">
+                  <td style="vertical-align: middle; text-align: right; width: 160px;">
+                    <span style="font-size: 13px; font-weight: 900; color: #059669; letter-spacing: 1px; display: block;">FUNDABLOCK</span>
+                    <span style="font-size: 10px; font-family: monospace; color: #94a3b8;">GLAUKOV ENGINE IA</span>
                   </td>
                 </tr>
-              </template>
-            </tbody>
-          </table>
+              </table>
+            </div>
 
-          <!-- 4. PIE DE PÁGINA RESUMEN -->
-          <div style="border-top: 2px solid #0f172a; padding-top: 8px; margin-top: 8px;">
-            <table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 9.5px; color: #64748b;">
+            <!-- 2. FRANJA DE SALDOS EN 2 COLUMNAS (SIN MOVIMIENTO PÁGINA) -->
+            <div style="background-color: #0f172a; color: #ffffff; padding: 16px 24px; border-radius: 10px; margin-bottom: 24px;">
+              <table style="width: 100%; border-collapse: collapse; font-family: monospace;">
+                <tr>
+                  <td style="text-align: left; width: 50%;">
+                    <span style="font-size: 11px; color: #94a3b8; display: block; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">Saldo Anterior</span>
+                    <span style="font-weight: 900; color: #fbbf24; font-size: 18px;" x-text="formatMonto(saldoAnteriorPagina) + ' ' + getMonedaReporte()"></span>
+                  </td>
+                  <td style="text-align: right; width: 50%;">
+                    <span style="font-size: 11px; color: #34d399; display: block; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">Saldo Final Página</span>
+                    <span style="font-weight: 900; color: #6ee7b7; font-size: 20px;" x-text="formatMonto(saldoFinalPagina) + ' ' + getMonedaReporte()"></span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 3. TABLA DE TRANSACCIONES (ORDEN ESTRICTO: FECHA | TIPO | HASH | MONTO_O | TITULAR/BANCO | TASA | SUBTOTAL) -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="border-bottom: 3px solid #0f172a; font-size: 12px; font-weight: 900; color: #475569; text-transform: uppercase; text-align: left;">
+                  <th style="padding: 10px 8px; width: 80px;">Fecha</th>
+                  <th style="padding: 10px 8px; width: 70px; text-align: center;">Tipo</th>
+                  <th style="padding: 10px 8px; width: 110px;">Hash</th>
+                  <th style="padding: 10px 8px; width: 180px; text-align: right;">Monto Origen</th>
+                  <th style="padding: 10px 12px;">Titular / Banco</th>
+                  <th style="padding: 10px 8px; width: 90px; text-align: center;">Tasa</th>
+                  <th style="padding: 10px 8px; width: 180px; text-align: right;">Subtotal (<span x-text="getMonedaReporte()"></span>)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(item, index) in comprobantesPagina" :key="'doc-'+item.hash_largo">
+                  <tr style="border-bottom: 1px solid #e2e8f0; height: 52px; box-sizing: border-box;">
+                    <!-- 1. FECHA -->
+                    <td style="padding: 8px 6px; font-family: monospace; font-size: 12px; color: #64748b; font-weight: 700; vertical-align: middle;"
+                        x-text="item.fecha_hora_comprobante ? item.fecha_hora_comprobante.substring(5,10) : ''"></td>
+
+                    <!-- 2. TIPO -->
+                    <td style="padding: 8px 6px; font-family: monospace; font-size: 12px; font-weight: 900; text-align: center; vertical-align: middle;">
+                      <span :class="(item.tipo_op1 || 'D').startsWith('P') ? 'text-amber-700' : ((item.tipo_op1 || 'D').startsWith('A') ? 'text-purple-700' : 'text-cyan-700')"
+                            x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + ']'"></span>
+                    </td>
+
+                    <!-- 3. HASH CORTO -->
+                    <td style="padding: 8px 6px; font-family: monospace; font-size: 13px; font-weight: 900; color: #1e40af; vertical-align: middle;"
+                        x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : '')"></td>
+
+                    <!-- 4. MONTO ORIGEN -->
+                    <td style="padding: 8px 6px; font-family: monospace; font-size: 13px; font-weight: 700; color: #0f172a; text-align: right; vertical-align: middle;"
+                        x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></td>
+
+                    <!-- 5. TITULAR / BANCO -->
+                    <td style="padding: 8px 12px; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; vertical-align: middle;">
+                      <span x-text="(item.titular || 'N/D').trim().split(' ')[0]"></span>
+                      <span style="color: #cbd5e1; margin: 0 4px;">/</span>
+                      <span x-text="item.banco || 'BANCO'"></span>
+                    </td>
+
+                    <!-- 6. TASA -->
+                    <td style="padding: 8px 6px; font-family: monospace; font-size: 13px; font-weight: 800; color: #6b21a8; text-align: center; vertical-align: middle;"
+                        x-text="item.tasa_1 || 1.0"></td>
+
+                    <!-- 7. SUBTOTAL -->
+                    <td style="padding: 8px 6px; font-family: monospace; font-size: 16px; font-weight: 900; text-align: right; vertical-align: middle;"
+                        :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-600' : 'text-emerald-700'"
+                        x-text="(parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) >= 0 ? '+' : '') + formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto))">
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 4. PIE DE PÁGINA INSTITUCIONAL -->
+          <div style="border-top: 2px solid #0f172a; padding-top: 10px; margin-top: 10px;">
+            <table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 10px; color: #64748b;">
               <tr>
-                <td style="text-align: left;">GLAUKOV ENGINE • ATENEA V2.0 • DOCUMENTO OFICIAL</td>
+                <td style="text-align: left;">GLAUKOV ENGINE • ATENEA V2.0 • DOCUMENTO OFICIAL DE AUDITORÍA</td>
                 <td style="text-align: center; font-weight: bold; color: #0f172a;" x-text="'PÁGINA ' + paginaActual + ' DE ' + totalPaginas"></td>
-                <td style="text-align: right; color: #059669; font-weight: 900;">NUEVO SALDO: <strong style="font-size: 11px; color: #047857;" x-text="formatMonto(saldoFinalPagina) + ' ' + getMonedaReporte()"></strong></td>
+                <td style="text-align: right; color: #059669; font-weight: 900;">NUEVO SALDO: <strong style="font-size: 12px; color: #047857;" x-text="formatMonto(saldoFinalPagina) + ' ' + getMonedaReporte()"></strong></td>
               </tr>
             </table>
           </div>
