@@ -113,7 +113,7 @@ window.AteneaAPI = {
   },
 
   // ==========================================
-  // 3. TASAS Y MERCADO
+  // 3. TASAS Y MERCADO (INCLUYE MODO PRUEBA)
   // ==========================================
   async getUltimasTasas() {
     const res = await fetch('/api/tasas/ultimas');
@@ -127,31 +127,34 @@ window.AteneaAPI = {
     return await res.json();
   },
 
-  async publicarTasa(id_tasa, tasas) {
+  // 🟢 Transmite la bandera modoPrueba al publicar
+  async publicarTasa(id_tasa, tasas, modoPrueba = false) {
     const res = await fetch('/api/tasas/publicar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_tasa, tasas })
+      body: JSON.stringify({ id_tasa, tasas, modoPrueba })
     });
     if (!res.ok) throw new Error('Error al publicar tasa');
     return await res.json();
   },
 
-  async reenviarTasa(id_tasa) {
+  // 🟢 Transmite socio y modoPrueba en la ráfaga general
+  async reenviarTasa(id_tasa, socio = 'GENERAL', modoPrueba = false) {
     const res = await fetch('/api/tasas/reenviar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_tasa })
+      body: JSON.stringify({ id_tasa, socio, modoPrueba })
     });
     if (!res.ok) throw new Error('Error al reenviar tasas');
     return await res.json();
   },
 
-  async reenviarTasaSocio(id_tasa, socio) {
+  // 🟢 Transmite modoPrueba en reenvío individual por socio
+  async reenviarTasaSocio(id_tasa, socio, modoPrueba = false) {
     const res = await fetch('/api/tasas/reenviar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_tasa, socio })
+      body: JSON.stringify({ id_tasa, socio, modoPrueba })
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
