@@ -30,38 +30,25 @@ function parseCartelera(rawInput) {
 }
 
 async function obtenerSociosYProcesarTasas(filtroNombre = null) {
-  const sql = `
-    SELECT 
-        f.*,
-        -- TASA ACTUAL
-        (
-            SELECT json_object_agg(moneda, tasa_base) 
-            FROM (
-                SELECT DISTINCT ON (moneda) moneda, tasa_base 
-                FROM mercado_tasas 
-                ORDER BY moneda, id DESC
-            ) t
-        ) AS tasas_mercado,
-        -- TASA ANTERIOR (Para comparar tendencias)
-        (
-            SELECT json_object_agg(moneda, tasa_base) 
-            FROM (
-                SELECT moneda, tasa_base, 
-                       ROW_NUMBER() OVER(PARTITION BY moneda ORDER BY id DESC) as rn 
-                FROM mercado_tasas
-            ) t2 WHERE rn = 2
-        ) AS tasas_mercado_anterior,
-        -- CORRELATIVO
-        COALESCE(
-            (SELECT id_tasa::text FROM mercado_tasas WHERE id_tasa IS NOT NULL AND id_tasa != '' ORDER BY id DESC LIMIT 1),
-            (SELECT 'T' || id::text FROM mercado_tasas ORDER BY id DESC LIMIT 1),
-            'T360'
-        ) AS correlativo_tasa
-    FROM nombres_fb f
-    WHERE COALESCE(f.activo, TRUE) = TRUE;
+  // 🟢 1. Obtener la última tasa y la penúltima desde la nueva tabla 'tasas_glaukov'
+  const sqlTasas = `
+    SELECT id_tasa, tasas, created_at 
+    FROM tasas_glaukov 
+    ORDER BY created_at DESC, id DESC 
+    LIMIT 2;
   `;
+  const resTasas = await db.query(sqlTasas);
 
-  const { rows } = await db.query(sql);
+  const loteActual = resTasas.rows[0] || { id_tasa: 'T001', tasas: {} };
+  const loteAnterior = resTasas.rows[1] || loteActual;
+
+  const tasasMercado = typeof loteActual.tasas === 'string' ? JSON.parse(loteActual.tasas || '{}') : (loteActual.tasas || {});
+  const tasasMercadoAnterior = typeof loteAnterior.tasas === 'string' ? JSON.parse(loteAnterior.tasas || '{}') : (loteAnterior.tasas || {});
+  const correlativoTasa = loteActual.id_tasa || 'T001';
+
+  // 🟢 2. Obtener lista de socios desde nombres_fb
+  const sqlSocios = `SELECT * FROM nombres_fb WHERE COALESCE(activo, TRUE) = TRUE;`;
+  const { rows } = await db.query(sqlSocios);
   const timeVE = obtenerFechaHoraVE();
   let listaSociosProcesados = [];
 
@@ -72,7 +59,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const labelSocio = socioData.socio || nombre;
     const whatsappJid = extractJid(socioData.whatsapp || socioData.id_grupo || socioData.id_grupo1);
 
-    const valorTasa = socioData.correlativo_tasa || socioData.id_tasa || "T360";
+    const valorTasa = correlativoTasa;
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
@@ -101,9 +88,6 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     paisesActivos.sort((a, b) => (Number(a.orden) || 99) - (Number(b.orden) || 99));
 
     const ajustes = typeof socioData.ajustes === 'string' ? JSON.parse(socioData.ajustes || '{}') : (socioData.ajustes || {});
-    const tasasMercado = typeof socioData.tasas_mercado === 'string' ? JSON.parse(socioData.tasas_mercado || '{}') : (socioData.tasas_mercado || {});
-    const tasasMercadoAnterior = typeof socioData.tasas_mercado_anterior === 'string' ? JSON.parse(socioData.tasas_mercado_anterior || '{}') : (socioData.tasas_mercado_anterior || {});
-
     const tarjetasPaises = [];
 
     // Función para comparar tendencias basada en 4 decimales
@@ -173,7 +157,8 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     });
   }
 
-  if (filtroNombre) {
+  // 🛡️ CORRECCIÓN DE TIPO: Garantizar que filtroNombre sea una cadena antes de hacer .trim()
+  if (filtroNombre && typeof filtroNombre === 'string') {
     const busqueda = filtroNombre.trim().toLowerCase();
     listaSociosProcesados = listaSociosProcesados.filter(s => s.nombre_socio.toLowerCase().includes(busqueda));
   }
@@ -181,18 +166,34 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   return listaSociosProcesados;
 }
 
-async function encolarNotificacionesTasas(filtroNombre = null) {
+// 🟢 FUNCIÓN CORREGIDA PARA ACEPTAR TANTO CADENAS COMO OBJETOS DE OPCIONES
+async function encolarNotificacionesTasas(options = null) {
+  let filtroNombre = null;
+  let jidOverride = null;
+
+  if (typeof options === 'string') {
+    filtroNombre = options;
+  } else if (typeof options === 'object' && options !== null) {
+    filtroNombre = options.filtroNombre || options.socio || null;
+    jidOverride = options.jidOverride || options.destinationJid || null;
+  }
+
   const socios = await obtenerSociosYProcesarTasas(filtroNombre);
   console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
+  
   for (const socio of socios) {
-    await tasasQueue.add('render-tasa-socio', socio, { removeOnComplete: true, attempts: 3 });
+    const payloadJob = {
+      ...socio,
+      remoteJid: jidOverride || socio.remoteJid
+    };
+    await tasasQueue.add('render-tasa-socio', payloadJob, { removeOnComplete: true, attempts: 3 });
   }
   return { totalEncolados: socios.length, socios: socios.map(s => s.nombre_socio) };
 }
 
 module.exports = { 
   obtenerSociosYProcesarTasas,
-  obtenerCarteleraConsolidada: obtenerSociosYProcesarTasas, // Alias para previewData / previewImage
+  obtenerCarteleraConsolidada: obtenerSociosYProcesarTasas,
   encolarNotificacionesTasas,
-  dispararPublicacionCartelera: encolarNotificacionesTasas // Alias para dispararWhatsApp
+  dispararPublicacionCartelera: encolarNotificacionesTasas
 };
