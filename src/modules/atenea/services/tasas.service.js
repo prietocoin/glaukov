@@ -63,7 +63,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
-    // 🟢 CORRECCIÓN CLAVE: Leer 'moneda_socio' respetando el nombre exacto de la columna en la BD
+    // 🟢 CORRECCIÓN DE MONEDA: Leer 'moneda_socio' respetando el nombre exacto de la columna
     const monedaRaw = socioData.moneda_socio || socioData.monedasocio || socioData.moneda || "USDT";
     const monedaExtraida = String(monedaRaw).toUpperCase().trim();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
@@ -152,7 +152,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
 
     listaSociosProcesados.push({
       nombre_socio: labelSocio,
-      moneda_socio: monedaProcesada, // 👈 Se inyecta correctamente la moneda de cada socio
+      moneda_socio: monedaProcesada,
       remoteJid: whatsappJid,
       hora_actualizacion: valorHora,
       tasa_base_ref: `${valorTasa} ${valorFecha}`,
@@ -169,7 +169,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   return listaSociosProcesados;
 }
 
-// 🟢 FUNCIÓN CORREGIDA PARA ACEPTAR TANTO CADENAS COMO OBJETOS DE OPCIONES
+// 🟢 ENCOLADO A BULLMQ CON PROTECCIÓN TOTAL DE JID DE PRUEBA
 async function encolarNotificacionesTasas(options = null) {
   let filtroNombre = null;
   let jidOverride = null;
@@ -185,10 +185,16 @@ async function encolarNotificacionesTasas(options = null) {
   console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
   
   for (const socio of socios) {
+    // 🛡️ Si hay jidOverride (Modo Prueba ON), se sobreescribe explícitamente en todos los campos de destino
+    const targetJid = jidOverride ? String(jidOverride).trim() : socio.remoteJid;
+
     const payloadJob = {
       ...socio,
-      remoteJid: jidOverride || socio.remoteJid
+      remoteJid: targetJid,
+      jidOverride: jidOverride ? String(jidOverride).trim() : null,
+      destinationJid: targetJid
     };
+
     await tasasQueue.add('render-tasa-socio', payloadJob, { removeOnComplete: true, attempts: 3 });
   }
   return { totalEncolados: socios.length, socios: socios.map(s => s.nombre_socio) };
