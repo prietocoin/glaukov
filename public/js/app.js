@@ -14,7 +14,8 @@ function registrarAppAlpine() {
     directorio: [],
     socios: [],
 
-    // Estado Mercado & Hoo API
+    // Estado Mercado & Modo Prueba
+    modoPruebaActivo: false, // 🟢 DECLARACIÓN DE VARIABLE REACTIVA MODO PRUEBA
     loteActivo: '',
     tasasProduccion: {},
     borradorCapturado: {},
@@ -102,16 +103,13 @@ function registrarAppAlpine() {
       }
     },
 
-  async generarPreviewImagen(socioNombre = 'GENERAL') {
+    async generarPreviewImagen(socioNombre = 'GENERAL') {
       this.cargandoPreviewImagen = true;
       this.socioPreviewSeleccionado = socioNombre;
       try {
         const timestamp = new Date().getTime();
         this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
-        
-        // ¡ESTA ES LA LÍNEA QUE FALTABA! Abre la imagen en una nueva pestaña
         window.open(this.imagenPreviewUrl, '_blank');
-        
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
       } finally {
@@ -119,17 +117,24 @@ function registrarAppAlpine() {
       }
     },
 
-    
     async publicarTasaOficial() {
       if (!this.borradorCapturado || Object.keys(this.borradorCapturado).length === 0) {
         alert('No hay borrador capturado para publicar.');
         return;
       }
-      if (!confirm('¿Deseas publicar este borrador como la tasa oficial en producción?')) return;
+      
+      const mensajeConfirm = this.modoPruebaActivo 
+        ? '🧪 MODO PRUEBA ACTIVADO\n¿Deseas publicar el borrador y enviarlo AL GRUPO DE PRUEBAS?' 
+        : '🚀 MODO PRODUCCIÓN ACTIVADO\n¿Deseas publicar el borrador como tasa oficial a TODOS LOS SOCIOS?';
+
+      if (!confirm(mensajeConfirm)) return;
+
       try {
-        const res = await window.AteneaAPI.publicarTasa(null, this.borradorCapturado);
+        // 🟢 INYECCIÓN DE MODO PRUEBA AL BACKEND
+        const res = await window.AteneaAPI.publicarTasa(null, this.borradorCapturado, this.modoPruebaActivo);
         if (res && res.id_tasa) this.loteActivo = res.id_tasa;
-        alert(`Tasa oficial ${res?.id_tasa || ''} publicada correctamente.`);
+        
+        alert(`Tasa oficial ${res?.id_tasa || ''} publicada. ${this.modoPruebaActivo ? '🧪 Enviado al grupo de pruebas.' : '🚀 Enviado a producción.'}`);
         await this.cargarTasasMercado();
       } catch (err) {
         console.error(err);
@@ -142,17 +147,23 @@ function registrarAppAlpine() {
         alert('No hay un lote activo cargado.');
         return;
       }
-      if (!confirm(`¿Reenviar notificaciones para el lote ${this.loteActivo}?`)) return;
+
+      const mensajeConfirm = this.modoPruebaActivo 
+        ? `🧪 MODO PRUEBA ACTIVADO\n¿Reenviar notificaciones del lote ${this.loteActivo} AL GRUPO DE PRUEBAS?` 
+        : `🚀 MODO PRODUCCIÓN ACTIVADO\n¿Reenviar notificaciones del lote ${this.loteActivo} a TODOS LOS SOCIOS?`;
+
+      if (!confirm(mensajeConfirm)) return;
+
       try {
-        await window.AteneaAPI.reenviarTasa(this.loteActivo);
-        alert(`Reenvío activado para la tasa ${this.loteActivo}.`);
+        // 🟢 INYECCIÓN DE MODO PRUEBA AL BACKEND
+        await window.AteneaAPI.reenviarTasa(this.loteActivo, 'GENERAL', this.modoPruebaActivo);
+        alert(`Reenvío activado para la tasa ${this.loteActivo} ${this.modoPruebaActivo ? '(🧪 Grupo de Prueba)' : '(🚀 Producción)'}.`);
       } catch (err) {
         console.error(err);
         alert('Error al reenviar tasa: ' + err.message);
       }
     },
 
-    // 🟢 NUEVA FUNCIÓN BUG 2: Envío Individual a Socio
     async enviarTasaIndividual(socioObj) {
       if (!this.loteActivo) {
         alert('No hay un lote activo en producción para enviar.');
@@ -163,17 +174,18 @@ function registrarAppAlpine() {
         return;
       }
       
-      // Validación extra para evitar errores de envío
+      const modoTexto = this.modoPruebaActivo ? '🧪 [GRUPO PRUEBA]' : '🚀 [PRODUCCIÓN]';
+
       if (!socioObj.whatsapp && !socioObj.id_grupo) {
-         if (!confirm(`⚠️ El socio ${socioObj.nombre} NO parece tener un número de WhatsApp configurado. ¿Intentar enviar de todas formas?`)) return;
+         if (!confirm(`⚠️ El socio ${socioObj.nombre} NO parece tener WhatsApp configurado. ¿Intentar enviar en modo ${modoTexto}?`)) return;
       } else {
-         if (!confirm(`⚡ ¿Enviar la cartelera oficial [${this.loteActivo}] a ${socioObj.nombre} por WhatsApp?`)) return;
+         if (!confirm(`⚡ ¿Enviar cartelera [${this.loteActivo}] para ${socioObj.nombre} ${modoTexto}?`)) return;
       }
       
       try {
-        // Ejecuta la función en el cliente HTTP (asegúrate de que reenviarTasaSocio esté en api.js)
-        await window.AteneaAPI.reenviarTasaSocio(this.loteActivo, socioObj.nombre);
-        alert(`✅ Cartelera enviada exitosamente a ${socioObj.nombre}.`);
+        // 🟢 INYECCIÓN DE MODO PRUEBA EN ENVÍO INDIVIDUAL
+        await window.AteneaAPI.reenviarTasaSocio(this.loteActivo, socioObj.nombre, this.modoPruebaActivo);
+        alert(`✅ Cartelera de ${socioObj.nombre} despachada ${modoTexto}.`);
       } catch (err) {
         console.error(err);
         alert('❌ Error al enviar tasa individual: ' + err.message);
