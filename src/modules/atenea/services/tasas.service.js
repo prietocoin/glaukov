@@ -63,7 +63,9 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
-    const monedaExtraida = String(socioData.monedasocio || "USDT").toUpperCase();
+    // 🟢 CORRECCIÓN CLAVE: Leer 'moneda_socio' respetando el nombre exacto de la columna en la BD
+    const monedaRaw = socioData.moneda_socio || socioData.monedasocio || socioData.moneda || "USDT";
+    const monedaExtraida = String(monedaRaw).toUpperCase().trim();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
 
     const rawCartelera = socioData.cartelerapaises || socioData.cartelera_paises || socioData.paises || socioData.cartelera || socioData.monedas;
@@ -150,6 +152,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
 
     listaSociosProcesados.push({
       nombre_socio: labelSocio,
+      moneda_socio: monedaProcesada, // 👈 Se inyecta correctamente la moneda de cada socio
       remoteJid: whatsappJid,
       hora_actualizacion: valorHora,
       tasa_base_ref: `${valorTasa} ${valorFecha}`,
@@ -157,7 +160,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     });
   }
 
-  // 🛡️ CORRECCIÓN DE TIPO: Garantizar que filtroNombre sea una cadena antes de hacer .trim()
+  // 🛡️ CORRECCIÓN DE TIPO: Evita error .trim is not a function si llega un objeto
   if (filtroNombre && typeof filtroNombre === 'string') {
     const busqueda = filtroNombre.trim().toLowerCase();
     listaSociosProcesados = listaSociosProcesados.filter(s => s.nombre_socio.toLowerCase().includes(busqueda));
