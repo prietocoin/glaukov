@@ -5,7 +5,7 @@ const ateneaController = require('../controllers/atenea.controller');
 // ==========================================
 // 1. PREVISUALIZACIÓN Y DISPARO DE CARTELERAS
 // ==========================================
-router.get('/preview-data', ateneaController.previewData);
+router.get('/preview-image/:socio?', ateneaController.previewImage);
 router.get('/preview-image/:identificador?', ateneaController.previewImage);
 router.all('/disparar', ateneaController.dispararWhatsApp);
 
