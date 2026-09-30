@@ -326,8 +326,7 @@
         </div>
       </div>
 
-
-<!-- VISTA 2: BAÚL & CARTELERA DE TASAS -->
+      <!-- VISTA 2: BAÚL & CARTELERA DE TASAS -->
       <div x-show="vistaActiva === 'cartelera'" class="space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
@@ -354,7 +353,7 @@
             <span class="px-2 py-0.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[10px] md:text-[11px] font-mono font-bold rounded-lg" x-text="'Lote en Prod: ' + (loteActivo || 'CARGANDO...')"></span>
           </div>
 
-         <!-- GRILLA DE MONEDAS -->
+          <!-- GRILLA DE MONEDAS (MONEDAS BASE AL FINAL) -->
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             <template x-for="moneda in Object.keys(tasasProduccion).filter(m => !['ID', 'CREATED_AT', 'SUCCESS', 'MESSAGE'].includes(m.toUpperCase())).sort((a, b) => {
                 const bases = ['USD', 'USDT', 'PYUSD', 'ECU', 'PAN'];
@@ -399,8 +398,6 @@
         </div>
       </div>
       
-
-      
       <!-- VISTA 3: DIRECTORIO DE SOCIOS -->
       <div x-show="vistaActiva === 'directorio'" class="space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-blue-900/50 pb-3">
@@ -443,9 +440,11 @@
                   </div>
                 </div>
 
+                <!-- ACCIONES DE SOCIO (CON BOTÓN DE ENVÍO DIRECTO) -->
                 <div class="flex items-center justify-end gap-2 shrink-0 border-t sm:border-t-0 border-blue-900/30 pt-2 sm:pt-0">
-                  <button @click="abrirConfigSocio(socio)" class="px-3 py-1.5 bg-purple-950/80 border border-purple-600/40 text-purple-300 rounded-xl font-bold text-xs hover:bg-purple-900 transition-all flex-1 sm:flex-none text-center">⚙ Configurar</button>
-                  <button @click="eliminarSocioDirectorio(socio.nombre)" class="p-1.5 bg-rose-950/80 border border-rose-600/40 text-rose-300 rounded-xl hover:bg-rose-900 transition-all">🗑</button>
+                  <button @click="enviarTasaIndividual(socio)" class="p-1.5 bg-amber-950/80 border border-amber-600/40 text-amber-300 rounded-xl hover:bg-amber-900 transition-all active:scale-95 shadow-lg shadow-amber-900/20" title="Enviar Tasa por WhatsApp">⚡</button>
+                  <button @click="abrirConfigSocio(socio)" class="px-3 py-1.5 bg-purple-950/80 border border-purple-600/40 text-purple-300 rounded-xl font-bold text-xs hover:bg-purple-900 transition-all flex-1 sm:flex-none text-center active:scale-95">⚙ Configurar</button>
+                  <button @click="eliminarSocioDirectorio(socio.nombre)" class="p-1.5 bg-rose-950/80 border border-rose-600/40 text-rose-300 rounded-xl hover:bg-rose-900 transition-all active:scale-95" title="Eliminar Socio">🗑</button>
                 </div>
               </div>
             </template>
@@ -534,10 +533,30 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-between pt-2 border-t border-blue-900/60 gap-2">
-            <button type="button" @click="modalConfigSocioAbierto = false" class="flex-1 sm:flex-none px-3 py-2 bg-blue-950 text-slate-300 rounded-xl text-xs font-bold border border-blue-900">Cancelar</button>
-            <button type="button" @click="guardarConfigSocioModal()" class="flex-1 sm:flex-none px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-600/30">💾 Guardar</button>
+          <!-- BOTONES DE ACCIÓN DEL MODAL (CON PREVIA Y ENVÍO INDIVIDUAL) -->
+          <div class="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-blue-900/60 gap-3">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <button type="button" 
+                      @click="generarPreviewImagen(socioConfigEdit.nombre)" 
+                      class="px-3 py-2 bg-blue-950/80 border border-blue-500/40 text-blue-300 rounded-xl text-xs font-bold hover:bg-blue-900 transition-all flex items-center justify-center gap-1 active:scale-95"
+                      :disabled="cargandoPreviewImagen">
+                <span x-show="!cargandoPreviewImagen">👁 Ver Previa</span>
+                <span x-show="cargandoPreviewImagen">⏳ Cargando...</span>
+              </button>
+
+              <button type="button" 
+                      @click="enviarTasaIndividual(socioConfigEdit)" 
+                      class="flex-1 sm:flex-none px-3 py-2 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-black shadow-lg shadow-amber-900/30 hover:bg-amber-900 transition-all flex items-center justify-center gap-1 active:scale-95">
+                ⚡ Enviar Tasa
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <button type="button" @click="modalConfigSocioAbierto = false" class="flex-1 sm:flex-none px-3 py-2 bg-[#030611] text-slate-400 rounded-xl text-xs font-bold border border-blue-900 hover:text-white">Cancelar</button>
+              <button type="button" @click="guardarConfigSocioModal()" class="flex-1 sm:flex-none px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-600/30 active:scale-95">💾 Guardar Cambios</button>
+            </div>
           </div>
+
         </div>
       </template>
     </div>
@@ -676,7 +695,7 @@
     </div>
   </div>
 
-  <!-- 🟢 MODAL DE REPORTES VÍA EVOLUTION API (ESTRUCTURA DE TABLAS PURAS NATIVAS PARA GARANTIZAR VISIBILIDAD DE SUBTITULOS Y SOCIO A LA IZQUIERDA) -->
+  <!-- MODAL DE REPORTES VÍA EVOLUTION API -->
   <div x-data="{ 
          modalReporteAbierto: false,
          generandoImagen: false,
@@ -773,10 +792,8 @@
        class="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-6 bg-black/85 backdrop-blur-md" 
        x-cloak>
     
-    <!-- CONTENEDOR VENTANA MODAL -->
     <div class="bg-[#060c24] border border-blue-900/80 rounded-2xl w-full max-w-4xl h-full md:h-auto md:max-h-[92vh] flex flex-col shadow-2xl relative overflow-hidden" @click.away="modalReporteAbierto = false">
       
-      <!-- CONTROLES SUPERIORES DE NAVEGACIÓN -->
       <div class="flex items-center justify-between bg-[#080e26] border-b border-blue-900/60 px-4 py-3 shrink-0 no-imprimir z-20 flex-wrap gap-2">
         <div class="flex items-center gap-2">
           <span class="font-black text-cyan-300 text-xs sm:text-sm">📄 Previsualización Estado de Cuenta</span>
@@ -797,16 +814,12 @@
         </div>
       </div>
 
-      <!-- ÁREA DE VISTA PREVIA CON SCROLL (800px x 1200px) -->
       <div class="flex-1 overflow-x-auto overflow-y-auto p-3 md:p-6 flex justify-center bg-[#030611]">
         
-        <!-- 🟢 DOCUMENTO REPORTE: LIENZO VERTICAL 800px x 1200px ESTILO ESTADO DE CUENTA BANCARIO -->
         <div id="reporte-html-documento" class="bg-white text-slate-900 p-6 rounded-xl shadow-2xl shrink-0 border border-slate-200 flex flex-col justify-between" style="width: 800px; min-width: 800px; height: 1200px; min-height: 1200px; box-sizing: border-box; font-family: Arial, sans-serif; line-height: 1.3;">
           
-          <!-- BLOQUE SUPERIOR (MEMBRETE + SOCIO / SALDO ANTERIOR + TABLA) -->
           <div style="flex-grow: 1; display: flex; flex-direction: column;">
             
-            <!-- 1. MEMBRETE INSTITUCIONAL -->
             <div style="border-bottom: 3px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
@@ -829,11 +842,9 @@
               </table>
             </div>
 
-            <!-- 2. FILA EN TABLA NATIVA CON SOCIO Y MONEDA (IZQUIERDA) Y CARD SALDO ANTERIOR (DERECHA) -->
             <div style="margin-bottom: 14px;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
-                  <!-- A LA IZQUIERDA: NOMBRE DEL SOCIO Y MONEDA DIRECTOS SIN ETIQUETA "TITULAR..." -->
                   <td style="vertical-align: middle; text-align: left;">
                     <div style="font-size: 24px; font-weight: 900; color: #0f172a; line-height: 1.1; text-transform: uppercase; letter-spacing: -0.5px;">
                       <span x-text="sujetoAuditado || 'SOCIO'"></span>
@@ -841,7 +852,6 @@
                     </div>
                   </td>
 
-                  <!-- A LA DERECHA: CARD SALDO ANTERIOR NATIVA -->
                   <td style="vertical-align: middle; text-align: right; width: 250px;">
                     <table style="width: 100%; background-color: #0f172a; border-radius: 10px; border-collapse: collapse;">
                       <tr>
@@ -856,7 +866,6 @@
               </table>
             </div>
 
-            <!-- 3. TABLA DE TRANSACCIONES -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
               <thead>
                 <tr style="border-bottom: 2px solid #0f172a; font-size: 11px; font-weight: 900; color: #475569; text-transform: uppercase; text-align: left;">
@@ -872,36 +881,29 @@
               <tbody>
                 <template x-for="(item, index) in comprobantesPagina" :key="'doc-'+item.hash_largo">
                   <tr style="border-bottom: 1px solid #e2e8f0; height: 48px; box-sizing: border-box;">
-                    <!-- FECHA -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 12px; color: #475569; font-weight: 700; vertical-align: middle;"
                         x-text="item.fecha_hora_comprobante ? item.fecha_hora_comprobante.substring(5,10) : ''"></td>
 
-                    <!-- TIPO -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 13px; font-weight: 900; text-align: center; vertical-align: middle;">
                       <span :class="(item.tipo_op1 || 'D').startsWith('P') ? 'text-amber-700' : ((item.tipo_op1 || 'D').startsWith('A') ? 'text-purple-700' : 'text-cyan-700')"
                             x-text="'[' + (item.tipo_op1 || 'D').split('-')[0] + ']'"></span>
                     </td>
 
-                    <!-- HASH CORTO -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 13px; font-weight: 900; color: #1e40af; vertical-align: middle;"
                         x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : '')"></td>
 
-                    <!-- MONTO ORIGEN -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 13px; font-weight: 800; color: #0f172a; text-align: right; vertical-align: middle;"
                         x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></td>
 
-                    <!-- TASA -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 10.5px; font-weight: 700; color: #6b21a8; text-align: center; vertical-align: middle;"
                         x-text="item.tasa_1 || 1.0"></td>
 
-                    <!-- TITULAR / BANCO -->
                     <td style="padding: 4px 8px; font-size: 10.5px; font-weight: 600; color: #475569; text-transform: uppercase; vertical-align: middle;">
                       <span x-text="(item.titular || 'N/D').trim().split(' ')[0]"></span>
                       <span style="color: #cbd5e1; margin: 0 2px;">/</span>
                       <span x-text="item.banco || 'BANCO'"></span>
                     </td>
 
-                    <!-- SUBTOTAL (16px NEGRITA) -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 16px; font-weight: 900; text-align: right; vertical-align: middle;"
                         :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-600' : 'text-emerald-700'"
                         x-text="(parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) >= 0 ? '+' : '') + formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto))">
@@ -912,9 +914,7 @@
             </table>
           </div>
 
-          <!-- BLOQUE INFERIOR -->
           <div>
-            <!-- 4. CARD INFERIOR DERECHA: NUEVO SALDO NATIVA CON SUBTÍTULO NÍTIDO -->
             <div style="margin-bottom: 14px;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
@@ -933,7 +933,6 @@
               </table>
             </div>
 
-            <!-- 5. PIE DE PÁGINA INSTITUCIONAL LIMPIO -->
             <div style="border-top: 2px solid #0f172a; padding-top: 8px;">
               <table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 9.5px; color: #64748b;">
                 <tr>
