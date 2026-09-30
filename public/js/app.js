@@ -86,12 +86,11 @@ function registrarAppAlpine() {
           const rawRates = res.rates || res.rates_draft;
           const ratesNormalizadas = {};
           
-          // Normalización estricta de llaves a MAYÚSCULAS para sincronizar con tasasProduccion
+          // Normalización estricta de llaves a MAYÚSCULAS
           Object.keys(rawRates).forEach(k => {
             ratesNormalizadas[k.toUpperCase()] = rawRates[k];
           });
           
-          // Clonación del objeto para gatillar la reactividad inmediata en Alpine
           this.borradorCapturado = { ...ratesNormalizadas };
           alert('✅ Borrador capturado e inyectado con éxito.');
         } else {
@@ -111,7 +110,7 @@ function registrarAppAlpine() {
         this.imagenPreviewUrl = `/api/preview-image/${encodeURIComponent(socioNombre)}?t=${timestamp}`;
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } fontal {
+      } finally {
         this.cargandoPreviewImagen = false;
       }
     },
