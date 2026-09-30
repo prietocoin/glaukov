@@ -23,17 +23,25 @@ async function previewImage(req, res) {
   try {
     const fn = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
     const data = await fn();
-    const socio = (req.params.identificador || 'GENERAL').toUpperCase();
-    const targetData = data.find(d => d.nombre_socio && d.nombre_socio.toUpperCase() === socio) || data[0];
+    const socioBuscado = (req.params.identificador || req.params.socio || req.query.socio || 'GENERAL').trim().toUpperCase();
+
+    // 🟢 Búsqueda flexible que revisa todas las variaciones de la llave del nombre
+    const targetData = data.find(d => {
+      const nombreItem = (d.nombre_socio || d.nombre || d.socio || '').trim().toUpperCase();
+      return nombreItem === socioBuscado;
+    });
 
     if (!targetData) {
-      return res.status(404).send('No se encontraron datos para generar la imagen.');
+      console.warn(`⚠️ Socio "${socioBuscado}" no encontrado en la cartelera.`);
+      return res.status(404).send(`No se encontraron datos configurados para el socio: ${socioBuscado}`);
     }
 
     const imageBuffer = await generarImagenTasa(targetData);
-    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.send(imageBuffer);
   } catch (err) {
+    console.error('❌ Error generando imagen:', err);
     res.status(500).send(`Error generando imagen: ${err.message}`);
   }
 }
