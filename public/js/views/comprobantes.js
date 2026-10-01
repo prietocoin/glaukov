@@ -77,7 +77,7 @@ export function comprobantesView() {
       }
     },
 
-    // --- CÁLCULOS KPI Y REGLAS DE NEGOCIO ---
+    // --- CÁLCULOS KPI Y REGLAS DE NEGOCIO CORREGIDAS ---
     get comprobantesProcesadosYOrdenados() {
       if (!this.items || !this.items.length) return [];
       let lista = [...this.items];
@@ -125,16 +125,48 @@ export function comprobantesView() {
       return reg ? (reg.whatsapp || reg.id_grupo || '') : '';
     },
 
+    // 🟢 REGLA MATEMÁTICA BLINDADA: CÁLCULO DE MONEDA EQUIVALENTE DE SOCIO (ME)
     obtenerMontoSocioCalculado(c) {
-      if (c.monto_socio_final !== undefined && this.filtroSocio) {
+      if (!c) return 0;
+
+      // 1. Si el backend ya entregó el valor procesado explícito
+      if (c.monto_socio_final !== undefined && c.monto_socio_final !== null && this.filtroSocio) {
         return parseFloat(c.monto_socio_final) || 0;
       }
-      return parseFloat(c.m1_socio) || parseFloat(c.monto) || 0;
+
+      // 2. Extracción de variables base
+      const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
+      const tasa = Math.abs(this.obtenerTasaSocioCalculada(c));
+      const tipoOp = String(c.tipo_op_socio || c.tipo_manual || c.tipo_op || c.tipo_op_1 || 'D').toUpperCase().trim();
+      const monedaComprobante = String(c.moneda || c.moneda_comprobante || 'USDT').toUpperCase().trim();
+
+      let equivalente = 0;
+
+      // 3. Conversión de moneda según tasa
+      if (['USD', 'USDT', 'PYUSD'].includes(monedaComprobante)) {
+        equivalente = tasa > 0 ? (montoOrigen * tasa) : montoOrigen;
+      } else {
+        // Monedas locales (ARS, COP, PEN, VES, etc.)
+        equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
+      }
+
+      // Fallback a m1_socio/me_socio en valor absoluto si no se pudo calcular
+      if (isNaN(equivalente) || equivalente === 0) {
+        equivalente = Math.abs(parseFloat(c.m1_socio || c.me1 || c.me_socio || 0));
+      }
+
+      // 4. Aplicar signo según el tipo de operación (D = Depósito/Positivo, P = Pago/Salida)
+      const signo = (tipoOp === 'P' || tipoOp === 'PAGO' || tipoOp === 'SALIDA') ? -1 : 1;
+      return parseFloat((equivalente * signo).toFixed(2));
     },
 
     obtenerTasaSocioCalculada(c) {
-      if (c.tasa_socio_final !== undefined) return parseFloat(c.tasa_socio_final) || 0;
-      return parseFloat(c.tasa_1) || parseFloat(c.tasa_base) || 1.0;
+      if (!c) return 1.0;
+      if (c.tasa_socio_final !== undefined && c.tasa_socio_final !== null && parseFloat(c.tasa_socio_final) > 0) {
+        return parseFloat(c.tasa_socio_final);
+      }
+      const valTasa = parseFloat(c.tasa_1 || c.tasa_socio || c.tasa_base || c.tasa);
+      return (!isNaN(valTasa) && valTasa > 0) ? valTasa : 1.0;
     },
 
     obtenerEtiquetaHash(c) {
@@ -215,7 +247,7 @@ export function comprobantesView() {
       }
     },
 
-    // --- FORMATEADORES VISUALES ---
+    // --- FORMATEADORES VISUALES BLINDADOS ---
     formatMonto(val) {
       if (val === null || val === undefined || isNaN(val) || val === '') return '0.00';
       const num = parseFloat(val);
