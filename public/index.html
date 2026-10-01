@@ -733,7 +733,23 @@
            return (comprobantes || []).slice(start, start + this.itemsPorPagina);
          },
          get saldoAnteriorPagina() {
-           let saldo = parseFloat(saldoAnterior) || 0;
+           // 1. Identificar el socio filtrado
+           const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
+           const socioObj = (directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
+           
+           // 2. Jerarquía de Saldo Base:
+           // Opcion 1: Perfil de configuración del socio (directorio)
+           // Opcion 2: Campo input del panel principal (saldoAnterior)
+           // Opcion 3: Fallback 0
+           let saldoBase = 0;
+           if (socioObj && socioObj.saldo_anterior !== undefined && socioObj.saldo_anterior !== null && parseFloat(socioObj.saldo_anterior) !== 0) {
+             saldoBase = parseFloat(socioObj.saldo_anterior);
+           } else if (typeof saldoAnterior !== 'undefined' && parseFloat(saldoAnterior) !== 0) {
+             saldoBase = parseFloat(saldoAnterior);
+           }
+
+           // 3. Acumulación por Paginación
+           let saldo = saldoBase;
            const startIdx = (this.paginaActual - 1) * this.itemsPorPagina;
            for (let i = 0; i < startIdx; i++) {
              const item = (comprobantes || [])[i];
