@@ -47,7 +47,7 @@ function truncarMontoSeguro(valor) {
 }
 
 /**
- * Calcula el snapshot contable respetando la divisa nativa de cada socio
+ * Calcula el snapshot contable respetando la divisa y polaridad explícita de cada socio en DB
  */
 function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const montoRaw = Math.abs(parseFloat(String(raw?.monto || 0).replace(/,/g, '')) || 0);
@@ -66,17 +66,18 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     : (socio1Data?.ajustes || {});
   
   const rawFactor1 = aj1[`${tipoOp}-${divisaRaw}`] ?? aj1[divisaRaw] ?? 1.0;
-  const factor1Abs = Math.abs(parseFloat(rawFactor1)) || 1.0;
+  const numFactor1 = parseFloat(rawFactor1);
+
+  // Polaridad Socio 1: Estrictamente desde su factor guardado en DB
+  const signo1 = (!isNaN(numFactor1) && numFactor1 < 0) ? -1 : 1;
+  const factor1Abs = Math.abs(numFactor1) || 1.0;
+
   const tasaBaseSocio1USDT = parseFloat(mapaTasas[monedaSocio1] || 1.0);
 
   // Tasa comercial T1 (Divisa Comprobante -> Moneda Socio 1) - SIEMPRE POSITIVA
   const tasaBaseCalculada1 = tasaBaseRawUSDT / (tasaBaseSocio1USDT > 0 ? tasaBaseSocio1USDT : 1.0);
   const crossBase1 = tasaBaseCalculada1 * factor1Abs;
   const tasa1Efectiva = truncarTasaSegura(crossBase1);
-
-  // Signo Socio 1: Positivo por defecto (+1), salvo ajuste explícito negativo en perfil
-  const numFactor1 = parseFloat(rawFactor1);
-  const signo1 = (!isNaN(numFactor1) && numFactor1 < 0) ? -1 : 1;
 
   const divisorTasa1 = tasa1Efectiva > 0 ? tasa1Efectiva : 1.0;
 
@@ -100,20 +101,18 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
       : (socio2Data?.ajustes || {});
 
     const rawFactor2 = aj2[`${tipoOp}-${divisaRaw}`] ?? aj2[divisaRaw] ?? 1.0;
-    const factor2Abs = Math.abs(parseFloat(rawFactor2)) || 1.0;
+    const numFactor2 = parseFloat(rawFactor2);
+
+    // Polaridad Socio 2: Estrictamente desde su factor guardado en DB
+    const signo2 = (!isNaN(numFactor2) && numFactor2 < 0) ? -1 : 1;
+    const factor2Abs = Math.abs(numFactor2) || 1.0;
+
     const tasaBaseSocio2USDT = parseFloat(mapaTasas[monedaSocio2] || 1.0);
 
     // Tasa comercial T2 - SIEMPRE POSITIVA
     const tasaBaseCalculada2 = tasaBaseRawUSDT / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0);
     const crossBase2 = tasaBaseCalculada2 * factor2Abs;
     tasa2Efectiva = truncarTasaSegura(crossBase2);
-
-    // Espejo contable opuesto para Socio 2 (-1 por defecto frente a Socio 1)
-    const numFactor2 = parseFloat(rawFactor2);
-    let signo2 = -1 * signo1;
-    if (!isNaN(numFactor2) && numFactor2 < 0) {
-      signo2 = -1;
-    }
 
     const divisorTasa2 = tasa2Efectiva > 0 ? tasa2Efectiva : 1.0;
 
