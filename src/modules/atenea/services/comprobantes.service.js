@@ -217,14 +217,13 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       let me1Calculado = 0, me2Calculado = 0;
 
       if (estaLiquidado) {
-        tasa1Calculada = r.tasa_1 !== null ? parseFloat(r.tasa_1) : 1.0;
-        tasa2Calculada = r.tasa_2 !== null ? parseFloat(r.tasa_2) : 1.0;
+        tasa1Calculada = r.tasa_1 !== null && !isNaN(parseFloat(r.tasa_1)) ? parseFloat(r.tasa_1) : 1.0;
+        tasa2Calculada = r.tasa_2 !== null && !isNaN(parseFloat(r.tasa_2)) ? parseFloat(r.tasa_2) : 1.0;
         m1Calculado = parseFloat(r.monto_1 || 0);
         m2Calculado = parseFloat(r.monto_2 || 0);
         me1Calculado = parseFloat(r.me1 || 0);
         me2Calculado = parseFloat(r.me2 || 0);
       } else {
-        // CÁLCULO EN TIEMPO REAL CON LA TASA DEL LOTE OBTENIDO DE TASAS_GLAUKOV
         const tasasMap = typeof r.tasas_lote === 'string' ? JSON.parse(r.tasas_lote) : (r.tasas_lote || {});
         
         const tasaBaseDivisa = parseFloat(tasasMap[divisaRecibo] || 1.0);
@@ -274,21 +273,21 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         nombre_socio_1: socio1Final,
         moneda_socio_1: r.moneda_socio_1 || 'USDT',
         tipo_op1: tipoOp1Final,
-        monto_1: m1Calculado,
-        tasa_1: tasa1Calculada,
-        me1: me1Calculado,
+        monto_1: isNaN(m1Calculado) ? 0 : m1Calculado,
+        tasa_1: isNaN(tasa1Calculada) ? 1.0 : tasa1Calculada,
+        me1: isNaN(me1Calculado) ? 0 : me1Calculado,
 
         // SOCIO 2
         nombre_socio_2: socio2Final,
         moneda_socio_2: r.moneda_socio_2 || 'USDT',
         tipo_op2: tipoOp2Final,
-        monto_2: m2Calculado,
-        tasa_2: tasa2Calculada,
-        me2: me2Calculado,
+        monto_2: isNaN(m2Calculado) ? 0 : m2Calculado,
+        tasa_2: isNaN(tasa2Calculada) ? 1.0 : tasa2Calculada,
+        me2: isNaN(me2Calculado) ? 0 : me2Calculado,
 
         // PROPIEDADES FRONTEND
-        m1_socio: m1Calculado,
-        m2_socio: m2Calculado,
+        m1_socio: isNaN(m1Calculado) ? 0 : m1Calculado,
+        m2_socio: isNaN(m2Calculado) ? 0 : m2Calculado,
         lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T001'
       };
     });
@@ -332,18 +331,25 @@ async function liquidarComprobante(payload) {
       actualizado_en = NOW();
   `;
 
+  const m1 = parseFloat(monto_1);
+  const t1 = parseFloat(tasa_1);
+  const e1 = parseFloat(me1);
+  const m2 = parseFloat(monto_2);
+  const t2 = parseFloat(tasa_2);
+  const e2 = parseFloat(me2);
+
   await db.query(query, [
     hash_largo,
     socio_1 || 'GENERAL',
     tipo_op1 || 'D-USDT',
-    monto_1 !== undefined ? parseFloat(monto_1) : 0,
-    tasa_1 !== undefined ? parseFloat(tasa_1) : 1.0,
-    me1 !== undefined ? parseFloat(me1) : 0,
+    !isNaN(m1) ? m1 : 0,
+    !isNaN(t1) ? t1 : 1.0,
+    !isNaN(e1) ? e1 : 0,
     socio_2 && socio_2 !== 'GENERAL' ? socio_2 : null,
     tipo_op2 || 'D-USDT',
-    monto_2 !== undefined ? parseFloat(monto_2) : 0,
-    tasa_2 !== undefined ? parseFloat(tasa_2) : 1.0,
-    me2 !== undefined ? parseFloat(me2) : 0,
+    !isNaN(m2) ? m2 : 0,
+    !isNaN(t2) ? t2 : 1.0,
+    !isNaN(e2) ? e2 : 0,
     lote_tasa || null
   ]);
 
@@ -393,7 +399,11 @@ async function releerIA(hashLargo) {
  */
 async function actualizarComprobante(hashLargo, datos = {}) {
   const targetHash = (hashLargo || '').trim();
-  const { monto, moneda, banco, referencia, titular } = datos;
+  
+  // Sanitizar formato numérico removiendo comas de miles (ej. "147,000" -> 147000)
+  const montoRawStr = String(datos.monto || '').replace(/,/g, '').trim();
+  const montoSanitizado = parseFloat(montoRawStr);
+  const valMonto = !isNaN(montoSanitizado) && montoSanitizado > 0 ? montoSanitizado : null;
 
   // 1. Actualizar tabla base comprobantes_raw
   await db.query(`
@@ -405,11 +415,11 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       titular = COALESCE($5, titular)
     WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($6));
   `, [
-    monto !== undefined && monto !== '' ? parseFloat(monto) : null,
-    moneda || null,
-    banco ? banco.toUpperCase() : null,
-    referencia || null,
-    titular ? titular.toUpperCase() : null,
+    valMonto,
+    datos.moneda || null,
+    datos.banco ? datos.banco.toUpperCase().trim() : null,
+    datos.referencia ? datos.referencia.trim() : null,
+    datos.titular ? datos.titular.toUpperCase().trim() : null,
     targetHash
   ]);
 
@@ -426,13 +436,13 @@ async function actualizarComprobante(hashLargo, datos = {}) {
     console.warn(`⚠️ Error al consultar lote ${idLote}:`, e.message);
   }
 
-  // 4. Obtener reglas y ajustes de los socios desde nombres_fb
+  // 4. Obtener reglas y ajustes de los socios desde nombres_fb (búsqueda flexible por nombre o socio)
   let socio1Data = { nombre: socio1Nombre };
   let socio2Data = null;
 
   if (socio1Nombre && socio1Nombre.toUpperCase() !== 'GENERAL') {
     const res1 = await db.query(
-      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) OR UPPER(TRIM(socio)) = UPPER(TRIM($1)) LIMIT 1`,
       [socio1Nombre]
     );
     if (res1.rows.length > 0) socio1Data = res1.rows[0];
@@ -440,7 +450,7 @@ async function actualizarComprobante(hashLargo, datos = {}) {
 
   if (socio2Nombre && socio2Nombre.toUpperCase() !== 'GENERAL') {
     const res2 = await db.query(
-      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) OR UPPER(TRIM(socio)) = UPPER(TRIM($1)) LIMIT 1`,
       [socio2Nombre]
     );
     if (res2.rows.length > 0) socio2Data = res2.rows[0];
@@ -449,8 +459,8 @@ async function actualizarComprobante(hashLargo, datos = {}) {
   // 5. Preparar el payload y calcular el nuevo snapshot financiero
   const rawData = {
     hash_largo: targetHash,
-    monto: datos.monto !== undefined && datos.monto !== '' ? datos.monto : 0,
-    moneda: datos.moneda || 'COP',
+    monto: valMonto || datos.monto || 0,
+    moneda: datos.moneda || datos.moneda_recibo || 'COP',
     tipo_manual: datos.tipo_manual || datos.tipo_op || datos.tipo_op1 || 'P',
     id_tasa: idLote
   };
