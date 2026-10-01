@@ -2,6 +2,8 @@ const { Queue } = require('bullmq');
 const db = require('../../../config/db');
 const redisConfig = require('../../../config/redis');
 const { aplicarPrecisionMonto } = require('../../../utils/formatters');
+const { obtenerTasaPorId } = require('./mercado.service');
+const { calcularSnapshotFinanciero } = require('./liquidacion.service');
 
 // Queue de BullMQ para re-procesamiento de IA
 const pipelineQueue = new Queue('cola-pipeline', { connection: redisConfig });
@@ -284,7 +286,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         tasa_2: tasa2Calculada,
         me2: me2Calculado,
 
-        // PROPIEDADES FRONTEND (Resuelve correctamente el lote histórico o asignado)
+        // PROPIEDADES FRONTEND
         m1_socio: m1Calculado,
         m2_socio: m2Calculado,
         lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T001'
@@ -386,10 +388,14 @@ async function releerIA(hashLargo) {
   return { success: true, message: 'Re-lectura encolada manteniendo fecha/tasa histórica intacta' };
 }
 
-async function actualizarComprobante(hashLargo, datos) {
+/**
+ * Actualiza los datos del comprobante y recalcula/congela el snapshot en comprobantes_liq
+ */
+async function actualizarComprobante(hashLargo, datos = {}) {
   const targetHash = (hashLargo || '').trim();
   const { monto, moneda, banco, referencia, titular } = datos;
 
+  // 1. Actualizar tabla base comprobantes_raw
   await db.query(`
     UPDATE comprobantes_raw SET
       monto = COALESCE($1, monto),
@@ -406,6 +412,53 @@ async function actualizarComprobante(hashLargo, datos) {
     titular ? titular.toUpperCase() : null,
     targetHash
   ]);
+
+  // 2. Extraer parámetros del modal de edición
+  const idLote = datos.id_tasa || datos.lote_tasa || datos.lote_tasa_asignado || 'T052';
+  const socio1Nombre = datos.socio_1 || datos.nombre_socio_1 || datos.socio1 || 'GENERAL';
+  const socio2Nombre = datos.socio_2 || datos.nombre_socio_2 || datos.socio2 || null;
+
+  // 3. Obtener el lote de tasa específico (ej. T052 = 3285)
+  let tasaLote = null;
+  try {
+    tasaLote = await obtenerTasaPorId(idLote);
+  } catch (e) {
+    console.warn(`⚠️ Error al consultar lote ${idLote}:`, e.message);
+  }
+
+  // 4. Obtener reglas y ajustes de los socios desde nombres_fb
+  let socio1Data = { nombre: socio1Nombre };
+  let socio2Data = null;
+
+  if (socio1Nombre && socio1Nombre.toUpperCase() !== 'GENERAL') {
+    const res1 = await db.query(
+      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+      [socio1Nombre]
+    );
+    if (res1.rows.length > 0) socio1Data = res1.rows[0];
+  }
+
+  if (socio2Nombre && socio2Nombre.toUpperCase() !== 'GENERAL') {
+    const res2 = await db.query(
+      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+      [socio2Nombre]
+    );
+    if (res2.rows.length > 0) socio2Data = res2.rows[0];
+  }
+
+  // 5. Preparar el payload y calcular el nuevo snapshot financiero
+  const rawData = {
+    hash_largo: targetHash,
+    monto: datos.monto !== undefined && datos.monto !== '' ? datos.monto : 0,
+    moneda: datos.moneda || 'COP',
+    tipo_manual: datos.tipo_manual || datos.tipo_op || datos.tipo_op1 || 'P',
+    id_tasa: idLote
+  };
+
+  const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote);
+
+  // 6. Sobrescribir/Congelar el snapshot en la tabla comprobantes_liq
+  await liquidarComprobante(snapshot);
 
   return { success: true };
 }
