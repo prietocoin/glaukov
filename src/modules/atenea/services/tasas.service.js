@@ -45,18 +45,47 @@ function normalizarMapTasas(tasasObj) {
   return mapNormalizado;
 }
 
-async function obtenerSociosYProcesarTasas(filtroNombre = null) {
-  // 🟢 1. Obtener la última tasa y la penúltima desde 'tasas_glaukov'
-  const sqlTasas = `
-    SELECT id_tasa, tasas, created_at 
-    FROM tasas_glaukov 
-    ORDER BY created_at DESC, id DESC 
-    LIMIT 2;
-  `;
-  const resTasas = await db.query(sqlTasas);
+async function obtenerSociosYProcesarTasas(options = null) {
+  let filtroNombre = null;
+  let idTasaRequerida = null;
 
-  const loteActual = resTasas.rows[0] || { id_tasa: 'T001', tasas: {} };
-  const loteAnterior = resTasas.rows[1] || loteActual;
+  // 🟢 Normalización de parámetros: acepta tanto string (filtroNombre) como objeto de opciones
+  if (typeof options === 'string') {
+    filtroNombre = options;
+  } else if (typeof options === 'object' && options !== null) {
+    filtroNombre = options.filtroNombre || options.socio || null;
+    idTasaRequerida = options.id_tasa || options.lote_tasa || options.idTasa || null;
+  }
+
+  // 🟢 1. Obtener la tasa correspondiente (específica por id_tasa o fallback a la más reciente)
+  let loteActual, loteAnterior;
+
+  if (idTasaRequerida) {
+    const sqlTasaEspecífica = `
+      SELECT id_tasa, tasas, created_at 
+      FROM tasas_glaukov 
+      WHERE id_tasa = $1 
+      LIMIT 1;
+    `;
+    const resEspecífica = await db.query(sqlTasaEspecífica, [idTasaRequerida]);
+    if (resEspecífica.rows.length > 0) {
+      loteActual = resEspecífica.rows[0];
+      loteAnterior = loteActual;
+    }
+  }
+
+  // Fallback si no se especificó id_tasa o si no existía esa tasa en la base de datos
+  if (!loteActual) {
+    const sqlTasas = `
+      SELECT id_tasa, tasas, created_at 
+      FROM tasas_glaukov 
+      ORDER BY created_at DESC, id DESC 
+      LIMIT 2;
+    `;
+    const resTasas = await db.query(sqlTasas);
+    loteActual = resTasas.rows[0] || { id_tasa: 'T001', tasas: {} };
+    loteAnterior = resTasas.rows[1] || loteActual;
+  }
 
   const tasasMercado = normalizarMapTasas(loteActual.tasas);
   const tasasMercadoAnterior = normalizarMapTasas(loteAnterior.tasas);
@@ -131,7 +160,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       const factorD = Math.abs(parseFloat(rawFactorD) || 0);
       const factorP = Math.abs(parseFloat(rawFactorP) || 0);
 
-      // CÁLCULO DE TASAS CON MONEDA DEL SOCIO (Búsqueda insensible a mayúsculas)
+      // CÁLCULO DE TASAS CON MONEDA DEL SOCIO
       const tasaBaseDestino = parseFloat(tasasMercado[codeP] || 1.0);
       let tasaBaseSocio = 1.0;
       if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocio = parseFloat(tasasMercado[monedaProcesada] || 1.0);
@@ -171,7 +200,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       hora_actualizacion: valorHora,
       tasa_base_ref: `${valorTasa} ${valorFecha}`,
       tarjetas_paises: tarjetasPaises,
-      cartelera_paises: tarjetasPaises // Alias para garantizar compatibilidad con librerías de renderizado antiguas/módulos Puppeteer
+      cartelera_paises: tarjetasPaises
     });
   }
 
@@ -183,25 +212,21 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   return listaSociosProcesados;
 }
 
-// 🟢 ENCOLADO A BULLMQ CON INYECCIÓN ESTRICTA DE MODO PRUEBA Y BLINDAJE CONTRA ERRORES
+// 🟢 ENCOLADO A BULLMQ CON SOPORTE COMPLETO DE OPCIONES Y LOTE
 async function encolarNotificacionesTasas(options = null) {
-  let filtroNombre = null;
-  let jidOverride = null;
-
+  let optionsObj = options;
   if (typeof options === 'string') {
-    filtroNombre = options;
-  } else if (typeof options === 'object' && options !== null) {
-    filtroNombre = options.filtroNombre || options.socio || null;
-    jidOverride = options.jidOverride || options.destinationJid || null;
+    optionsObj = { filtroNombre: options };
   }
 
-  const socios = await obtenerSociosYProcesarTasas(filtroNombre);
+  const jidOverride = optionsObj?.jidOverride || optionsObj?.destinationJid || null;
+
+  const socios = await obtenerSociosYProcesarTasas(optionsObj);
   console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
   
   let encoladosConExito = 0;
 
   for (const socio of socios) {
-    // 🛡 SOBREESCRITURA DIRECTA: Si existe jidOverride, forzar el destino a la variable de prueba
     const targetJid = (jidOverride && String(jidOverride).trim().length > 0) 
       ? String(jidOverride).trim() 
       : socio.remoteJid;
