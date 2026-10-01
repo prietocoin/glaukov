@@ -77,7 +77,90 @@ export function comprobantesView() {
       }
     },
 
-    // --- CÁLCULOS KPI Y REGLAS DE NEGOCIO CORREGIDAS ---
+    // --- CÁLCULO DE TASAS POR SOCIO ---
+    obtenerTasaSocioCalculada(c, numSocio = 1) {
+      if (!c) return 1.0;
+      const propTasa = numSocio === 2 ? (c.tasa_2 || c.tasa_socio_2) : (c.tasa_1 || c.tasa_socio_1 || c.tasa_socio);
+      const valTasa = parseFloat(propTasa || c.tasa_base || c.tasa);
+      return (!isNaN(valTasa) && valTasa > 0) ? valTasa : 1.0;
+    },
+
+    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 1 - SIEMPRE POSITIVO)
+    obtenerME1(c) {
+      if (!c) return 0;
+      
+      // Prioridad a valores calculados de la API (en absoluto)
+      if (c.m1_socio !== undefined && c.m1_socio !== null && c.m1_socio !== '') {
+        return Math.abs(parseFloat(c.m1_socio) || 0);
+      }
+      if (c.me1 !== undefined && c.me1 !== null && c.me1 !== '') {
+        return Math.abs(parseFloat(c.me1) || 0);
+      }
+
+      const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
+      const tasa = this.obtenerTasaSocioCalculada(c, 1);
+      const moneda = String(c.moneda || c.moneda_comprobante || 'USDT').toUpperCase().trim();
+
+      let equivalente = 0;
+      if (['USD', 'USDT', 'PYUSD'].includes(moneda)) {
+        equivalente = tasa > 0 ? (montoOrigen * tasa) : montoOrigen;
+      } else {
+        equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
+      }
+
+      return parseFloat(Math.abs(equivalente).toFixed(2));
+    },
+
+    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2 - SIEMPRE POSITIVO)
+    obtenerME2(c) {
+      if (!c) return 0;
+
+      // Prioridad a valores calculados de la API (en absoluto)
+      if (c.m2_socio !== undefined && c.m2_socio !== null && c.m2_socio !== '') {
+        return Math.abs(parseFloat(c.m2_socio) || 0);
+      }
+      if (c.me2 !== undefined && c.me2 !== null && c.me2 !== '') {
+        return Math.abs(parseFloat(c.me2) || 0);
+      }
+
+      const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
+      const tasa = this.obtenerTasaSocioCalculada(c, 2);
+      const moneda = String(c.moneda || c.moneda_comprobante || 'USDT').toUpperCase().trim();
+
+      let equivalente = 0;
+      if (['USD', 'USDT', 'PYUSD'].includes(moneda)) {
+        equivalente = tasa > 0 ? (montoOrigen * tasa) : montoOrigen;
+      } else {
+        equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
+      }
+
+      return parseFloat(Math.abs(equivalente).toFixed(2));
+    },
+
+    // Retorna el ME del socio seleccionado en los filtros para totalizar volumen
+    obtenerMontoSocioCalculado(c) {
+      if (!c) return 0;
+
+      if (this.filtroSocio) {
+        const socioNorm = this.filtroSocio.trim().toUpperCase();
+        const s1 = String(c.socio_1 || c.socio || '').trim().toUpperCase();
+        const s2 = String(c.socio_2 || '').trim().toUpperCase();
+
+        if (socioNorm === s2) {
+          return this.obtenerME2(c);
+        }
+        if (socioNorm === s1) {
+          return this.obtenerME1(c);
+        }
+        if (c.monto_socio_final !== undefined && c.monto_socio_final !== null) {
+          return Math.abs(parseFloat(c.monto_socio_final) || 0);
+        }
+      }
+
+      return this.obtenerME1(c);
+    },
+
+    // --- CÁLCULOS Y ORDENAMIENTO DE COMPROBANTES ---
     get comprobantesProcesadosYOrdenados() {
       if (!this.items || !this.items.length) return [];
       let lista = [...this.items];
@@ -91,8 +174,8 @@ export function comprobantesView() {
         switch (this.filtroOrden) {
           case 'fecha_asc': return tsA - tsB;
           case 'fecha_desc': return tsB - tsA;
-          case 'monto_desc': return Math.abs(montoB) - Math.abs(montoA);
-          case 'monto_asc': return Math.abs(montoA) - Math.abs(montoB);
+          case 'monto_desc': return montoB - montoA;
+          case 'monto_asc': return montoA - montoB;
           default: return tsB - tsA;
         }
       });
@@ -125,50 +208,6 @@ export function comprobantesView() {
       return reg ? (reg.whatsapp || reg.id_grupo || '') : '';
     },
 
-    // 🟢 REGLA MATEMÁTICA BLINDADA: CÁLCULO DE MONEDA EQUIVALENTE DE SOCIO (ME)
-    obtenerMontoSocioCalculado(c) {
-      if (!c) return 0;
-
-      // 1. Si el backend ya entregó el valor procesado explícito
-      if (c.monto_socio_final !== undefined && c.monto_socio_final !== null && this.filtroSocio) {
-        return parseFloat(c.monto_socio_final) || 0;
-      }
-
-      // 2. Extracción de variables base
-      const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
-      const tasa = Math.abs(this.obtenerTasaSocioCalculada(c));
-      const tipoOp = String(c.tipo_op_socio || c.tipo_manual || c.tipo_op || c.tipo_op_1 || 'D').toUpperCase().trim();
-      const monedaComprobante = String(c.moneda || c.moneda_comprobante || 'USDT').toUpperCase().trim();
-
-      let equivalente = 0;
-
-      // 3. Conversión de moneda según tasa
-      if (['USD', 'USDT', 'PYUSD'].includes(monedaComprobante)) {
-        equivalente = tasa > 0 ? (montoOrigen * tasa) : montoOrigen;
-      } else {
-        // Monedas locales (ARS, COP, PEN, VES, etc.)
-        equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
-      }
-
-      // Fallback a m1_socio/me_socio en valor absoluto si no se pudo calcular
-      if (isNaN(equivalente) || equivalente === 0) {
-        equivalente = Math.abs(parseFloat(c.m1_socio || c.me1 || c.me_socio || 0));
-      }
-
-      // 4. Aplicar signo según el tipo de operación (D = Depósito/Positivo, P = Pago/Salida)
-      const signo = (tipoOp === 'P' || tipoOp === 'PAGO' || tipoOp === 'SALIDA') ? -1 : 1;
-      return parseFloat((equivalente * signo).toFixed(2));
-    },
-
-    obtenerTasaSocioCalculada(c) {
-      if (!c) return 1.0;
-      if (c.tasa_socio_final !== undefined && c.tasa_socio_final !== null && parseFloat(c.tasa_socio_final) > 0) {
-        return parseFloat(c.tasa_socio_final);
-      }
-      const valTasa = parseFloat(c.tasa_1 || c.tasa_socio || c.tasa_base || c.tasa);
-      return (!isNaN(valTasa) && valTasa > 0) ? valTasa : 1.0;
-    },
-
     obtenerEtiquetaHash(c) {
       if (c.etiqueta_hash) return c.etiqueta_hash;
       const tipo = c.tipo_op_socio || c.tipo_op || 'D';
@@ -176,7 +215,7 @@ export function comprobantesView() {
       return `[${tipo}-${hash}]`;
     },
 
-    // --- ACCIONES MODAL EDICIÓN / AUDITORÍA ---
+    // --- MODALES DE EDICIÓN / AUDITORÍA ---
     abrirModalEdicion(item) {
       let dateInput = '';
       const ts = item.timestamp || item.timestamp_comprobante;
@@ -247,37 +286,31 @@ export function comprobantesView() {
       }
     },
 
-    // --- FORMATEADORES VISUALES BLINDADOS ---
+    // --- FORMATEADORES VISUALES ---
     formatMonto(val) {
       if (val === null || val === undefined || isNaN(val) || val === '') return '0.00';
-      const num = parseFloat(val);
+      const num = Math.abs(parseFloat(val));
       if (num === 0) return '0.00';
-      const signoStr = num < 0 ? '-' : '';
-      const v = Math.abs(num);
-      const vRound = Math.round(v * 1e8) / 1e8;
-      const vTrunc = Math.trunc((vRound + 0.0000001) * 100) / 100;
-      const parts = vTrunc.toFixed(2).split('.');
-      return `${signoStr}${Number(parts[0]).toLocaleString('en-US')}.${parts[1]}`;
+      const parts = num.toFixed(2).split('.');
+      return `${Number(parts[0]).toLocaleString('en-US')}.${parts[1]}`;
     },
 
     formatTasa(val) {
       if (val === null || val === undefined || isNaN(val) || val === '') return '-';
-      const num = parseFloat(val);
+      const num = Math.abs(parseFloat(val));
       if (isNaN(num) || num === 0) return '0';
-      const signoStr = num < 0 ? '-' : '';
-      const v = Math.abs(num);
-      const vRound = Math.round(v * 1e8) / 1e8;
+      const vRound = Math.round(num * 1e8) / 1e8;
 
       if (vRound > 99.99) {
-        return signoStr + Math.trunc(vRound).toLocaleString('en-US');
+        return Math.trunc(vRound).toLocaleString('en-US');
       } else if (vRound >= 10.0) {
         const resNum = Math.trunc((vRound + 0.0000001) * 100) / 100;
-        return signoStr + resNum.toFixed(2).replace(/\.?0+$/, "");
+        return resNum.toFixed(2).replace(/\.?0+$/, "");
       } else {
         const magnitud = Math.floor(Math.log10(vRound));
         const factor = Math.pow(10, 2 - magnitud);
         const resNum = Math.trunc((vRound + 0.0000001) * factor) / factor;
-        return signoStr + resNum.toString();
+        return resNum.toString();
       }
     },
 
