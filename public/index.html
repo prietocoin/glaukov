@@ -732,8 +732,35 @@
            const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
            const socioFound = (directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
            if (socioFound && socioFound.moneda_socio) return socioFound.moneda_socio.toUpperCase();
-           if (comprobantes && comprobantes.length > 0 && comprobantes[0].moneda_socio_1) return comprobantes[0].moneda_socio_1.toUpperCase();
+           if (comprobantes && comprobantes.length > 0) {
+             const item0 = comprobantes[0];
+             const s2 = (item0.nombre_socio_2 || item0.socio_2 || '').trim().toUpperCase();
+             if (socioNom && s2 === socioNom) {
+               return (item0.moneda_socio_2 || 'USDT').toUpperCase();
+             }
+             return (item0.moneda_socio_1 || 'USDT').toUpperCase();
+           }
            return 'USDT';
+         },
+         getMontoItemSocio(item) {
+           const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
+           const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
+           const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
+
+           if (socioNom && s2 === socioNom && s1 !== socioNom) {
+             return parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
+           }
+           return parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
+         },
+         getTasaItemSocio(item) {
+           const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
+           const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
+           const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
+
+           if (socioNom && s2 === socioNom && s1 !== socioNom) {
+             return item.tasa_2 || 1.0;
+           }
+           return item.tasa_1 || 1.0;
          },
          get totalPaginas() {
            const total = (comprobantes || []).length;
@@ -759,14 +786,14 @@
            for (let i = 0; i < startIdx; i++) {
              const item = (comprobantes || [])[i];
              if (!item) continue;
-             const imp = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
+             const imp = this.getMontoItemSocio(item);
              saldo += imp;
            }
            return saldo;
          },
          get movimientoPagina() {
            return this.comprobantesPagina.reduce((acc, item) => {
-             const imp = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
+             const imp = this.getMontoItemSocio(item);
              return acc + imp;
            }, 0);
          },
@@ -937,9 +964,9 @@
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 13px; font-weight: 800; color: #0f172a; text-align: right; vertical-align: middle;"
                         x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></td>
 
-                    <!-- 🟢 FORMATO REFINADO DE TASA: VALOR PRINCIPAL + ETIQUETA DE LOTE EN MORADO -->
+                    <!-- 🟢 FORMATO DISEÑO: TASA PRINCIPAL + LOTE SEPARADO [T055] -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 12px; text-align: center; vertical-align: middle; white-space: nowrap;">
-                      <span style="font-weight: 800; color: #0f172a;" x-text="item.tasa_1 || 1.0"></span>
+                      <span style="font-weight: 800; color: #0f172a;" x-text="getTasaItemSocio(item)"></span>
                       <template x-if="item.lote_tasa_asignado || item.lote_tasa">
                         <span style="font-size: 10px; font-weight: 700; color: #7c3aed; margin-left: 3px;" x-text="'[' + (item.lote_tasa_asignado || item.lote_tasa) + ']'"></span>
                       </template>
@@ -951,9 +978,10 @@
                       <span x-text="item.banco || 'BANCO'"></span>
                     </td>
 
+                    <!-- 🟢 DERECHO EVALUADO SEGÚN SOCIO FILTRADO (DISCRIMINA S1 VS S2) -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 16px; font-weight: 900; text-align: right; vertical-align: middle;"
-                        :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-600' : 'text-emerald-700'"
-                        x-text="(parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) >= 0 ? '+' : '') + formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto))">
+                        :class="getMontoItemSocio(item) < 0 ? 'text-rose-600' : 'text-emerald-700'"
+                        x-text="(getMontoItemSocio(item) >= 0 ? '+' : '') + formatMonto(getMontoItemSocio(item))">
                     </td>
                   </tr>
                 </template>
