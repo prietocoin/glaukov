@@ -177,7 +177,7 @@
 
             <div>
               <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">2. SOCIO / ENTIDAD</label>
-              <select x-model="filtroSocio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+              <select x-model="filtroSocio" @change="actualizarSocioSeleccionado()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
                 <option value="">Todos los Socios</option>
                 <template x-for="s in directorio" :key="'filtro-socio-' + s.nombre">
                   <option :value="s.nombre" x-text="s.nombre"></option>
@@ -733,22 +733,16 @@
            return (comprobantes || []).slice(start, start + this.itemsPorPagina);
          },
          get saldoAnteriorPagina() {
-           // 1. Identificar el socio filtrado
            const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
            const socioObj = (directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
            
-           // 2. Jerarquía de Saldo Base:
-           // Opcion 1: Perfil de configuración del socio (directorio)
-           // Opcion 2: Campo input del panel principal (saldoAnterior)
-           // Opcion 3: Fallback 0
            let saldoBase = 0;
            if (socioObj && socioObj.saldo_anterior !== undefined && socioObj.saldo_anterior !== null && parseFloat(socioObj.saldo_anterior) !== 0) {
              saldoBase = parseFloat(socioObj.saldo_anterior);
-           } else if (typeof saldoAnterior !== 'undefined' && parseFloat(saldoAnterior) !== 0) {
+           } else if (typeof saldoAnterior !== 'undefined' && !isNaN(parseFloat(saldoAnterior)) && parseFloat(saldoAnterior) !== 0) {
              saldoBase = parseFloat(saldoAnterior);
            }
 
-           // 3. Acumulación por Paginación
            let saldo = saldoBase;
            const startIdx = (this.paginaActual - 1) * this.itemsPorPagina;
            for (let i = 0; i < startIdx; i++) {
