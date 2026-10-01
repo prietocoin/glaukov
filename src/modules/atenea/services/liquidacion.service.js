@@ -20,7 +20,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     ? JSON.parse(socio1Data.ajustes || '{}') 
     : (socio1Data?.ajustes || {});
   
-  // Obtener el factor sin forzar Math.abs para conservar el signo real
+  // Obtener el factor conservando su signo
   const rawFactor1 = aj1[`${tipoOp}-${divisaRaw}`] ?? aj1[divisaRaw] ?? 1.0;
   const factor1 = parseFloat(rawFactor1) || 1.0;
   const tasaBaseSocio1USDT = parseFloat(mapaTasas[monedaSocio1] || 1.0);
@@ -33,11 +33,16 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   // Respetar el signo según la lógica de la operación (Pago = -1, Depósito = 1)
   const signo1 = tipoOp === 'P' ? -1 : 1;
 
-  // M1: Monto nominal en divisa nativa del Socio 1 (ej. USDT)
-  const m1Nominal = aplicarPrecisionMonto(signo1 * (montoRaw / (tasa1Efectiva > 0 ? tasa1Efectiva : 1.0)));
+  // Se evalúa el valor absoluto para evitar activar el fallback a 1.0 si la tasa es negativa,
+  // y se usa el valor absoluto en la división para no anular el signo contable de signo1.
+  const divisorTasa1 = Math.abs(tasa1Efectiva) > 0 ? Math.abs(tasa1Efectiva) : 1.0;
 
-  // ME1: Equivalente SIEMPRE en USDT (M1 / tasaBaseSocio1USDT)
-  const me1USDT = aplicarPrecisionMonto(m1Nominal / (tasaBaseSocio1USDT > 0 ? tasaBaseSocio1USDT : 1.0));
+  // M1: Monto nominal en divisa nativa del Socio 1 (ej. USDT)
+  const m1Nominal = aplicarPrecisionMonto(signo1 * (montoRaw / divisorTasa1));
+
+  // ME1: Equivalente SIEMPRE en USDT
+  const divisorSocio1 = Math.abs(tasaBaseSocio1USDT) > 0 ? tasaBaseSocio1USDT : 1.0;
+  const me1USDT = aplicarPrecisionMonto(m1Nominal / divisorSocio1);
 
 
   // --- SOCIO 2 (Contraparte) ---
@@ -62,11 +67,15 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
 
     const signo2 = -1 * signo1; // Espejo contable opuesto
 
+    // Sortea la evaluación de tasa negativa para no dividir por 1.0
+    const divisorTasa2 = Math.abs(tasa2Efectiva) > 0 ? Math.abs(tasa2Efectiva) : 1.0;
+
     // M2: Monto nominal en divisa nativa del Socio 2
-    m2Nominal = aplicarPrecisionMonto(signo2 * (montoRaw / (tasa2Efectiva > 0 ? tasa2Efectiva : 1.0)));
+    m2Nominal = aplicarPrecisionMonto(signo2 * (montoRaw / divisorTasa2));
 
     // ME2: Equivalente SIEMPRE en USDT
-    me2USDT = aplicarPrecisionMonto(m2Nominal / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0));
+    const divisorSocio2 = Math.abs(tasaBaseSocio2USDT) > 0 ? tasaBaseSocio2USDT : 1.0;
+    me2USDT = aplicarPrecisionMonto(m2Nominal / divisorSocio2);
   }
 
   return {
