@@ -2,7 +2,7 @@ const { Queue } = require('bullmq');
 const db = require('../../../config/db');
 const redisConfig = require('../../../config/redis');
 const { aplicarPrecisionMonto } = require('../../../utils/formatters');
-const { obtenerTasaPorId } = require('./mercado.service');
+const { obtenerTasaPorId, obtenerUltimasTasas } = require('./mercado.service');
 const { calcularSnapshotFinanciero } = require('./liquidacion.service');
 
 // Queue de BullMQ para re-procesamiento de IA
@@ -366,6 +366,70 @@ async function liquidarComprobante(payload) {
   return { success: true };
 }
 
+/**
+ * MODO AUTOMÁTICO POR OMISION (PRIMER IMPACTO)
+ */
+async function liquidarAutomaticoPorOmision(hashLargo) {
+  try {
+    const targetHash = String(hashLargo || '').trim();
+
+    const { rows } = await db.query(`
+      SELECT 
+        c.hash_largo, c.monto, c.moneda, c.creado_en,
+        COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS socio_1_auto,
+        COALESCE(n_grupo2.nombre, n_user2.nombre, 'GENERAL') AS socio_2_auto,
+        (
+          SELECT t.id_tasa FROM tasas_glaukov t 
+          WHERE t.created_at <= COALESCE(c.creado_en, NOW())
+          ORDER BY t.created_at DESC, t.id DESC LIMIT 1
+        ) AS lote_historico
+      FROM comprobantes_raw c
+      LEFT JOIN impactos_raw i1 ON LOWER(TRIM(i1.hash_largo)) = LOWER(TRIM(c.hash_largo))
+      LEFT JOIN nombres_fb n_grupo1 ON i1.grupo_raw IS NOT NULL AND (LOWER(TRIM(n_grupo1.whatsapp)) = LOWER(TRIM(i1.grupo_raw)) OR LOWER(TRIM(n_grupo1.id_grupo)) = LOWER(TRIM(i1.grupo_raw)))
+      LEFT JOIN nombres_fb n_user1 ON i1.usuario_raw IS NOT NULL AND LOWER(TRIM(n_user1.whatsapp)) = LOWER(TRIM(i1.usuario_raw))
+      LEFT JOIN impactos_raw i2 ON LOWER(TRIM(i2.hash_largo)) = LOWER(TRIM(c.hash_largo)) AND i2.id != i1.id
+      LEFT JOIN nombres_fb n_grupo2 ON i2.grupo_raw IS NOT NULL AND (LOWER(TRIM(n_grupo2.whatsapp)) = LOWER(TRIM(i2.grupo_raw)) OR LOWER(TRIM(n_grupo2.id_grupo)) = LOWER(TRIM(i2.grupo_raw)))
+      LEFT JOIN nombres_fb n_user2 ON i2.usuario_raw IS NOT NULL AND LOWER(TRIM(n_user2.whatsapp)) = LOWER(TRIM(i2.usuario_raw))
+      WHERE LOWER(TRIM(c.hash_largo)) = LOWER(TRIM($1))
+      LIMIT 1;
+    `, [targetHash]);
+
+    if (rows.length === 0) return;
+
+    const comp = rows[0];
+    const idLote = comp.lote_historico || 'T052';
+
+    let tasaLote = await obtenerTasaPorId(idLote);
+    if (!tasaLote) tasaLote = await obtenerUltimasTasas();
+
+    let socio1Data = { nombre: comp.socio_1_auto };
+    let socio2Data = { nombre: comp.socio_2_auto };
+
+    if (comp.socio_1_auto !== 'GENERAL') {
+      const res1 = await db.query(`SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`, [comp.socio_1_auto]);
+      if (res1.rows.length > 0) socio1Data = res1.rows[0];
+    }
+
+    if (comp.socio_2_auto !== 'GENERAL') {
+      const res2 = await db.query(`SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`, [comp.socio_2_auto]);
+      if (res2.rows.length > 0) socio2Data = res2.rows[0];
+    }
+
+    const rawData = {
+      hash_largo: targetHash,
+      monto: comp.monto || 0,
+      moneda: comp.moneda || 'COP',
+      tipo_manual: 'P',
+      id_tasa: idLote
+    };
+
+    const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote);
+    await liquidarComprobante(snapshot);
+  } catch (err) {
+    console.error('⚠️ [Error en liquidarAutomaticoPorOmision]:', err.message);
+  }
+}
+
 async function releerIA(hashLargo) {
   const targetHash = (hashLargo || '').trim();
 
@@ -434,12 +498,12 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       targetHash
     ]);
 
-    // 2. Extraer parámetros del modal de edición
-    const idLote = datos.id_tasa || datos.lote_tasa || datos.lote_tasa_asignado || 'T052';
+    // 2. PRIORIZAR EL LOTE SELECCIONADO EN EL MODAL DE CORRECCIÓN
+    const idLote = datos.lote_tasa_asignado || datos.lote_tasa || datos.id_tasa || 'T052';
     const socio1Nombre = datos.nombre_socio_1 || datos.socio_1 || datos.socio1 || 'GENERAL';
     const socio2Nombre = datos.nombre_socio_2 || datos.socio_2 || datos.socio2 || 'GENERAL';
 
-    // 3. Obtener el lote de tasa específico
+    // 3. Obtener el lote de tasa específico seleccionado
     let tasaLote = null;
     try {
       if (typeof obtenerTasaPorId === 'function') {
@@ -449,7 +513,11 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       console.warn(`⚠️ Error al consultar lote ${idLote}:`, e.message);
     }
 
-    // 4. Buscar datos de socios consultando únicamente la columna 'nombre' existente en nombres_fb
+    if (!tasaLote) {
+      tasaLote = await obtenerUltimasTasas();
+    }
+
+    // 4. Buscar datos de socios en nombres_fb
     let socio1Data = { nombre: socio1Nombre };
     let socio2Data = { nombre: socio2Nombre };
 
@@ -501,6 +569,7 @@ async function eliminarComprobante(hashLargo) {
 module.exports = {
   obtenerComprobantesAuditados,
   liquidarComprobante,
+  liquidarAutomaticoPorOmision,
   releerIA,
   actualizarComprobante,
   eliminarComprobante
