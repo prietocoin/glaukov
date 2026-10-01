@@ -15,7 +15,7 @@ function registrarAppAlpine() {
     socios: [],
 
     // Estado Mercado & Modo Prueba
-    modoPruebaActivo: false, // 🟢 DECLARACIÓN DE VARIABLE REACTIVA MODO PRUEBA
+    modoPruebaActivo: false,
     loteActivo: '',
     tasasProduccion: {},
     borradorCapturado: {},
@@ -87,7 +87,6 @@ function registrarAppAlpine() {
           const rawRates = res.rates || res.rates_draft;
           const ratesNormalizadas = {};
           
-          // Normalización estricta de llaves a MAYÚSCULAS
           Object.keys(rawRates).forEach(k => {
             ratesNormalizadas[k.toUpperCase()] = rawRates[k];
           });
@@ -130,7 +129,6 @@ function registrarAppAlpine() {
       if (!confirm(mensajeConfirm)) return;
 
       try {
-        // 🟢 INYECCIÓN DE MODO PRUEBA AL BACKEND
         const res = await window.AteneaAPI.publicarTasa(null, this.borradorCapturado, this.modoPruebaActivo);
         if (res && res.id_tasa) this.loteActivo = res.id_tasa;
         
@@ -155,7 +153,6 @@ function registrarAppAlpine() {
       if (!confirm(mensajeConfirm)) return;
 
       try {
-        // 🟢 INYECCIÓN DE MODO PRUEBA AL BACKEND
         await window.AteneaAPI.reenviarTasa(this.loteActivo, 'GENERAL', this.modoPruebaActivo);
         alert(`Reenvío activado para la tasa ${this.loteActivo} ${this.modoPruebaActivo ? '(🧪 Grupo de Prueba)' : '(🚀 Producción)'}.`);
       } catch (err) {
@@ -183,7 +180,6 @@ function registrarAppAlpine() {
       }
       
       try {
-        // 🟢 INYECCIÓN DE MODO PRUEBA EN ENVÍO INDIVIDUAL
         await window.AteneaAPI.reenviarTasaSocio(this.loteActivo, socioObj.nombre, this.modoPruebaActivo);
         alert(`✅ Cartelera de ${socioObj.nombre} despachada ${modoTexto}.`);
       } catch (err) {
@@ -402,7 +398,7 @@ function registrarAppAlpine() {
         me1: item.me1 !== undefined && item.me1 !== null ? item.me1 : fallbackMonto,
         tasa_2: truncarTasaComercial(item.tasa_2 || 1.0),
         me2: item.me2 || 0,
-        lote_tasa_asignado: item.lote_tasa || item.lote_tasa_asignado || this.loteActivo || 'T041',
+        lote_tasa_asignado: item.lote_tasa_asignado || item.lote_tasa || this.loteActivo || 'T052',
         fecha_hora_input: dateInput
       };
       this.modalAbierto = true;
@@ -432,73 +428,35 @@ function registrarAppAlpine() {
 
         const montoEditado = Math.abs(parseFloat(this.itemEdicion.monto || 0));
         const divisaEditada = (this.itemEdicion.moneda || 'USDT').toUpperCase();
+        const loteSeleccionado = (this.itemEdicion.lote_tasa_asignado || this.itemEdicion.lote_tasa || this.loteActivo || 'T052').toUpperCase().trim();
 
-        await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, {
+        const payload = {
           monto: montoEditado,
           moneda: divisaEditada,
           banco: this.itemEdicion.banco,
           referencia: this.itemEdicion.referencia,
-          titular: this.itemEdicion.titular
-        });
-
-        const tasaBaseDivisa = parseFloat(this.tasasProduccion[divisaEditada] || 1.0);
-
-        const s1Obj = this.directorio.find(d => d.nombre === this.itemEdicion.nombre_socio_1);
-        const s2Obj = this.directorio.find(d => d.nombre === this.itemEdicion.nombre_socio_2);
-
-        const monS1 = (s1Obj?.moneda_socio || 'USDT').toUpperCase();
-        const monS2 = (s2Obj?.moneda_socio || 'USDT').toUpperCase();
-
-        const tasaBaseS1 = parseFloat(this.tasasProduccion[monS1] || 1.0);
-        const tasaBaseS2 = parseFloat(this.tasasProduccion[monS2] || 1.0);
-
-        let aj1 = {}, aj2 = {};
-        try { aj1 = typeof s1Obj?.ajustes === 'string' ? JSON.parse(s1Obj.ajustes || '{}') : (s1Obj?.ajustes || {}); } catch (e) {}
-        try { aj2 = typeof s2Obj?.ajustes === 'string' ? JSON.parse(s2Obj.ajustes || '{}') : (s2Obj?.ajustes || {}); } catch (e) {}
-
-        const tipoOpLetra = (this.itemEdicion.tipo_manual || 'D').toUpperCase().charAt(0);
-        
-        const factor1 = Math.abs(parseFloat(aj1[`${tipoOpLetra}-${divisaEditada}`]) || 1.0);
-        const factor2 = Math.abs(parseFloat(aj2[`${tipoOpLetra}-${divisaEditada}`]) || 1.0);
-
-        const cross1 = (tasaBaseDivisa / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0)) * factor1;
-        const tasa1Calculada = truncarTasaComercial(cross1);
-
-        const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
-        const tasa2Calculada = truncarTasaComercial(cross2);
-
-        const signo1 = tipoOpLetra === 'P' ? -1 : 1;
-        const signo2 = -1 * signo1;
-        const tieneSocio2 = this.itemEdicion.nombre_socio_2 && this.itemEdicion.nombre_socio_2 !== 'GENERAL';
-
-        const m1Nominal = tasa1Calculada > 0 ? (signo1 * montoEditado / tasa1Calculada) : (signo1 * montoEditado);
-        const me1USDT = m1Nominal / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0);
-
-        const m2Nominal = tieneSocio2 ? (tasa2Calculada > 0 ? (signo2 * montoEditado / tasa2Calculada) : 0) : 0;
-        const me2USDT = tieneSocio2 ? (m2Nominal / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) : 0;
-
-        const tipoOpFinal = `${tipoOpLetra}-${divisaEditada}`;
-
-        await window.AteneaAPI.liquidarComprobante({
-          hash_largo: this.itemEdicion.hash_largo,
+          titular: this.itemEdicion.titular,
+          tipo_manual: this.itemEdicion.tipo_manual || 'P',
+          nombre_socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
           socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
-          tipo_op1: tipoOpFinal,
-          monto_1: m1Nominal,
-          tasa_1: tasa1Calculada,
-          me1: me1USDT,
-          socio_2: tieneSocio2 ? this.itemEdicion.nombre_socio_2 : null,
-          tipo_op2: tipoOpFinal,
-          monto_2: m2Nominal,
-          tasa_2: tasa2Calculada,
-          me2: me2USDT,
-          lote_tasa: this.itemEdicion.lote_tasa_asignado || this.loteActivo || 'T041'
-        });
+          nombre_socio_2: this.itemEdicion.nombre_socio_2 || 'GENERAL',
+          socio_2: this.itemEdicion.nombre_socio_2 || 'GENERAL',
+          lote_tasa_asignado: loteSeleccionado,
+          lote_tasa: loteSeleccionado,
+          id_tasa: loteSeleccionado
+        };
 
-        this.modalAbierto = false;
-        await this.cargarComprobantes();
+        const res = await window.AteneaAPI.actualizarComprobante(this.itemEdicion.hash_largo, payload);
+
+        if (res && (res.success || res.status === 'SUCCESS')) {
+          this.modalAbierto = false;
+          await this.cargarComprobantes();
+        } else {
+          alert('Error al guardar la liquidación');
+        }
       } catch (err) {
         console.error('❌ Error en guardarCambios:', err);
-        alert('Error al guardar liquidación: ' + err.message);
+        alert('Error al guardar liquidación: ' + (err.message || err));
       }
     },
 
