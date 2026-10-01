@@ -14,7 +14,8 @@ function truncarTasaComercial(valor) {
 }
 
 /**
- * Consulta de lectura optimizada con cálculo comercial dinámico en vivo.
+ * Consulta de lectura optimizada con cálculo comercial dinámico en vivo
+ * Alineada con la tabla unificada 'tasas_glaukov'
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -47,12 +48,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     const orderDirection = orden === 'fecha_asc' ? 'ASC' : 'DESC';
 
     const sqlBase = `
-      WITH tasas_por_lote AS (
-        SELECT id_tasa, jsonb_object_agg(UPPER(moneda), tasa_base) AS tasas
-        FROM mercado_tasas
-        GROUP BY id_tasa
-      ),
-      impactos_ordenados AS (
+      WITH impactos_ordenados AS (
         SELECT 
           hash_largo, hash_corto, url_imagen, usuario_raw, grupo_raw, caption, timestamp_msg,
           ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(hash_largo)) ORDER BY id ASC) AS num_impacto
@@ -93,20 +89,20 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         l.me2,
         l.lote_tasa,
 
-        -- CRUCE CON TABLA MERCADO_TASAS
+        -- CRUCE HISTÓRICO CON TABLA TASAS_GLAUKOV
         (
-          SELECT m.id_tasa 
-          FROM mercado_tasas m 
-          WHERE m.created_at <= COALESCE(
+          SELECT t.id_tasa 
+          FROM tasas_glaukov t 
+          WHERE t.created_at <= COALESCE(
             c.creado_en, 
             CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, 
             NOW()
           )
-          ORDER BY m.created_at DESC, m.id DESC
+          ORDER BY t.created_at DESC, t.id DESC
           LIMIT 1
         ) AS lote_tasa_historico,
 
-        -- DICCIONARIO DE TASAS DEL LOTE
+        -- JSONB DE TASAS DEL LOTE (ASIGNADO O HISTÓRICO)
         tj.tasas AS tasas_lote,
 
         -- MONEDAS Y FILA COMPLETA DE SOCIO 1 Y 2
@@ -149,10 +145,11 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(l.socio_1, n_grupo1.nombre, n_user1.nombre)))
       LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(l.socio_2, n_grupo2.nombre, n_user2.nombre)))
 
-      LEFT JOIN tasas_por_lote tj ON tj.id_tasa = COALESCE(l.lote_tasa, (
-        SELECT m.id_tasa FROM mercado_tasas m 
-        WHERE m.created_at <= COALESCE(c.creado_en, CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, NOW())
-        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+      -- UNIFICACIÓN CON TASAS_GLAUKOV
+      LEFT JOIN tasas_glaukov tj ON tj.id_tasa = COALESCE(l.lote_tasa, (
+        SELECT t.id_tasa FROM tasas_glaukov t 
+        WHERE t.created_at <= COALESCE(c.creado_en, CASE WHEN i1.timestamp_msg IS NOT NULL AND i1.timestamp_msg > 0 THEN to_timestamp(i1.timestamp_msg) ELSE NULL END, NOW())
+        ORDER BY t.created_at DESC, t.id DESC LIMIT 1
       ))
 
       WHERE ${whereSql}
@@ -225,8 +222,9 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         me1Calculado = parseFloat(r.me1 || 0);
         me2Calculado = parseFloat(r.me2 || 0);
       } else {
-        // CÁLCULO EN TIEMPO REAL CON LA TASA HISTÓRICA DEL MERCADO
-        const tasasMap = r.tasas_lote || {};
+        // CÁLCULO EN TIEMPO REAL CON LA TASA DEL LOTE OBTENIDO DE TASAS_GLAUKOV
+        const tasasMap = typeof r.tasas_lote === 'string' ? JSON.parse(r.tasas_lote) : (r.tasas_lote || {});
+        
         const tasaBaseDivisa = parseFloat(tasasMap[divisaRecibo] || 1.0);
         const tasaBaseS1 = parseFloat(tasasMap[monedaSocio1] || 1.0);
         const tasaBaseS2 = parseFloat(tasasMap[monedaSocio2] || 1.0);
@@ -286,10 +284,10 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         tasa_2: tasa2Calculada,
         me2: me2Calculado,
 
-        // PROPIEDADES FRONTEND
+        // PROPIEDADES FRONTEND (Resuelve correctamente el lote histórico o asignado)
         m1_socio: m1Calculado,
         m2_socio: m2Calculado,
-        lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T047'
+        lote_tasa_asignado: r.lote_tasa || r.lote_tasa_historico || 'T001'
       };
     });
   } catch (err) {
