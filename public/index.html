@@ -777,7 +777,7 @@
            const socioNom = (filtroSocio || sujetoAuditado || '').trim();
 
            if (!socioNom) {
-             alert('⚠️️ Por favor selecciona un socio en los filtros antes de enviar el reporte.');
+             alert('⚠ Por favor selecciona un socio en los filtros antes de enviar el reporte.');
              return;
            }
 
@@ -844,7 +844,7 @@
         </div>
         
         <div class="flex items-center gap-1.5 shrink-0">
-          <button type="button" @click="enviarReporteViaEvolution()" :disabled="generandoImagen" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/30 transition-all flex items-center gap-1 active:scale-95">
+          <button type="button" @click="enviarReporteViaEvolution()" :disabled="generandoImagen" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/30 transition-all flex items-center gap-1 active:scale-95">
             <span x-show="!generandoImagen" x-text="'🤖 Enviar Pág ' + paginaActual"></span>
             <span x-show="generandoImagen">⏳ Enviando...</span>
           </button>
@@ -913,9 +913,9 @@
                 <tr style="border-bottom: 2px solid #0f172a; font-size: 11px; font-weight: 900; color: #475569; text-transform: uppercase; text-align: left;">
                   <th style="padding: 8px 4px; width: 55px;">Fecha</th>
                   <th style="padding: 8px 4px; width: 45px; text-align: center;">Tipo</th>
-                  <th style="padding: 8px 4px; width: 80px;">Hash</th>
-                  <th style="padding: 8px 4px; width: 150px; text-align: right;">Monto Origen</th>
-                  <th style="padding: 8px 4px; width: 60px; text-align: center;">Tasa</th>
+                  <th style="padding: 8px 4px; width: 70px;">Hash</th>
+                  <th style="padding: 8px 4px; width: 140px; text-align: right;">Monto Origen</th>
+                  <th style="padding: 8px 4px; width: 85px; text-align: center;">Tasa</th>
                   <th style="padding: 8px 8px;">Titular / Banco</th>
                   <th style="padding: 8px 4px; width: 140px; text-align: right;">Subtotal</th>
                 </tr>
@@ -937,8 +937,9 @@
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 13px; font-weight: 800; color: #0f172a; text-align: right; vertical-align: middle;"
                         x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></td>
 
+                    <!-- 🟢 NÚMERO DE LOTE + VALOR DE TASA AÑADIDO -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 10.5px; font-weight: 700; color: #6b21a8; text-align: center; vertical-align: middle;"
-                        x-text="item.tasa_1 || 1.0"></td>
+                        x-text="(item.lote_tasa_asignado || item.lote_tasa ? (item.lote_tasa_asignado || item.lote_tasa) + ' / ' : '') + (item.tasa_1 || 1.0)"></td>
 
                     <td style="padding: 4px 8px; font-size: 10.5px; font-weight: 600; color: #475569; text-transform: uppercase; vertical-align: middle;">
                       <span x-text="(item.titular || 'N/D').trim().split(' ')[0]"></span>
