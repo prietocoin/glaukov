@@ -51,8 +51,8 @@ function registrarAppAlpine() {
 
     async init() {
       await this.cargarSocios();
-      await this.cargarComprobantes();
       await this.cargarDirectorio();
+      await this.cargarComprobantes();
       await this.cargarTasasMercado();
       this.iniciarAutoSync();
     },
@@ -191,6 +191,21 @@ function registrarAppAlpine() {
     // ==========================================
     // COMPROBANTES, DIRECTORIO & MODALES
     // ==========================================
+    actualizarSocioSeleccionado() {
+      const socioNom = (this.filtroSocio || '').trim().toUpperCase();
+      if (socioNom) {
+        const socioFound = (this.directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
+        if (socioFound && socioFound.saldo_anterior !== undefined && socioFound.saldo_anterior !== null) {
+          this.saldoAnterior = parseFloat(socioFound.saldo_anterior) || 0;
+        } else {
+          this.saldoAnterior = 0;
+        }
+      } else {
+        this.saldoAnterior = 0;
+      }
+      this.cargarComprobantes();
+    },
+
     async cargarComprobantes(silencioso = false) {
       try {
         const params = {};
@@ -213,6 +228,13 @@ function registrarAppAlpine() {
       try {
         const res = await window.AteneaAPI.getDirectorio();
         this.directorio = Array.isArray(res) ? res : [];
+        if (this.filtroSocio) {
+          const socioNom = this.filtroSocio.trim().toUpperCase();
+          const socioFound = this.directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
+          if (socioFound && socioFound.saldo_anterior !== undefined && socioFound.saldo_anterior !== null) {
+            this.saldoAnterior = parseFloat(socioFound.saldo_anterior) || 0;
+          }
+        }
       } catch (err) {
         console.error('[Glaukov UI ❌]', err);
       }
@@ -409,7 +431,7 @@ function registrarAppAlpine() {
       if (!confirm('¿Deseas enviar este comprobante a re-lectura con Gemini?')) return;
       try {
         await window.AteneaAPI.releerIA(this.itemEdicion.hash_largo);
-        alert('⚡ Comprobante enviado a la cola de re-lectura IA correctamente.');
+        alert('⚡ Comprobante encolado para re-lectura IA.');
         this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
