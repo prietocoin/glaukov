@@ -64,17 +64,25 @@ async function previewImage(req, res) {
       }
     }
 
-    // 3. Fallback incondicional (evita el 404)
+    // 3. Fallback dinámico leyendo la última tasa de la BD (sin hardcode 'T055')
     let targetData;
     if (foundData) {
       targetData = JSON.parse(JSON.stringify(foundData));
     } else if (data.length > 0) {
       targetData = JSON.parse(JSON.stringify(data[0]));
     } else {
+      // Intentar recuperar el último correlativo real
+      let ultimoLote = 'T001';
+      try {
+        const ult = await mercadoService.obtenerUltimasTasas();
+        if (ult && ult.id_tasa) ultimoLote = ult.id_tasa;
+      } catch (e) {}
+
       targetData = {
         nombre_socio: socioBuscado,
         moneda_socio: 'USDT',
-        lote_tasa: 'T055',
+        lote_tasa: ultimoLote,
+        tasa_base_ref: ultimoLote,
         cartelera_paises: [
           { moneda: 'ARS', pais: 'Argentina', activo: true, compra: '1664', venta: '1536' },
           { moneda: 'VES', pais: 'Venezuela', activo: true, compra: '988', venta: '953' },
@@ -102,7 +110,7 @@ async function previewImage(req, res) {
   }
 }
 
-// 🟢 DISPARO MASIVO DE CARTELERAS (Con soporte para Switch de Prueba)
+// 🟢 DISPARO MASIVO DE CARTELERAS
 async function dispararWhatsApp(req, res) {
   try {
     const bodyObj = req?.body || {};
@@ -110,7 +118,6 @@ async function dispararWhatsApp(req, res) {
 
     const esModoPrueba = bodyObj.modoPrueba === true || bodyObj.esPrueba === true || queryObj.modoPrueba === 'true';
     
-    // 🛡️ Lógica estricta: Si el switch está ON -> usa TEST_JID_OVERRIDE del .env. Si está OFF -> null (envío oficial a cada socio).
     const jidPruebaRaw = esModoPrueba 
       ? process.env.TEST_JID_OVERRIDE 
       : (bodyObj.jidPrueba || queryObj.jidPrueba || null);
@@ -124,7 +131,6 @@ async function dispararWhatsApp(req, res) {
       console.log(`🚀 [MODO OFICIAL] Disparando ráfaga masiva a canales oficiales con pausa de ${delayMs}ms.`);
     }
 
-    // Si el servicio soporta la llamada consolidada
     if (typeof tasasService.dispararPublicacionCartelera === 'function') {
       const resultado = await tasasService.dispararPublicacionCartelera({ 
         jidOverride: jidPrueba, 
@@ -143,7 +149,6 @@ async function dispararWhatsApp(req, res) {
       return payload;
     }
 
-    // Fallback: Procesamiento secuencial manual con PAUSA PRUDENTE
     const fnConsolidada = tasasService.obtenerCarteleraConsolidada || tasasService.obtenerSociosYProcesarTasas;
     const carteleras = (await fnConsolidada()) || [];
     const fnMedia = reportesService.enviarMediaWhatsApp || reportesService.enviarReporteMediaWhatsApp;
@@ -153,7 +158,7 @@ async function dispararWhatsApp(req, res) {
       const targetData = carteleras[i];
       const socioNombre = String(targetData.nombre_socio || targetData.nombre || 'SOCIO').toUpperCase().trim();
 
-      console.log(`[Batch WA 📤 (${i + 1}/${carteleras.length})] Generando cartelera para ${socioNombre} (Moneda: ${targetData.moneda_socio || 'USDT'})...`);
+      console.log(`[Batch WA 📤 (${i + 1}/${carteleras.length})] Generando cartelera para ${socioNombre}...`);
       const imageBuffer = await generarImagenTasa(targetData);
       const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
 
@@ -171,7 +176,6 @@ async function dispararWhatsApp(req, res) {
       envios.push({ socio: socioNombre, ok: true, detail: envRes });
 
       if (i < carteleras.length - 1) {
-        console.log(`⏳ Esperando ${delayMs / 1000}s antes de enviar la siguiente imagen...`);
         await sleep(delayMs);
       }
     }
@@ -304,19 +308,19 @@ async function getFetchHoo(req, res) {
   }
 }
 
-// 🟢 PUBLICACIÓN DE TASA (Con disparo masivo encadenado)
+// 🟢 PUBLICACIÓN DE TASA
 async function postPublicarTasa(req, res) {
   try {
     const { id_tasa, tasas } = req.body;
     
-    // 1. Guardar el nuevo lote en la tabla unificada tasas_glaukov
+    // 1. Guardar el nuevo lote en tasas_glaukov
     const resultado = await mercadoService.publicarTasaOficial(id_tasa, tasas);
     console.log(`[Publicar Tasa 🚀] Lote ${resultado.id_tasa} guardado en tasas_glaukov.`);
 
-    // 2. Disparar el envío masivo en segundo plano pasando req para conservar flags
+    // 2. Disparar el envío masivo en segundo plano
     dispararWhatsApp(req, null)
-      .then(resWa => console.log('✅ Despacho masivo de WhatsApp completado:', resWa?.procesados || 0, 'socios'))
-      .catch(errWa => console.error('❌ Error en disparo masivo de WhatsApp:', errWa.message));
+      .then(resWa => console.log('✅ Despacho masivo completado:', resWa?.procesados || 0, 'socios'))
+      .catch(errWa => console.error('❌ Error en disparo masivo:', errWa.message));
 
     // 3. Responder de inmediato al Dashboard
     return res.json({ 
@@ -331,17 +335,15 @@ async function postPublicarTasa(req, res) {
   }
 }
 
-// 🟢 REENVÍO DE TASA (Redirige 'GENERAL' a la ráfaga masiva)
+// 🟢 REENVÍO DE TASA
 async function postReenviarTasa(req, res) {
   const rawSocio = req.body && typeof req.body.socio === 'string' ? req.body.socio : 'GENERAL';
   const socioBuscado = String(rawSocio).trim().toUpperCase();
 
-  console.log(`[Reenviar Tasa ⚡] Solicitud de reenvío recibida para: ${socioBuscado}`);
+  console.log(`[Reenviar Tasa ⚡] Solicitud de reenvío para: ${socioBuscado}`);
 
   try {
-    // Si la solicitud es para "GENERAL", ejecutar el disparo masivo para todos los socios
     if (socioBuscado === 'GENERAL') {
-      console.log('[Reenviar Tasa ⚡] Ejecutando reenvío masivo a todos los socios...');
       return await dispararWhatsApp(req, res);
     }
 
@@ -379,11 +381,9 @@ async function postReenviarTasa(req, res) {
     targetData.nombre_socio = socioBuscado;
     targetData.nombre = socioBuscado;
 
-    console.log(`[Reenviar Tasa ⚡] Renderizando PNG para ${socioBuscado}...`);
     const imageBuffer = await generarImagenTasa(targetData);
     const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
 
-    console.log(`[Reenviar Tasa ⚡] Despachando a WhatsApp (${socioBuscado}${jidPrueba ? ' -> MODO PRUEBA' : ''})...`);
     const fnMedia = reportesService.enviarMediaWhatsApp || reportesService.enviarReporteMediaWhatsApp;
     
     let envRes;
@@ -393,11 +393,10 @@ async function postReenviarTasa(req, res) {
       envRes = await mercadoService.reenviarTasa(req.body.id_tasa, socioBuscado, jidPrueba);
     }
 
-    console.log(`[Reenviar Tasa ⚡] ✅ Enviado con éxito a ${socioBuscado}`);
     return res.json({ success: true, message: `Cartelera enviada a ${socioBuscado}`, result: envRes });
 
   } catch (err) {
-    console.error(`[Reenviar Tasa ❌ Error con ${socioBuscado}]:`, err.message);
+    console.error(`[Reenviar Tasa ❌ Error]:`, err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -411,7 +410,6 @@ async function getDirectorio(req, res) {
     const directorio = await fn();
     res.json(directorio || []);
   } catch (err) {
-    console.error('❌ Error GET /api/directorio:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -422,7 +420,6 @@ async function getSocios(req, res) {
     const socios = await fn();
     res.json(socios || []);
   } catch (err) {
-    console.error('❌ Error GET /api/socios:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -516,7 +513,6 @@ async function postEnviarMediaWhatsApp(req, res) {
     const resultado = await fn(req.body);
     res.json({ success: true, message: 'Reporte en imagen enviado con éxito.', ...resultado });
   } catch (err) {
-    console.error('❌ Error POST /api/whatsapp/enviar-media:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 }
