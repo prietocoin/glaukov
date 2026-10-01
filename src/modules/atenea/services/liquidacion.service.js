@@ -1,20 +1,16 @@
 const { aplicarReglaPrecisionTasa, aplicarPrecisionMonto } = require('../../../utils/formatters');
 
 /**
- * Aplica precisión a la tasa conservando el signo algebraico
- * y evitando generar NaN o strings con formato inválido para PostgreSQL.
+ * Trunca la tasa asegurando que SIEMPRE sea una magnitud absoluta POSITIVA.
  */
 function truncarTasaSegura(valor) {
-  const num = parseFloat(valor);
-  if (isNaN(num) || num === 0) return 1.0;
-
-  const signo = num < 0 ? -1 : 1;
-  const mag = Math.abs(num);
+  const num = Math.abs(parseFloat(valor) || 0);
+  if (num === 0) return 1.0;
 
   let res;
   if (typeof aplicarReglaPrecisionTasa === 'function') {
     try {
-      const valFormateado = aplicarReglaPrecisionTasa(mag);
+      const valFormateado = aplicarReglaPrecisionTasa(num);
       res = parseFloat(String(valFormateado).replace(/,/g, ''));
     } catch (e) {
       res = null;
@@ -22,18 +18,18 @@ function truncarTasaSegura(valor) {
   }
 
   if (isNaN(res) || res === null) {
-    if (mag > 99.99) {
-      res = Math.trunc(mag);
+    if (num > 99.99) {
+      res = Math.trunc(num);
     } else {
-      res = Math.trunc((mag + 0.0000001) * 100) / 100;
+      res = Math.trunc((num + 0.0000001) * 100) / 100;
     }
   }
 
-  return signo * (res || 1.0);
+  return res || 1.0;
 }
 
 /**
- * Aplica precisión a los montos asegurando retornar un Number puro sin comas.
+ * Aplica precisión al monto conservando su signo algebraico numérico.
  */
 function truncarMontoSeguro(valor) {
   const num = parseFloat(valor);
@@ -54,12 +50,10 @@ function truncarMontoSeguro(valor) {
  * Calcula el snapshot contable respetando la divisa nativa de cada socio
  */
 function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
-  // Elimina posibles comas de formato miles si vienen en raw.monto
   const montoRaw = Math.abs(parseFloat(String(raw?.monto || 0).replace(/,/g, '')) || 0);
   const divisaRaw = String(raw?.moneda || 'USDT').toUpperCase().trim();
   const tipoOp = String(raw?.tipo_manual || raw?.tipo_op || 'D').toUpperCase().trim().charAt(0);
 
-  // Fallback seguro del lote asignado en el comprobante
   const loteCodigo = raw?.id_tasa || tasaLote?.id_tasa || 'T052';
   const mapaTasas = tasaLote?.tasas || {};
 
@@ -71,21 +65,19 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     ? JSON.parse(socio1Data.ajustes || '{}') 
     : (socio1Data?.ajustes || {});
   
-  // Obtener el factor conservando su signo
   const rawFactor1 = aj1[`${tipoOp}-${divisaRaw}`] ?? aj1[divisaRaw] ?? 1.0;
-  const factor1 = parseFloat(rawFactor1) || 1.0;
+  const factor1Abs = Math.abs(parseFloat(rawFactor1)) || 1.0;
   const tasaBaseSocio1USDT = parseFloat(mapaTasas[monedaSocio1] || 1.0);
 
-  // Tasa comercial T1 (Divisa Comprobante -> Moneda Socio 1)
+  // Tasa comercial T1 (Divisa Comprobante -> Moneda Socio 1) - SIEMPRE POSITIVA
   const tasaBaseCalculada1 = tasaBaseRawUSDT / (tasaBaseSocio1USDT > 0 ? tasaBaseSocio1USDT : 1.0);
-  const crossBase1 = tasaBaseCalculada1 * factor1;
+  const crossBase1 = tasaBaseCalculada1 * factor1Abs;
   const tasa1Efectiva = truncarTasaSegura(crossBase1);
 
-  // Respetar el signo según la lógica de la operación (Pago = -1, Depósito = 1)
-  const signo1 = tipoOp === 'P' ? -1 : 1;
+  // Signo contable para Socio 1 (En Pago "P", Socio 1 recibe = +1)
+  const signo1 = tipoOp === 'P' ? 1 : -1;
 
-  // Se evalúa el valor absoluto para evitar activar el fallback a 1.0 si la tasa es negativa
-  const divisorTasa1 = Math.abs(tasa1Efectiva) > 0 ? Math.abs(tasa1Efectiva) : 1.0;
+  const divisorTasa1 = tasa1Efectiva > 0 ? tasa1Efectiva : 1.0;
 
   // M1: Monto nominal en divisa nativa del Socio 1
   const m1Nominal = truncarMontoSeguro(signo1 * (montoRaw / divisorTasa1));
@@ -107,17 +99,18 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
       : (socio2Data?.ajustes || {});
 
     const rawFactor2 = aj2[`${tipoOp}-${divisaRaw}`] ?? aj2[divisaRaw] ?? 1.0;
-    const factor2 = parseFloat(rawFactor2) || 1.0;
+    const factor2Abs = Math.abs(parseFloat(rawFactor2)) || 1.0;
     const tasaBaseSocio2USDT = parseFloat(mapaTasas[monedaSocio2] || 1.0);
 
-    // Tasa comercial T2
+    // Tasa comercial T2 - SIEMPRE POSITIVA
     const tasaBaseCalculada2 = tasaBaseRawUSDT / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0);
-    const crossBase2 = tasaBaseCalculada2 * factor2;
+    const crossBase2 = tasaBaseCalculada2 * factor2Abs;
     tasa2Efectiva = truncarTasaSegura(crossBase2);
 
-    const signo2 = -1 * signo1; // Espejo contable opuesto
+    // Espejo contable opuesto (En Pago "P", Socio 2 paga = -1)
+    const signo2 = -1 * signo1;
 
-    const divisorTasa2 = Math.abs(tasa2Efectiva) > 0 ? Math.abs(tasa2Efectiva) : 1.0;
+    const divisorTasa2 = tasa2Efectiva > 0 ? tasa2Efectiva : 1.0;
 
     // M2: Monto nominal en divisa nativa del Socio 2
     m2Nominal = truncarMontoSeguro(signo2 * (montoRaw / divisorTasa2));
