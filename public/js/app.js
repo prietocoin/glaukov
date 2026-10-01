@@ -513,9 +513,23 @@ function registrarAppAlpine() {
       return this.filtroSocio ? this.filtroSocio.toUpperCase() : 'TODOS LOS SOCIOS';
     },
 
+    // 🟢 EVALUACIÓN DINÁMICA DE SOCIO 1 VS SOCIO 2 PARA EL KPI DE MOVIMIENTO
     get movimientoFiltradoTotal() {
       if (!Array.isArray(this.comprobantes)) return 0;
-      return this.comprobantes.reduce((sum, item) => sum + (parseFloat(item.m1_socio) || parseFloat(item.monto) || 0), 0);
+      const socioTarget = (this.filtroSocio || '').trim().toUpperCase();
+
+      return this.comprobantes.reduce((sum, item) => {
+        const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
+        const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
+
+        let val = 0;
+        if (socioTarget && s2 === socioTarget && s1 !== socioTarget) {
+          val = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
+        } else {
+          val = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
+        }
+        return sum + val;
+      }, 0);
     },
 
     get monedaSocioDominante() {
