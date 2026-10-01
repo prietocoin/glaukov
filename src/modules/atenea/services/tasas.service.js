@@ -6,6 +6,10 @@ const redisConnection = require('../../../config/redis');
 
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
+tasasQueue.on('error', (err) => {
+  console.error('❌ [BullMQ tasasQueue] Error en la cola de Redis:', err.message);
+});
+
 function parseCartelera(rawInput) {
   if (!rawInput) return [];
   if (Array.isArray(rawInput)) return rawInput;
@@ -29,6 +33,18 @@ function parseCartelera(rawInput) {
   return [];
 }
 
+/**
+ * Normaliza las llaves de un objeto de tasas a MAYÚSCULAS para evitar undefined
+ */
+function normalizarMapTasas(tasasObj) {
+  const rawMap = typeof tasasObj === 'string' ? JSON.parse(tasasObj || '{}') : (tasasObj || {});
+  const mapNormalizado = {};
+  for (const [k, v] of Object.entries(rawMap)) {
+    if (k) mapNormalizado[k.toUpperCase().trim()] = parseFloat(v) || 1.0;
+  }
+  return mapNormalizado;
+}
+
 async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   // 🟢 1. Obtener la última tasa y la penúltima desde 'tasas_glaukov'
   const sqlTasas = `
@@ -42,8 +58,8 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   const loteActual = resTasas.rows[0] || { id_tasa: 'T001', tasas: {} };
   const loteAnterior = resTasas.rows[1] || loteActual;
 
-  const tasasMercado = typeof loteActual.tasas === 'string' ? JSON.parse(loteActual.tasas || '{}') : (loteActual.tasas || {});
-  const tasasMercadoAnterior = typeof loteAnterior.tasas === 'string' ? JSON.parse(loteAnterior.tasas || '{}') : (loteAnterior.tasas || {});
+  const tasasMercado = normalizarMapTasas(loteActual.tasas);
+  const tasasMercadoAnterior = normalizarMapTasas(loteAnterior.tasas);
   const correlativoTasa = loteActual.id_tasa || 'T001';
 
   // 🟢 2. Obtener lista de socios desde nombres_fb
@@ -63,7 +79,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
-    // 🟢 MONEDA BASE DEL SOCIO: Lectura correcta desde la columna PostgreSQL
+    // 🟢 MONEDA BASE DEL SOCIO: Lectura desde la columna PostgreSQL
     const monedaRaw = socioData.moneda_socio || socioData.monedasocio || socioData.moneda || "USDT";
     const monedaExtraida = String(monedaRaw).toUpperCase().trim();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
@@ -101,7 +117,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
     };
 
     for (const itemPais of paisesActivos) {
-      const codeP = (itemPais.moneda || itemPais.code || MAPA_MONEDAS[itemPais.pais || itemPais.nombrePais] || "").toUpperCase();
+      const codeP = (itemPais.moneda || itemPais.code || MAPA_MONEDAS[itemPais.pais || itemPais.nombrePais] || "").toUpperCase().trim();
       const nombreP = itemPais.pais || itemPais.nombrePais || Object.keys(MAPA_MONEDAS).find(k => MAPA_MONEDAS[k] === codeP) || codeP;
 
       if (!codeP) continue;
@@ -115,7 +131,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       const factorD = Math.abs(parseFloat(rawFactorD) || 0);
       const factorP = Math.abs(parseFloat(rawFactorP) || 0);
 
-      // CÁLCULO DE TASAS CON MONEDA DEL SOCIO
+      // CÁLCULO DE TASAS CON MONEDA DEL SOCIO (Búsqueda insensible a mayúsculas)
       const tasaBaseDestino = parseFloat(tasasMercado[codeP] || 1.0);
       let tasaBaseSocio = 1.0;
       if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocio = parseFloat(tasasMercado[monedaProcesada] || 1.0);
@@ -181,7 +197,7 @@ async function encolarNotificacionesTasas(options = null) {
   console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
   
   for (const socio of socios) {
-    // 🛡️ SOBREESCRITURA DIRECTA: Si existe jidOverride, forzar el destino a la variable de prueba
+    // 🛡️️ SOBREESCRITURA DIRECTA: Si existe jidOverride, forzar el destino a la variable de prueba
     const targetJid = (jidOverride && String(jidOverride).trim().length > 0) 
       ? String(jidOverride).trim() 
       : socio.remoteJid;
