@@ -167,9 +167,11 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
       nombre_socio: labelSocio,
       moneda_socio: monedaProcesada,
       remoteJid: whatsappJid,
+      lote_tasa: correlativoTasa,
       hora_actualizacion: valorHora,
       tasa_base_ref: `${valorTasa} ${valorFecha}`,
-      tarjetas_paises: tarjetasPaises
+      tarjetas_paises: tarjetasPaises,
+      cartelera_paises: tarjetasPaises // Alias para garantizar compatibilidad con librerías de renderizado antiguas/módulos Puppeteer
     });
   }
 
@@ -181,7 +183,7 @@ async function obtenerSociosYProcesarTasas(filtroNombre = null) {
   return listaSociosProcesados;
 }
 
-// 🟢 ENCOLADO A BULLMQ CON INYECCIÓN ESTRICTA DE MODO PRUEBA
+// 🟢 ENCOLADO A BULLMQ CON INYECCIÓN ESTRICTA DE MODO PRUEBA Y BLINDAJE CONTRA ERRORES
 async function encolarNotificacionesTasas(options = null) {
   let filtroNombre = null;
   let jidOverride = null;
@@ -196,8 +198,10 @@ async function encolarNotificacionesTasas(options = null) {
   const socios = await obtenerSociosYProcesarTasas(filtroNombre);
   console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
   
+  let encoladosConExito = 0;
+
   for (const socio of socios) {
-    // 🛡️️ SOBREESCRITURA DIRECTA: Si existe jidOverride, forzar el destino a la variable de prueba
+    // 🛡 SOBREESCRITURA DIRECTA: Si existe jidOverride, forzar el destino a la variable de prueba
     const targetJid = (jidOverride && String(jidOverride).trim().length > 0) 
       ? String(jidOverride).trim() 
       : socio.remoteJid;
@@ -209,9 +213,15 @@ async function encolarNotificacionesTasas(options = null) {
       destinationJid: targetJid
     };
 
-    await tasasQueue.add('render-tasa-socio', payloadJob, { removeOnComplete: true, attempts: 3 });
+    try {
+      await tasasQueue.add('render-tasa-socio', payloadJob, { removeOnComplete: true, attempts: 3 });
+      encoladosConExito++;
+    } catch (qErr) {
+      console.error(`❌ Error al encolar tasa en Redis para socio ${socio.nombre_socio}:`, qErr.message);
+    }
   }
-  return { totalEncolados: socios.length, socios: socios.map(s => s.nombre_socio) };
+
+  return { totalEncolados: encoladosConExito, socios: socios.map(s => s.nombre_socio) };
 }
 
 module.exports = { 
