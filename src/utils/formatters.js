@@ -41,15 +41,11 @@ function aplicarPrecisionMonto(val) {
 
 /**
  * Convierte un valor de tasa a su representación en string truncada
+ * (Sin separadores de millares, exclusivamente números planos)
  */
 function truncarTasaOficial(val) {
   const num = aplicarReglaPrecisionTasa(val);
   if (num === 0) return "0";
-  
-  const absNum = Math.abs(num);
-  if (absNum > 99.99) {
-    return num.toLocaleString('en-US');
-  }
   return num.toString();
 }
 
