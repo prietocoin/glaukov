@@ -20,13 +20,14 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     ? JSON.parse(socio1Data.ajustes || '{}') 
     : (socio1Data?.ajustes || {});
   
-  // Buscar el factor respetando la regla asignada (P-COP, D-COP o la divisa directa)
-  const rawFactor1 = aj1[`${tipoOp}-${divisaRaw}`] ?? aj1[divisaRaw] ?? 1.0;
-  const factor1 = Math.abs(parseFloat(rawFactor1) || 1.0);
+  // Buscar el factor respetando la regla asignada (P-COP, D-COP o la divisa directa) sin forzar Math.abs
+  const rawFactor1 = aj1[`${tipoOp}-${divisaRaw}`] ?? aj1[divisaRaw] ?? 0.0;
+  const factor1 = parseFloat(rawFactor1) || 0.0;
   const tasaBaseSocio1USDT = parseFloat(mapaTasas[monedaSocio1] || 1.0);
 
-  // Tasa comercial T1 (Divisa Comprobante -> Moneda Socio 1)
-  const crossBase1 = (tasaBaseRawUSDT / (tasaBaseSocio1USDT > 0 ? tasaBaseSocio1USDT : 1.0)) * factor1;
+  // Tasa comercial T1 (Divisa Comprobante -> Moneda Socio 1) aplicando el factor como diferencial (spread)
+  const tasaBaseCalculada1 = tasaBaseRawUSDT / (tasaBaseSocio1USDT > 0 ? tasaBaseSocio1USDT : 1.0);
+  const crossBase1 = tasaBaseCalculada1 + factor1;
   const tasa1Efectiva = aplicarReglaPrecisionTasa(crossBase1);
 
   // Respetar el signo según la lógica de la operación (Pago = -1, Depósito = 1)
@@ -50,12 +51,13 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
       ? JSON.parse(socio2Data.ajustes || '{}') 
       : (socio2Data?.ajustes || {});
 
-    const rawFactor2 = aj2[`${tipoOp}-${divisaRaw}`] ?? aj2[divisaRaw] ?? 1.0;
-    const factor2 = Math.abs(parseFloat(rawFactor2) || 1.0);
+    const rawFactor2 = aj2[`${tipoOp}-${divisaRaw}`] ?? aj2[divisaRaw] ?? 0.0;
+    const factor2 = parseFloat(rawFactor2) || 0.0;
     const tasaBaseSocio2USDT = parseFloat(mapaTasas[monedaSocio2] || 1.0);
 
-    // Tasa comercial T2 (Divisa Comprobante -> Moneda Socio 2)
-    const crossBase2 = (tasaBaseRawUSDT / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0)) * factor2;
+    // Tasa comercial T2 aplicando el factor como diferencial (spread)
+    const tasaBaseCalculada2 = tasaBaseRawUSDT / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0);
+    const crossBase2 = tasaBaseCalculada2 + factor2;
     tasa2Efectiva = aplicarReglaPrecisionTasa(crossBase2);
 
     const signo2 = -1 * signo1; // Espejo contable opuesto
@@ -85,4 +87,4 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   };
 }
 
-module.exports = { calcularSnapshotFinanciero };
+module.exports = { calcularSnapshotFinanciero };v
