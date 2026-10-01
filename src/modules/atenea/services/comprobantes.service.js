@@ -298,7 +298,8 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 }
 
 /**
- * Registra o actualiza la liquidación congelada en comprobantes_liq
+ * Registra o actualiza la liquidación congelada en comprobantes_liq.
+ * Respeta la restricción NOT NULL de las columnas socio_2 y tipo_op2.
  */
 async function liquidarComprobante(payload) {
   const {
@@ -331,26 +332,35 @@ async function liquidarComprobante(payload) {
       actualizado_en = NOW();
   `;
 
+  const targetHash = String(hash_largo).trim();
+  const s1 = String(socio_1 || 'GENERAL').trim();
+  const tOp1 = String(tipo_op1 || 'D-USDT').trim();
+
   const m1 = parseFloat(monto_1);
   const t1 = parseFloat(tasa_1);
   const e1 = parseFloat(me1);
+
+  // Garantizar valores no nulos para socio_2 y tipo_op2 (regla NOT NULL en BD)
+  const s2 = String(socio_2 && socio_2 !== 'GENERAL' ? socio_2 : 'GENERAL').trim();
+  const tOp2 = String(tipo_op2 || tOp1).trim();
+
   const m2 = parseFloat(monto_2);
   const t2 = parseFloat(tasa_2);
   const e2 = parseFloat(me2);
 
   await db.query(query, [
-    hash_largo,
-    socio_1 || 'GENERAL',
-    tipo_op1 || 'D-USDT',
+    targetHash,
+    s1,
+    tOp1,
     !isNaN(m1) ? m1 : 0,
     !isNaN(t1) ? t1 : 1.0,
     !isNaN(e1) ? e1 : 0,
-    socio_2 && socio_2 !== 'GENERAL' ? socio_2 : null,
-    tipo_op2 || 'D-USDT',
+    s2,
+    tOp2,
     !isNaN(m2) ? m2 : 0,
     !isNaN(t2) ? t2 : 1.0,
     !isNaN(e2) ? e2 : 0,
-    lote_tasa || null
+    lote_tasa || 'T052'
   ]);
 
   return { success: true };
@@ -398,79 +408,86 @@ async function releerIA(hashLargo) {
  * Actualiza los datos del comprobante y recalcula/congela el snapshot en comprobantes_liq
  */
 async function actualizarComprobante(hashLargo, datos = {}) {
-  const targetHash = (hashLargo || '').trim();
-  
-  // Sanitizar formato numérico removiendo comas de miles (ej. "147,000" -> 147000)
-  const montoRawStr = String(datos.monto || '').replace(/,/g, '').trim();
-  const montoSanitizado = parseFloat(montoRawStr);
-  const valMonto = !isNaN(montoSanitizado) && montoSanitizado > 0 ? montoSanitizado : null;
-
-  // 1. Actualizar tabla base comprobantes_raw
-  await db.query(`
-    UPDATE comprobantes_raw SET
-      monto = COALESCE($1, monto),
-      moneda = COALESCE($2, moneda),
-      banco = COALESCE($3, banco),
-      referencia = COALESCE($4, referencia),
-      titular = COALESCE($5, titular)
-    WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($6));
-  `, [
-    valMonto,
-    datos.moneda || null,
-    datos.banco ? datos.banco.toUpperCase().trim() : null,
-    datos.referencia ? datos.referencia.trim() : null,
-    datos.titular ? datos.titular.toUpperCase().trim() : null,
-    targetHash
-  ]);
-
-  // 2. Extraer parámetros del modal de edición
-  const idLote = datos.id_tasa || datos.lote_tasa || datos.lote_tasa_asignado || 'T052';
-  const socio1Nombre = datos.socio_1 || datos.nombre_socio_1 || datos.socio1 || 'GENERAL';
-  const socio2Nombre = datos.socio_2 || datos.nombre_socio_2 || datos.socio2 || null;
-
-  // 3. Obtener el lote de tasa específico (ej. T052 = 3285)
-  let tasaLote = null;
   try {
-    tasaLote = await obtenerTasaPorId(idLote);
-  } catch (e) {
-    console.warn(`⚠️ Error al consultar lote ${idLote}:`, e.message);
+    const targetHash = String(hashLargo || '').trim();
+    
+    // Sanitizar formato numérico
+    const montoRawStr = String(datos.monto || '').replace(/,/g, '').trim();
+    const montoSanitizado = parseFloat(montoRawStr);
+    const valMonto = !isNaN(montoSanitizado) && montoSanitizado > 0 ? montoSanitizado : null;
+
+    // 1. Actualizar tabla base comprobantes_raw
+    await db.query(`
+      UPDATE comprobantes_raw SET
+        monto = COALESCE($1, monto),
+        moneda = COALESCE($2, moneda),
+        banco = COALESCE($3, banco),
+        referencia = COALESCE($4, referencia),
+        titular = COALESCE($5, titular)
+      WHERE LOWER(TRIM(hash_largo)) = LOWER(TRIM($6));
+    `, [
+      valMonto,
+      datos.moneda || null,
+      datos.banco ? datos.banco.toUpperCase().trim() : null,
+      datos.referencia ? datos.referencia.trim() : null,
+      datos.titular ? datos.titular.toUpperCase().trim() : null,
+      targetHash
+    ]);
+
+    // 2. Extraer parámetros del modal de edición
+    const idLote = datos.id_tasa || datos.lote_tasa || datos.lote_tasa_asignado || 'T052';
+    const socio1Nombre = datos.nombre_socio_1 || datos.socio_1 || datos.socio1 || 'GENERAL';
+    const socio2Nombre = datos.nombre_socio_2 || datos.socio_2 || datos.socio2 || 'GENERAL';
+
+    // 3. Obtener el lote de tasa específico
+    let tasaLote = null;
+    try {
+      if (typeof obtenerTasaPorId === 'function') {
+        tasaLote = await obtenerTasaPorId(idLote);
+      }
+    } catch (e) {
+      console.warn(`⚠️ Error al consultar lote ${idLote}:`, e.message);
+    }
+
+    // 4. Buscar datos de socios consultando únicamente la columna 'nombre' existente en nombres_fb
+    let socio1Data = { nombre: socio1Nombre };
+    let socio2Data = { nombre: socio2Nombre };
+
+    if (socio1Nombre && socio1Nombre.toUpperCase() !== 'GENERAL') {
+      const res1 = await db.query(
+        `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+        [socio1Nombre]
+      );
+      if (res1.rows.length > 0) socio1Data = res1.rows[0];
+    }
+
+    if (socio2Nombre && socio2Nombre.toUpperCase() !== 'GENERAL') {
+      const res2 = await db.query(
+        `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+        [socio2Nombre]
+      );
+      if (res2.rows.length > 0) socio2Data = res2.rows[0];
+    }
+
+    // 5. Preparar el payload y calcular el nuevo snapshot financiero
+    const rawData = {
+      hash_largo: targetHash,
+      monto: valMonto || datos.monto || 0,
+      moneda: datos.moneda || datos.moneda_recibo || 'COP',
+      tipo_manual: datos.tipo_manual || datos.tipo_op || datos.tipo_op1 || 'P',
+      id_tasa: idLote
+    };
+
+    const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote);
+
+    // 6. Sobrescribir/Congelar el snapshot en la tabla comprobantes_liq
+    await liquidarComprobante(snapshot);
+
+    return { success: true };
+  } catch (err) {
+    console.error('❌ [Error crítico en actualizarComprobante]:', err.stack || err.message);
+    throw err;
   }
-
-  // 4. Obtener reglas y ajustes de los socios desde nombres_fb (búsqueda flexible por nombre o socio)
-  let socio1Data = { nombre: socio1Nombre };
-  let socio2Data = null;
-
-  if (socio1Nombre && socio1Nombre.toUpperCase() !== 'GENERAL') {
-    const res1 = await db.query(
-      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) OR UPPER(TRIM(socio)) = UPPER(TRIM($1)) LIMIT 1`,
-      [socio1Nombre]
-    );
-    if (res1.rows.length > 0) socio1Data = res1.rows[0];
-  }
-
-  if (socio2Nombre && socio2Nombre.toUpperCase() !== 'GENERAL') {
-    const res2 = await db.query(
-      `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) OR UPPER(TRIM(socio)) = UPPER(TRIM($1)) LIMIT 1`,
-      [socio2Nombre]
-    );
-    if (res2.rows.length > 0) socio2Data = res2.rows[0];
-  }
-
-  // 5. Preparar el payload y calcular el nuevo snapshot financiero
-  const rawData = {
-    hash_largo: targetHash,
-    monto: valMonto || datos.monto || 0,
-    moneda: datos.moneda || datos.moneda_recibo || 'COP',
-    tipo_manual: datos.tipo_manual || datos.tipo_op || datos.tipo_op1 || 'P',
-    id_tasa: idLote
-  };
-
-  const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote);
-
-  // 6. Sobrescribir/Congelar el snapshot en la tabla comprobantes_liq
-  await liquidarComprobante(snapshot);
-
-  return { success: true };
 }
 
 async function eliminarComprobante(hashLargo) {
