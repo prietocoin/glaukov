@@ -74,8 +74,9 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const crossBase1 = tasaBaseCalculada1 * factor1Abs;
   const tasa1Efectiva = truncarTasaSegura(crossBase1);
 
-  // Signo contable para Socio 1 (En Pago "P", Socio 1 recibe = +1)
-  const signo1 = tipoOp === 'P' ? 1 : -1;
+  // Signo Socio 1: Positivo por defecto (+1), salvo ajuste explícito negativo en perfil
+  const numFactor1 = parseFloat(rawFactor1);
+  const signo1 = (!isNaN(numFactor1) && numFactor1 < 0) ? -1 : 1;
 
   const divisorTasa1 = tasa1Efectiva > 0 ? tasa1Efectiva : 1.0;
 
@@ -107,8 +108,12 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     const crossBase2 = tasaBaseCalculada2 * factor2Abs;
     tasa2Efectiva = truncarTasaSegura(crossBase2);
 
-    // Espejo contable opuesto (En Pago "P", Socio 2 paga = -1)
-    const signo2 = -1 * signo1;
+    // Espejo contable opuesto para Socio 2 (-1 por defecto frente a Socio 1)
+    const numFactor2 = parseFloat(rawFactor2);
+    let signo2 = -1 * signo1;
+    if (!isNaN(numFactor2) && numFactor2 < 0) {
+      signo2 = -1;
+    }
 
     const divisorTasa2 = tasa2Efectiva > 0 ? tasa2Efectiva : 1.0;
 
