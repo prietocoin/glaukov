@@ -9,9 +9,8 @@ function truncarTasaComercial(valor) {
 
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
-    vistaActiva: 'dashboard', // 🟢 Dashboard como vista inicial
+    vistaActiva: 'dashboard', // 🟢 Dashboard como vista principal
     vistaDashboardSubmenu: 'balance', // 'balance' | 'inspeccion'
-    sociosApagados: {}, // ⚡ Registro de Mini Power individual por socio { 'SOCIO': true }
     loteSeleccionadoInspector: '',
 
     comprobantes: [],
@@ -71,15 +70,21 @@ function registrarAppAlpine() {
       }, 5000);
     },
 
-    // ⚡ CONTROL MINI POWER INDIVIDUAL POR CARD
-    togglePowerSocio(nombre) {
-      const key = String(nombre || '').trim().toUpperCase();
-      this.sociosApagados[key] = !this.sociosApagados[key];
-    },
-
-    isSocioEncendido(nombre) {
-      const key = String(nombre || '').trim().toUpperCase();
-      return !this.sociosApagados[key];
+    // 🟢 TOGGLE INDEPENDIENTE PARA VISIBILIDAD EN DASHBOARD (DASH: ON / OFF)
+    async toggleDashSocio(socio) {
+      try {
+        const nuevoEstado = socio.mostrar_dashboard === false ? true : false;
+        socio.mostrar_dashboard = nuevoEstado;
+        
+        if (window.AteneaAPI && typeof window.AteneaAPI.guardarSocioConfig === 'function') {
+          await window.AteneaAPI.guardarSocioConfig({
+            nombre: socio.nombre,
+            mostrar_dashboard: nuevoEstado
+          });
+        }
+      } catch (err) {
+        console.error('[Glaukov UI ❌ Error al cambiar visibilidad de Dashboard]', err);
+      }
     },
 
     // ==========================================
@@ -104,7 +109,7 @@ function registrarAppAlpine() {
       try {
         if (window.AteneaAPI && typeof window.AteneaAPI.getHistorialTasas === 'function') {
           const res = await window.AteneaAPI.getHistorialTasas();
-          this.historialTasas = Array.isArray(res) ? res : [];
+          this.historialTasas = Array.isArray(res) ? res : (res?.rows || res?.data || []);
           if (this.historialTasas.length > 0 && !this.loteSeleccionadoInspector) {
             this.loteSeleccionadoInspector = this.historialTasas[0].id_tasa || this.loteActivo;
           }
@@ -114,11 +119,11 @@ function registrarAppAlpine() {
       }
     },
 
+    // 🟢 DATOS LIMPIOS DEL LOTE INSPECCIONADO
     get datosLoteInspeccionado() {
-      if (!this.loteSeleccionadoInspector) {
-        return { id_tasa: this.loteActivo, tasas: this.tasasProduccion };
-      }
-      const loteFound = (this.historialTasas || []).find(l => String(l.id_tasa).toUpperCase() === String(this.loteSeleccionadoInspector).toUpperCase());
+      const targetLote = this.loteSeleccionadoInspector || this.loteActivo;
+      const loteFound = (this.historialTasas || []).find(l => String(l.id_tasa || '').toUpperCase() === String(targetLote || '').toUpperCase());
+
       if (loteFound) {
         let tasasObj = loteFound.tasas;
         if (typeof tasasObj === 'string') {
@@ -130,7 +135,8 @@ function registrarAppAlpine() {
           fecha: loteFound.created_at ? new Date(loteFound.created_at).toLocaleString('es-ES') : ''
         };
       }
-      return { id_tasa: this.loteActivo, tasas: this.tasasProduccion };
+
+      return { id_tasa: this.loteActivo || 'N/A', tasas: this.tasasProduccion || {} };
     },
 
     async conectarHooAPI() {
@@ -164,7 +170,7 @@ function registrarAppAlpine() {
         window.open(this.imagenPreviewUrl, '_blank');
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } finally {
+      } font-bold {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -326,6 +332,7 @@ function registrarAppAlpine() {
         whatsapp: socioObj.whatsapp || socioObj.id_grupo || '',
         saldo_anterior: socioObj.saldo_anterior || 0,
         activo: socioObj.activo ?? true,
+        mostrar_dashboard: socioObj.mostrar_dashboard ?? true, // 🟢 CAMPOS SEPARADOS
         paises: listaPaisesDefault
       };
 
@@ -334,7 +341,7 @@ function registrarAppAlpine() {
 
     crearNuevoSocio() {
       this.abrirConfigSocio({
-        nombre: '', roles: 'SOCIO', moneda_socio: 'USDT', whatsapp: '', saldo_anterior: 0, activo: true
+        nombre: '', roles: 'SOCIO', moneda_socio: 'USDT', whatsapp: '', saldo_anterior: 0, activo: true, mostrar_dashboard: true
       });
     },
 
@@ -373,6 +380,7 @@ function registrarAppAlpine() {
           whatsapp: this.socioConfigEdit.whatsapp,
           saldo_anterior: this.socioConfigEdit.saldo_anterior,
           activo: this.socioConfigEdit.activo,
+          mostrar_dashboard: this.socioConfigEdit.mostrar_dashboard,
           ajustes,
           cartelera_paises: carteleraPaises
         };
@@ -604,46 +612,46 @@ function registrarAppAlpine() {
       );
     },
 
-    // 🟢 CALCULA EL SALDO FINAL HISTÓRICO DE CADA SOCIO Y DETECTA ESTADO MINI POWER
+    // 🟢 FILTRA SOCIOS EVALUANDO EXCLUSIVAMENTE 'mostrar_dashboard' (SEPARADO DE socio.activo)
     get sociosPendientesConsolidado() {
       if (!Array.isArray(this.directorio)) return [];
 
-      return this.directorio.map(socio => {
-        const nombreUpper = (socio.nombre || '').trim().toUpperCase();
-        const saldoBase = parseFloat(socio.saldo_anterior) || 0;
+      return this.directorio
+        .filter(socio => socio.mostrar_dashboard !== false) // 🟢 INDEPENDIENTE DE socio.activo
+        .map(socio => {
+          const nombreUpper = (socio.nombre || '').trim().toUpperCase();
+          const saldoBase = parseFloat(socio.saldo_anterior) || 0;
 
-        const movimientoHistorico = (this.comprobantes || []).reduce((acc, item) => {
-          const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
-          const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
+          const movimientoHistorico = (this.comprobantes || []).reduce((acc, item) => {
+            const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
+            const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
 
-          if (s1 === nombreUpper) {
-            const val1 = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
-            return acc + val1;
-          } else if (s2 === nombreUpper) {
-            const val2 = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
-            return acc + val2;
-          }
-          return acc;
-        }, 0);
+            if (s1 === nombreUpper) {
+              const val1 = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
+              return acc + val1;
+            } else if (s2 === nombreUpper) {
+              const val2 = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
+              return acc + val2;
+            }
+            return acc;
+          }, 0);
 
-        const saldoFinal = Math.trunc((saldoBase + movimientoHistorico + 0.0000001) * 100) / 100;
+          const saldoFinal = Math.trunc((saldoBase + movimientoHistorico + 0.0000001) * 100) / 100;
 
-        return {
-          nombre: socio.nombre,
-          moneda: (socio.moneda_socio || 'USDT').toUpperCase(),
-          saldoBase,
-          movimientoHistorico,
-          saldoFinal,
-          encendido: this.isSocioEncendido(socio.nombre)
-        };
-      }).filter(s => Math.abs(s.saldoFinal) >= 0.01);
+          return {
+            nombre: socio.nombre,
+            moneda: (socio.moneda_socio || 'USDT').toUpperCase(),
+            saldoBase,
+            movimientoHistorico,
+            saldoFinal
+          };
+        })
+        .filter(s => Math.abs(s.saldoFinal) >= 0.01);
     },
 
-    // 🟢 CARD MASTER: SUMA ALGEBRAICA GENERAL SOLO DE CARDS ENCENDIDAS (POWER ON)
+    // 🟢 CARD MASTER: SUMA ALGEBRAICA GENERAL DE SOCIOS VISIBLES EN DASHBOARD
     get totalSumaAlgebraicaPendientes() {
-      return this.sociosPendientesConsolidado
-        .filter(s => s.encendido)
-        .reduce((sum, s) => sum + s.saldoFinal, 0);
+      return this.sociosPendientesConsolidado.reduce((sum, s) => sum + s.saldoFinal, 0);
     }
   }));
 }
