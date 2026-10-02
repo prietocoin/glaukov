@@ -9,7 +9,7 @@ function truncarTasaComercial(valor) {
 
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
-    vistaActiva: 'dashboard', // 🟢 Dashboard como vista principal
+    vistaActiva: 'dashboard', // 🟢 VISTA INICIAL
     vistaDashboardSubmenu: 'balance', // 'balance' | 'inspeccion'
     loteSeleccionadoInspector: '',
 
@@ -27,7 +27,7 @@ function registrarAppAlpine() {
     socioPreviewSeleccionado: 'GENERAL',
     cargandoPreviewImagen: false,
 
-    // Filtros Comprobantes
+    // Filtros Comprobantes y Cortes de Período
     filtroRol: '',
     filtroSocio: '',
     filtroFechaInicio: '',
@@ -54,7 +54,6 @@ function registrarAppAlpine() {
     ultimaActualizacion: '',
 
     async init() {
-      // 🟢 Protección robusta: si falla una API, no congela el resto del sistema
       try { await this.cargarSocios(); } catch (e) {}
       try { await this.cargarDirectorio(); } catch (e) {}
       try { await this.cargarComprobantes(); } catch (e) {}
@@ -71,20 +70,21 @@ function registrarAppAlpine() {
       }, 5000);
     },
 
-    // 🟢 TOGGLE INDEPENDIENTE PARA VISIBILIDAD EN DASHBOARD (DASH: ON / OFF)
-    async toggleDashSocio(socio) {
+    // 🟢 ACCIÓN SEPARADA DE DASHBOARD (NO INTERFIERE CON WHATSAPP/TASAS)
+    toggleDashSocio(socio) {
+      if (!socio) return;
+      socio.mostrar_dashboard = socio.mostrar_dashboard === false ? true : false;
+    },
+
+    // 🟢 ACCIÓN SEPARADA DE WHATSAPP / TASAS
+    async toggleEstadoSocio(socio) {
+      if (!socio) return;
       try {
-        const nuevoEstado = socio.mostrar_dashboard === false ? true : false;
-        socio.mostrar_dashboard = nuevoEstado;
-        
-        if (window.AteneaAPI && typeof window.AteneaAPI.guardarSocioConfig === 'function') {
-          await window.AteneaAPI.guardarSocioConfig({
-            nombre: socio.nombre,
-            mostrar_dashboard: nuevoEstado
-          });
-        }
+        const nuevoEstado = !socio.activo;
+        socio.activo = nuevoEstado;
+        await window.AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
       } catch (err) {
-        console.error('[Glaukov UI ❌ Error al cambiar visibilidad de Dashboard]', err);
+        console.error('[Glaukov UI ❌ Error al cambiar estado socio WA]', err);
       }
     },
 
@@ -121,7 +121,6 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 DATOS LIMPIOS DEL LOTE INSPECCIONADO
     get datosLoteInspeccionado() {
       const targetLote = this.loteSeleccionadoInspector || this.loteActivo;
       const loteFound = (this.historialTasas || []).find(l => String(l.id_tasa || '').toUpperCase() === String(targetLote || '').toUpperCase());
@@ -172,7 +171,7 @@ function registrarAppAlpine() {
         window.open(this.imagenPreviewUrl, '_blank');
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } finally { // 🟢 SINTAXIS CORREGIDA A 'finally'
+      } finally {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -398,16 +397,6 @@ function registrarAppAlpine() {
       }
     },
 
-    async toggleEstadoSocio(socio) {
-      try {
-        const nuevoEstado = !socio.activo;
-        await window.AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
-        socio.activo = nuevoEstado;
-      } catch (err) {
-        console.error('[Glaukov UI ❌]', err);
-      }
-    },
-
     async apagarTodosSocios() {
       if (!confirm('¿Deseas apagar/desactivar todos los socios?')) return;
       try {
@@ -614,17 +603,53 @@ function registrarAppAlpine() {
       );
     },
 
-    // 🟢 FILTRA SOCIOS EVALUANDO EXCLUSIVAMENTE 'mostrar_dashboard'
+    // 🟢 CALCULA EL SALDO CON CORTE DE PERÍODO (FECHAS Y RANGO DE HASH)
     get sociosPendientesConsolidado() {
       if (!Array.isArray(this.directorio)) return [];
 
+      // 1. Filtrar comprobantes según corte de período
+      let compFiltrados = Array.isArray(this.comprobantes) ? [...this.comprobantes] : [];
+
+      if (this.filtroFechaInicio) {
+        const fInit = new Date(this.filtroFechaInicio + 'T00:00:00').getTime();
+        compFiltrados = compFiltrados.filter(c => {
+          const t = c.fecha_hora_comprobante ? new Date(c.fecha_hora_comprobante).getTime() : (c.timestamp ? c.timestamp * 1000 : 0);
+          return t >= fInit;
+        });
+      }
+
+      if (this.filtroFechaFin) {
+        const fFin = new Date(this.filtroFechaFin + 'T23:59:59').getTime();
+        compFiltrados = compFiltrados.filter(c => {
+          const t = c.fecha_hora_comprobante ? new Date(c.fecha_hora_comprobante).getTime() : (c.timestamp ? c.timestamp * 1000 : 0);
+          return t <= fFin;
+        });
+      }
+
+      if (this.filtroDesdeHash || this.filtroHastaHash) {
+        let idxDesde = 0;
+        let idxHasta = compFiltrados.length - 1;
+        if (this.filtroDesdeHash) {
+          const found = compFiltrados.findIndex(c => c.hash_largo === this.filtroDesdeHash);
+          if (found !== -1) idxDesde = found;
+        }
+        if (this.filtroHastaHash) {
+          const found = compFiltrados.findIndex(c => c.hash_largo === this.filtroHastaHash);
+          if (found !== -1) idxHasta = found;
+        }
+        const start = Math.min(idxDesde, idxHasta);
+        const end = Math.max(idxDesde, idxHasta);
+        compFiltrados = compFiltrados.slice(start, end + 1);
+      }
+
+      // 2. Mapear cada socio considerando su saldo_anterior de directorio + cortes
       return this.directorio
         .filter(socio => socio.mostrar_dashboard !== false) // 🟢 INDEPENDIENTE DE socio.activo
         .map(socio => {
           const nombreUpper = (socio.nombre || '').trim().toUpperCase();
           const saldoBase = parseFloat(socio.saldo_anterior) || 0;
 
-          const movimientoHistorico = (this.comprobantes || []).reduce((acc, item) => {
+          const movimientoHistorico = compFiltrados.reduce((acc, item) => {
             const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
             const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
 
