@@ -54,11 +54,12 @@ function registrarAppAlpine() {
     ultimaActualizacion: '',
 
     async init() {
-      await this.cargarSocios();
-      await this.cargarDirectorio();
-      await this.cargarComprobantes();
-      await this.cargarTasasMercado();
-      await this.cargarHistorialTasas();
+      // 🟢 Protección robusta: si falla una API, no congela el resto del sistema
+      try { await this.cargarSocios(); } catch (e) {}
+      try { await this.cargarDirectorio(); } catch (e) {}
+      try { await this.cargarComprobantes(); } catch (e) {}
+      try { await this.cargarTasasMercado(); } catch (e) {}
+      try { await this.cargarHistorialTasas(); } catch (e) {}
       this.iniciarAutoSync();
     },
 
@@ -115,7 +116,8 @@ function registrarAppAlpine() {
           }
         }
       } catch (err) {
-        console.error('[Glaukov UI ❌ Error al cargar historial de tasas]', err);
+        console.warn('[Glaukov UI ⚠️ Error al cargar historial de tasas]', err);
+        this.historialTasas = [];
       }
     },
 
@@ -170,7 +172,7 @@ function registrarAppAlpine() {
         window.open(this.imagenPreviewUrl, '_blank');
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } font-bold {
+      } finally { // 🟢 SINTAXIS CORREGIDA A 'finally'
         this.cargandoPreviewImagen = false;
       }
     },
@@ -332,7 +334,7 @@ function registrarAppAlpine() {
         whatsapp: socioObj.whatsapp || socioObj.id_grupo || '',
         saldo_anterior: socioObj.saldo_anterior || 0,
         activo: socioObj.activo ?? true,
-        mostrar_dashboard: socioObj.mostrar_dashboard ?? true, // 🟢 CAMPOS SEPARADOS
+        mostrar_dashboard: socioObj.mostrar_dashboard ?? true,
         paises: listaPaisesDefault
       };
 
@@ -612,7 +614,7 @@ function registrarAppAlpine() {
       );
     },
 
-    // 🟢 FILTRA SOCIOS EVALUANDO EXCLUSIVAMENTE 'mostrar_dashboard' (SEPARADO DE socio.activo)
+    // 🟢 FILTRA SOCIOS EVALUANDO EXCLUSIVAMENTE 'mostrar_dashboard'
     get sociosPendientesConsolidado() {
       if (!Array.isArray(this.directorio)) return [];
 
