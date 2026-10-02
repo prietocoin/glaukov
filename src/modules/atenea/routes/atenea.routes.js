@@ -27,6 +27,7 @@ router.post('/tasas/n8n-webhook', ateneaController.postN8nWebhook);
 router.get('/tasas/fetch-hoo', ateneaController.getFetchHoo);
 router.post('/tasas/publicar', ateneaController.postPublicarTasa);
 router.post('/tasas/reenviar', ateneaController.postReenviarTasa);
+router.get('/tasas/historial', ateneaController.getHistorialTasas);
 
 // ==========================================
 // 4. DIRECTORIO Y SOCIOS (nombres_fb)
