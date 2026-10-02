@@ -552,18 +552,18 @@ async function deleteColaAdmin(req, res) {
   }
 }
 
-// 🟢 Función para obtener el historial de tasas
+// 🟢 Corregido el nombre de la tabla a 'tasas_glaukov'
 async function getHistorialTasas(req, res) {
   try {
     const sql = `
       SELECT id_tasa, tasas, created_at
-      FROM tasas_mercado
+      FROM tasas_glaukov
       ORDER BY created_at DESC
       LIMIT 20
     `;
     const result = await db.query(sql);
     
-    res.json(result.rows);
+    res.json(result.rows || []);
   } catch (error) {
     console.error('Error al obtener historial de tasas:', error);
     res.status(500).json({ error: 'Error interno del servidor al consultar historial' });
