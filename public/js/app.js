@@ -549,10 +549,9 @@ function registrarAppAlpine() {
         (d && d.roles && d.roles.toLowerCase().includes(q)) ||
         (d && d.whatsapp && d.whatsapp.toLowerCase().includes(q))
       );
-    }
-  }));
-}
-// 🟢 CALCULA EL SALDO FINAL HISTÓRICO DE CADA SOCIO Y EXCLUYE LOS SALDOS EN CERO (0)
+    },
+
+    // 🟢 CALCULA EL SALDO FINAL HISTÓRICO DE CADA SOCIO Y EXCLUYE LOS SALDOS EN CERO (0)
     get sociosPendientesConsolidado() {
       if (!Array.isArray(this.directorio)) return [];
 
@@ -590,7 +589,10 @@ function registrarAppAlpine() {
     // 🟢 SUMA ALGEBRAICA GENERAL DE TODOS LOS SOCIOS CON PENDIENTES
     get totalSumaAlgebraicaPendientes() {
       return this.sociosPendientesConsolidado.reduce((sum, s) => sum + s.saldoFinal, 0);
-    },
+    }
+  }));
+}
+
 if (window.Alpine) {
   registrarAppAlpine();
 } else {
