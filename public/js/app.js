@@ -308,7 +308,7 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 LECTURA Y CONVERSIÓN DE FACTORES A PORCENTAJES EN EL MODAL
+    // 🟢 LECTURA DEDICADA: Carga ÚNICAMENTE las divisas activas del socio (sin tarjetas inactivas forzadas)
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
@@ -316,22 +316,26 @@ function registrarAppAlpine() {
       let carteleraExistente = [];
       try { carteleraExistente = typeof socioObj.cartelera_paises === 'string' ? JSON.parse(socioObj.cartelera_paises || '[]') : (socioObj.cartelera_paises || []); } catch (e) {}
 
-      const listaPaisesDefault = [
-        { code: 'ARS', nombre: 'Argentina', bandera: '🇦🇷' },
-        { code: 'VES', nombre: 'Venezuela', bandera: '🇻🇪' },
-        { code: 'PEN', nombre: 'Peru', bandera: '🇵🇪' },
-        { code: 'COP', nombre: 'Colombia', bandera: '🇨🇴' },
-        { code: 'CLP', nombre: 'Chile', bandera: '🇨🇱' },
-        { code: 'BRL', nombre: 'Brazil', bandera: '🇧🇷' },
-        { code: 'PYG', nombre: 'Paraguay', bandera: '🇵🇾' },
-        { code: 'EUR', nombre: 'Europa', bandera: '🇪🇺' },
-        { code: 'USD', nombre: 'EEUU-Zelle', bandera: '🇺🇸' }
-      ];
+      const infoMonedasMaestra = {
+        'ARS': { nombre: 'Argentina', bandera: '🇦🇷' },
+        'VES': { nombre: 'Venezuela', bandera: '🇻🇪' },
+        'PEN': { nombre: 'Peru', bandera: '🇵🇪' },
+        'COP': { nombre: 'Colombia', bandera: '🇨🇴' },
+        'CLP': { nombre: 'Chile', bandera: '🇨🇱' },
+        'BRL': { nombre: 'Brazil', bandera: '🇧🇷' },
+        'PYG': { nombre: 'Paraguay', bandera: '🇵🇾' },
+        'MXN': { nombre: 'Mexico', bandera: '🇲🇽' },
+        'ECU': { nombre: 'Ecuador', bandera: '🇪🇨' },
+        'DOP': { nombre: 'Dominicana', bandera: '🇩🇴' },
+        'CRC': { nombre: 'Costa Rica', bandera: '🇨🇷' },
+        'EUR': { nombre: 'Europa', bandera: '🇪🇺' },
+        'USD': { nombre: 'EEUU-Zelle', bandera: '🇺🇸' },
+        'BOB': { nombre: 'Bolivia', bandera: '🇧🇴' },
+        'CAD': { nombre: 'Canada', bandera: '🇨🇦' },
+        'USDT': { nombre: 'USDT', bandera: '🪙' },
+        'PYUSD': { nombre: 'PYUSD', bandera: '🪙' }
+      };
 
-      const codigosActivos = new Set(carteleraExistente.map(c => (c.moneda || c.code || '').toUpperCase()));
-      const paisesMap = new Map();
-
-      // Convierte multiplicadores decimales antiguos (ej: 1.03 o 0.976) a porcentaje + resta
       const parseLegacyFactor = (valOriginal) => {
         if (valOriginal === undefined || valOriginal === null) return { pct: 0, resta: false };
         const num = parseFloat(valOriginal);
@@ -345,34 +349,15 @@ function registrarAppAlpine() {
         }
       };
 
-      listaPaisesDefault.forEach(p => {
-        const code = p.code;
-        const esActivo = codigosActivos.size > 0 ? codigosActivos.has(code) : (p.code !== 'PYG' && p.code !== 'EUR' && p.code !== 'USD');
-        
-        const legacyD = parseLegacyFactor(aj[`D-${code}`] ?? aj[`factor_D_${code}`]);
-        const legacyP = parseLegacyFactor(aj[`P-${code}`] ?? aj[`factor_P_${code}`]);
+      const paisesArray = [];
 
-        const pctD = aj[`pct_D_${code}`] ?? legacyD.pct;
-        const restaD = aj[`resta_D_${code}`] ?? legacyD.resta;
-        const pctP = aj[`pct_P_${code}`] ?? legacyP.pct;
-        const restaP = aj[`resta_P_${code}`] ?? legacyP.resta;
+      if (Array.isArray(carteleraExistente) && carteleraExistente.length > 0) {
+        carteleraExistente.forEach(c => {
+          const code = (c.moneda || c.code || '').toUpperCase();
+          if (!code) return;
 
-        paisesMap.set(code, {
-          code,
-          nombre: p.nombre,
-          bandera: p.bandera,
-          activo: esActivo,
-          pctD: Math.abs(parseFloat(pctD) || 0),
-          restaD: !!restaD,
-          pctP: Math.abs(parseFloat(pctP) || 0),
-          restaP: !!restaP,
-          naturaleza: aj[`naturaleza_${code}`] || aj[`NAT-${code}`] || 'D'
-        });
-      });
+          const info = infoMonedasMaestra[code] || { nombre: c.pais || c.nombre || code, bandera: '🌐' };
 
-      carteleraExistente.forEach(c => {
-        const code = (c.moneda || c.code || '').toUpperCase();
-        if (code && !paisesMap.has(code)) {
           const legacyD = parseLegacyFactor(aj[`D-${code}`] ?? aj[`factor_D_${code}`]);
           const legacyP = parseLegacyFactor(aj[`P-${code}`] ?? aj[`factor_P_${code}`]);
 
@@ -381,51 +366,88 @@ function registrarAppAlpine() {
           const pctP = aj[`pct_P_${code}`] ?? legacyP.pct;
           const restaP = aj[`resta_P_${code}`] ?? legacyP.resta;
 
-          paisesMap.set(code, {
+          paisesArray.push({
             code,
-            nombre: c.pais || c.nombre || code,
-            bandera: '🌐',
-            activo: c.activo ?? true,
+            nombre: c.pais || info.nombre,
+            bandera: info.bandera,
+            activo: true,
             pctD: Math.abs(parseFloat(pctD) || 0),
-            restaD: !!restaD,
+            restaD: Boolean(restaD),
             pctP: Math.abs(parseFloat(pctP) || 0),
-            restaP: !!restaP,
+            restaP: Boolean(restaP),
             naturaleza: aj[`naturaleza_${code}`] || aj[`NAT-${code}`] || 'D'
           });
-        }
-      });
+        });
+      } else {
+        const baseDefecto = ['ARS', 'VES', 'PEN', 'COP', 'CLP', 'BRL'];
+        baseDefecto.forEach(code => {
+          const info = infoMonedasMaestra[code];
+          paisesArray.push({
+            code,
+            nombre: info.nombre,
+            bandera: info.bandera,
+            activo: true,
+            pctD: 0,
+            restaD: false,
+            pctP: 0,
+            restaP: false,
+            naturaleza: 'D'
+          });
+        });
+      }
 
       this.socioConfigEdit = {
-        nombre: socioObj.nombre || 'NUEVO_SOCIO',
+        nombre: socioObj.nombre || '',
         roles: socioObj.roles || 'SOCIO',
         moneda_socio: socioObj.moneda_socio || 'USDT',
         whatsapp: socioObj.whatsapp || socioObj.id_grupo || '',
         saldo_anterior: socioObj.saldo_anterior || 0,
         activo: socioObj.activo ?? true,
         mostrar_dashboard: socioObj.mostrar_dashboard ?? true,
-        paises: Array.from(paisesMap.values())
+        paises: paisesArray
       };
 
       this.modalConfigSocioAbierto = true;
     },
 
+    // 🟢 PERMITE AGREGAR UNA DIVISA ESPECÍFICA AL SOCIO
     agregarNuevaMoneda() {
       if (!this.socioConfigEdit) return;
-      const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, USDT):');
+      const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, DOP, USD):');
       if (!codeRaw) return;
 
       const codeUpper = codeRaw.trim().toUpperCase();
       if (this.socioConfigEdit.paises.some(p => p.code === codeUpper)) {
-        alert(`La moneda ${codeUpper} ya existe en la lista de este socio.`);
+        alert(`La moneda ${codeUpper} ya está configurada para este socio.`);
         return;
       }
 
-      const nombrePais = prompt(`Ingresa el nombre del país o etiqueta para ${codeUpper}:`, codeUpper);
+      const infoMonedasMaestra = {
+        'ARS': { nombre: 'Argentina', bandera: '🇦🇷' },
+        'VES': { nombre: 'Venezuela', bandera: '🇻🇪' },
+        'PEN': { nombre: 'Peru', bandera: '🇵🇪' },
+        'COP': { nombre: 'Colombia', bandera: '🇨🇴' },
+        'CLP': { nombre: 'Chile', bandera: '🇨🇱' },
+        'BRL': { nombre: 'Brazil', bandera: '🇧🇷' },
+        'PYG': { nombre: 'Paraguay', bandera: '🇵🇾' },
+        'MXN': { nombre: 'Mexico', bandera: '🇲🇽' },
+        'ECU': { nombre: 'Ecuador', bandera: '🇪🇨' },
+        'DOP': { nombre: 'Dominicana', bandera: '🇩🇴' },
+        'CRC': { nombre: 'Costa Rica', bandera: '🇨🇷' },
+        'EUR': { nombre: 'Europa', bandera: '🇪🇺' },
+        'USD': { nombre: 'EEUU-Zelle', bandera: '🇺🇸' },
+        'BOB': { nombre: 'Bolivia', bandera: '🇧🇴' },
+        'CAD': { nombre: 'Canada', bandera: '🇨🇦' },
+        'USDT': { nombre: 'USDT', bandera: '🪙' },
+        'PYUSD': { nombre: 'PYUSD', bandera: '🪙' }
+      };
+
+      const info = infoMonedasMaestra[codeUpper] || { nombre: codeUpper, bandera: '🌐' };
 
       this.socioConfigEdit.paises.push({
         code: codeUpper,
-        nombre: nombrePais ? nombrePais.trim() : codeUpper,
-        bandera: '🌐',
+        nombre: info.nombre,
+        bandera: info.bandera,
         activo: true,
         pctD: 0,
         restaD: false,
@@ -433,6 +455,12 @@ function registrarAppAlpine() {
         restaP: false,
         naturaleza: 'D'
       });
+    },
+
+    // 🟢 ELIMINA UNA DIVISA DE LA LISTA DEL SOCIO
+    quitarMonedaSocio(index) {
+      if (!this.socioConfigEdit || !this.socioConfigEdit.paises) return;
+      this.socioConfigEdit.paises.splice(index, 1);
     },
 
     crearNuevoSocio() {
@@ -456,8 +484,8 @@ function registrarAppAlpine() {
           const code = p.code.toUpperCase();
           const pctD = Math.abs(parseFloat(p.pctD) || 0);
           const pctP = Math.abs(parseFloat(p.pctP) || 0);
-          const restaD = !!p.restaD;
-          const restaP = !!p.restaP;
+          const restaD = Boolean(p.restaD);
+          const restaP = Boolean(p.restaP);
 
           // Porcentajes puros y polaridad
           ajustes[`pct_D_${code}`] = pctD;
@@ -467,8 +495,8 @@ function registrarAppAlpine() {
           ajustes[`naturaleza_${code}`] = p.naturaleza || 'D';
 
           // Multiplicadores equivalentes para Puppeteer / Generador de imágenes
-          const multD = restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100));
-          const multP = restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100));
+          const multD = Math.round((restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100))) * 10000) / 10000;
+          const multP = Math.round((restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100))) * 10000) / 10000;
           
           ajustes[`D-${code}`] = multD;
           ajustes[`P-${code}`] = multP;
