@@ -685,27 +685,34 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-              <template x-for="p in socioConfigEdit.paises" :key="p.code">
-                <div class="bg-[#030611] rounded-2xl p-2.5 border transition-all space-y-2" :class="p.activo ? 'border-purple-500/60 bg-[#060c24]' : 'border-blue-900/40 opacity-60'">
-                  <!-- Encabezado del País -->
+              <template x-for="(p, index) in socioConfigEdit.paises" :key="p.code">
+                <div class="bg-[#060c24] rounded-2xl p-2.5 border border-purple-500/60 transition-all space-y-2">
+                  
+                  <!-- Encabezado de la Tarjeta del País -->
                   <div class="flex items-center justify-between border-b border-blue-900/40 pb-1.5">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" x-model="p.activo" class="w-4 h-4 rounded bg-[#080e26] border-blue-800 text-purple-600 focus:ring-0">
-                      <span class="text-xs font-black text-white" x-text="p.bandera + ' ' + p.nombre + ' (' + p.code + ')'"></span>
-                    </label>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-black text-white" x-text="(p.bandera || '🌐') + ' ' + (p.nombre || p.code) + ' (' + p.code + ')'"></span>
+                    </div>
 
-                    <div class="flex items-center gap-1">
-                      <span class="text-[8px] font-bold text-slate-400">DEF:</span>
-                      <select x-model="p.naturaleza" 
-                              class="bg-[#080e26] border border-blue-900 text-cyan-300 font-bold text-xs rounded px-1 py-0.5 outline-none">
-                        <option value="D">D (Depósito)</option>
-                        <option value="P">P (Pago)</option>
-                        <option value="A">A (Abono)</option>
-                      </select>
+                    <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-1">
+                        <span class="text-[8px] font-bold text-slate-400">DEF:</span>
+                        <select x-model="p.naturaleza" 
+                                class="bg-[#080e26] border border-blue-900 text-cyan-300 font-bold text-xs rounded px-1 py-0.5 outline-none">
+                          <option value="D">D (Depósito)</option>
+                          <option value="P">P (Pago)</option>
+                          <option value="A">A (Abono)</option>
+                        </select>
+                      </div>
+
+                      <!-- Botón para quitar divisa de la lista del socio -->
+                      <button type="button" @click="quitarMonedaSocio(index)" class="text-slate-500 hover:text-rose-400 font-bold text-xs p-1" title="Quitar moneda de este socio">
+                        🗑
+                      </button>
                     </div>
                   </div>
 
-                  <!-- Grilla Depósito / Pago con Porcentaje e Indicador de Suma/Resta -->
+                  <!-- Grilla Depósito / Pago con Porcentaje (%) y Botón Suma/Resta -->
                   <div class="grid grid-cols-2 gap-2">
                     <!-- DEPÓSITO (D) -->
                     <div class="bg-[#080e26] p-2 rounded-xl border border-cyan-500/30 space-y-1.5">
@@ -749,6 +756,7 @@
                       </div>
                     </div>
                   </div>
+
                 </div>
               </template>
             </div>
