@@ -56,7 +56,7 @@
 
   <div class="flex flex-col md:flex-row min-h-screen">
     
-    <!-- BARRA LATERAL NAV -->
+    <!-- BARRA LATERAL NAV PRINCIPAL -->
     <aside class="w-full md:w-64 bg-[#050b1e] border-b md:border-b-0 md:border-r border-[#16224f] p-3 md:p-4 flex flex-col justify-between shrink-0 shadow-2xl sticky top-0 z-40">
       <div>
         <div class="flex items-center justify-between md:justify-start gap-3 px-1 py-1.5 md:py-3 mb-2 md:mb-6 border-b border-blue-900/40 md:border-blue-900/50">
@@ -79,6 +79,12 @@
         </div>
 
         <nav class="flex md:flex-col gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <button @click="vistaActiva = 'dashboard'" 
+                  :class="vistaActiva === 'dashboard' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white border border-transparent'" 
+                  class="shrink-0 flex items-center gap-2 px-3 py-2 md:py-2.5 rounded-xl font-bold text-xs transition-all">
+            📊 Dashboard
+          </button>
+
           <button @click="vistaActiva = 'comprobantes'" 
                   :class="vistaActiva === 'comprobantes' ? 'bg-blue-600/30 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-blue-950/40 hover:text-white border border-transparent'" 
                   class="shrink-0 flex items-center gap-2 px-3 py-2 md:py-2.5 rounded-xl font-bold text-xs transition-all">
@@ -108,6 +114,138 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
       
+      <!-- ========================================== -->
+      <!-- VISTA 0: DASHBOARD DEDICADO CON SUBMENÚS   -->
+      <!-- ========================================== -->
+      <div x-show="vistaActiva === 'dashboard'" class="space-y-4">
+        
+        <!-- BARRA SUBMENÚS DASHBOARD -->
+        <div class="flex items-center justify-between border-b border-blue-900/50 pb-2.5 gap-2 flex-wrap">
+          <div class="flex items-center gap-2">
+            <button @click="vistaDashboardSubmenu = 'balance'" 
+                    :class="vistaDashboardSubmenu === 'balance' ? 'bg-cyan-950 text-cyan-300 border-cyan-500/50 shadow-lg shadow-cyan-500/20' : 'bg-[#060c24] text-slate-400 border-blue-900/60 hover:text-white'"
+                    class="px-3.5 py-1.5 rounded-xl border text-xs font-black transition-all flex items-center gap-1.5 active:scale-95">
+              📊 Balance de Pendientes
+            </button>
+
+            <button @click="vistaDashboardSubmenu = 'inspeccion'" 
+                    :class="vistaDashboardSubmenu === 'inspeccion' ? 'bg-purple-950 text-purple-300 border-purple-500/50 shadow-lg shadow-purple-500/20' : 'bg-[#060c24] text-slate-400 border-blue-900/60 hover:text-white'"
+                    class="px-3.5 py-1.5 rounded-xl border text-xs font-black transition-all flex items-center gap-1.5 active:scale-95">
+              🔍 Inspección de Lotes
+            </button>
+          </div>
+
+          <span class="text-xs font-bold text-slate-400 font-mono" x-text="'Lote Activo: ' + (loteActivo || 'CARGANDO...')"></span>
+        </div>
+
+        <!-- SUBMENÚ 1: BALANCE DE PENDIENTES & CARDS DIMINUTAS CON MINI POWER INDIVIDUAL -->
+        <div x-show="vistaDashboardSubmenu === 'balance'" class="space-y-4">
+          
+          <div class="bg-[#060c24] border border-blue-900/60 rounded-2xl p-4 md:p-5 space-y-4 shadow-2xl">
+            
+            <!-- HEADER CON CARD MASTER DE SUMA GENERAL -->
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-blue-900/50 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-base md:text-lg font-black text-cyan-300 uppercase tracking-wider">📊 Balance de Pendientes</span>
+                  <span class="px-2 py-0.5 bg-blue-950 text-cyan-400 text-[10px] font-bold rounded-lg font-mono border border-blue-800/40" x-text="sociosPendientesConsolidado.filter(s => s.encendido).length + '/' + sociosPendientesConsolidado.length + ' activos'"></span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">Usa el botón ⏻ de cada tarjeta para encender/apagar e incluir/excluir su saldo de la Suma General.</p>
+              </div>
+
+              <!-- CARD MASTER: SUMA ALGEBRAICA GLOBAL DE SOCIOS ENCENDIDOS -->
+              <div class="px-4 py-2 rounded-xl border font-mono font-black text-sm md:text-base shadow-xl flex items-center gap-3 shrink-0"
+                   :class="totalSumaAlgebraicaPendientes < 0 ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300 shadow-emerald-950/40' : 'bg-rose-950/80 border-rose-500/50 text-rose-300 shadow-rose-950/40'">
+                <span class="text-[9px] md:text-[10px] uppercase font-sans font-extrabold opacity-80">SUMA GENERAL:</span>
+                <span x-text="(totalSumaAlgebraicaPendientes >= 0 ? '+' : '') + formatMonto(totalSumaAlgebraicaPendientes) + ' USDT'"></span>
+              </div>
+            </div>
+
+            <!-- GRILLA DE CARDS DIMINUTAS DE SOCIOS CON MINI POWER SWITCH -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2.5">
+              <template x-for="socio in sociosPendientesConsolidado" :key="'dash-socio-' + socio.nombre">
+                <div class="p-2 rounded-xl border transition-all flex flex-col justify-between shadow-md relative group"
+                     :class="!socio.encendido ? 'bg-slate-900/60 border-slate-800/80 opacity-40 grayscale' : (socio.saldoFinal < 0 ? 'bg-emerald-950/40 border-emerald-500/30 hover:border-emerald-400/60' : 'bg-rose-950/40 border-rose-500/30 hover:border-rose-400/60')">
+                  
+                  <!-- NOMBRE, MONEDA & MINI POWER SWITCH INDIVIDUAL -->
+                  <div class="flex items-center justify-between gap-1 mb-1">
+                    <span @click="filtroSocio = socio.nombre; vistaActiva = 'comprobantes'; actualizarSocioSeleccionado()"
+                          class="font-extrabold text-[11px] truncate uppercase text-white group-hover:text-cyan-300 transition-colors cursor-pointer" 
+                          x-text="socio.nombre"></span>
+                    
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="text-[8px] font-mono font-bold px-1 py-0.2 rounded opacity-80"
+                            :class="socio.saldoFinal < 0 ? 'bg-emerald-900/80 text-emerald-300' : 'bg-rose-900/80 text-rose-300'"
+                            x-text="socio.moneda"></span>
+
+                      <!-- ⚡ BOTÓN MINI POWER DE CADA CARD -->
+                      <button type="button" 
+                              @click.stop="togglePowerSocio(socio.nombre)"
+                              class="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all active:scale-90"
+                              :class="socio.encendido ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/60 hover:bg-cyan-400 hover:text-black' : 'bg-slate-800 text-slate-500 border border-slate-700 hover:text-white'"
+                              :title="socio.encendido ? 'Apagar tarjeta (Excluir del Master)' : 'Encender tarjeta (Incluir en el Master)'">
+                        ⏻
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- MONTO CON CÁLCULO Y COLOR PREDOMINANTE -->
+                  <div @click="filtroSocio = socio.nombre; vistaActiva = 'comprobantes'; actualizarSocioSeleccionado()"
+                       class="text-right font-mono font-black text-xs md:text-sm tracking-tight cursor-pointer"
+                       :class="!socio.encendido ? 'text-slate-500' : (socio.saldoFinal < 0 ? 'text-emerald-400' : 'text-rose-400')"
+                       x-text="(socio.saldoFinal >= 0 ? '+' : '') + formatMonto(socio.saldoFinal)">
+                  </div>
+                </div>
+              </template>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- SUBMENÚ 2: INSPECCIÓN DE LOTES DE TASAS -->
+        <div x-show="vistaDashboardSubmenu === 'inspeccion'" class="space-y-4">
+          <div class="bg-[#060c24] border border-blue-900/60 rounded-2xl p-4 space-y-4 shadow-2xl">
+            
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-blue-900/50 pb-3">
+              <div>
+                <h3 class="text-base font-black text-purple-300">Inspector de Lotes de Tasas</h3>
+                <p class="text-xs text-slate-400">Selecciona un lote histórico almacenado en base de datos para inspeccionar sus cotizaciones.</p>
+              </div>
+
+              <!-- SELECTOR DE LOTES -->
+              <div class="w-full sm:w-64">
+                <label class="block text-[9px] font-bold text-purple-400 uppercase mb-1">Elegir Lote Histórico</label>
+                <select x-model="loteSeleccionadoInspector" class="w-full bg-[#030611] border border-purple-500/50 rounded-xl px-3 py-2 text-xs font-mono font-bold text-purple-200 outline-none focus:border-purple-400">
+                  <template x-for="lote in historialTasas" :key="'opt-lote-' + lote.id_tasa">
+                    <option :value="lote.id_tasa" x-text="lote.id_tasa + ' (' + (lote.created_at ? new Date(lote.created_at).toLocaleDateString() : 'Histórico') + ')'"></option>
+                  </template>
+                </select>
+              </div>
+            </div>
+
+            <!-- DETALLE DEL LOTE INSPECCIONADO -->
+            <div class="space-y-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-extrabold text-cyan-400 font-mono" x-text="'LOTE SELECCIONADO: ' + (datosLoteInspeccionado.id_tasa || '-')"></span>
+                <span class="text-slate-400 font-mono text-[10px]" x-text="datosLoteInspeccionado.fecha ? 'Fecha de creación: ' + datosLoteInspeccionado.fecha : ''"></span>
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <template x-for="(valor, moneda) in (datosLoteInspeccionado.tasas || {})" :key="'insp-' + moneda">
+                  <div class="bg-[#030611] p-3 rounded-xl border border-blue-900/50 space-y-1">
+                    <span class="text-xs font-black text-purple-400 uppercase font-mono block" x-text="moneda"></span>
+                    <span class="text-sm font-black font-mono text-emerald-400 block" x-text="formatMonto(valor)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
       <!-- VISTA 1: COMPROBANTES -->
       <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4">
         
@@ -231,45 +369,7 @@
             </div>
           </div>
         </div>
-<!-- DASHBOARD DE CARDS DIMINUTAS DE SALDOS CONSOLIDADOS -->
-        <div x-show="sociosPendientesConsolidado.length > 0" class="bg-[#060c24] border border-blue-900/60 rounded-2xl p-3 md:p-4 space-y-3 shadow-2xl">
-          
-          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-blue-900/50 pb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-xs md:text-sm font-black text-cyan-300 uppercase tracking-wider">📊 Balance de Pendientes</span>
-              <span class="px-2 py-0.5 bg-blue-950 text-cyan-400 text-[10px] font-bold rounded-lg font-mono border border-blue-800/40" x-text="sociosPendientesConsolidado.length + ' socios activos'"></span>
-            </div>
 
-            <!-- CARD MASTER: SUMA ALGEBRAICA GLOBAL -->
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl border font-mono font-black text-xs md:text-sm shadow-md"
-                 :class="totalSumaAlgebraicaPendientes < 0 ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300' : 'bg-rose-950/80 border-rose-500/50 text-rose-300'">
-              <span class="text-[9px] md:text-[10px] uppercase font-sans font-extrabold opacity-80">SUMA GENERAL:</span>
-              <span x-text="(totalSumaAlgebraicaPendientes >= 0 ? '+' : '') + formatMonto(totalSumaAlgebraicaPendientes) + ' USDT'"></span>
-            </div>
-          </div>
-
-          <!-- GRILLA DE CARDS DIMINUTAS -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
-            <template x-for="socio in sociosPendientesConsolidado" :key="'dash-socio-' + socio.nombre">
-              <div @click="filtroSocio = socio.nombre; actualizarSocioSeleccionado()"
-                   class="p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex flex-col justify-between shadow-md group"
-                   :class="socio.saldoFinal < 0 ? 'bg-emerald-950/40 hover:bg-emerald-900/60 border-emerald-500/30 hover:border-emerald-400/60' : 'bg-rose-950/40 hover:bg-rose-900/60 border-rose-500/30 hover:border-rose-400/60'">
-                
-                <div class="flex items-center justify-between gap-1 mb-1">
-                  <span class="font-extrabold text-[11px] truncate uppercase text-white group-hover:text-cyan-300 transition-colors" x-text="socio.nombre"></span>
-                  <span class="text-[8px] font-mono font-bold px-1 py-0.5 rounded opacity-80"
-                        :class="socio.saldoFinal < 0 ? 'bg-emerald-900/80 text-emerald-300' : 'bg-rose-900/80 text-rose-300'"
-                        x-text="socio.moneda"></span>
-                </div>
-
-                <div class="text-right font-mono font-black text-xs md:text-sm tracking-tight"
-                     :class="socio.saldoFinal < 0 ? 'text-emerald-400' : 'text-rose-400'"
-                     x-text="(socio.saldoFinal >= 0 ? '+' : '') + formatMonto(socio.saldoFinal)">
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
         <!-- LISTA COMPROBANTES -->
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5">
           <template x-for="item in comprobantes" :key="item.hash_largo">
@@ -373,7 +473,6 @@
           
           <div class="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
             
-            <!-- 🟢 SWITCH TOGGLE MODO PRUEBA -->
             <div class="flex items-center gap-2 bg-[#060c24] px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-md">
               <span class="text-xs font-bold text-cyan-300">🧪 Modo Prueba:</span>
               <label class="relative inline-flex items-center cursor-pointer">
@@ -391,7 +490,6 @@
           </div>
         </div>
 
-        <!-- BLOQUE MAESTRO UNIFICADO -->
         <div class="bg-[#060c24] rounded-2xl border border-blue-900/60 p-3 md:p-4 space-y-4 shadow-2xl">
           
           <div class="flex justify-between items-center border-b border-blue-900/50 pb-2">
@@ -407,7 +505,6 @@
             </div>
           </div>
 
-          <!-- GRILLA DE MONEDAS (MONEDAS BASE AL FINAL) -->
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             <template x-for="moneda in Object.keys(tasasProduccion).filter(m => !['ID', 'CREATED_AT', 'SUCCESS', 'MESSAGE'].includes(m.toUpperCase())).sort((a, b) => {
                 const bases = ['USD', 'USDT', 'PYUSD', 'ECU', 'PAN'];
@@ -494,7 +591,6 @@
                   </div>
                 </div>
 
-                <!-- ACCIONES DE SOCIO (CON BOTÓN DE ENVÍO DIRECTO) -->
                 <div class="flex items-center justify-end gap-2 shrink-0 border-t sm:border-t-0 border-blue-900/30 pt-2 sm:pt-0">
                   <button @click="enviarTasaIndividual(socio)" class="p-1.5 bg-amber-950/80 border border-amber-600/40 text-amber-300 rounded-xl hover:bg-amber-900 transition-all active:scale-95 shadow-lg shadow-amber-900/20" title="Enviar Tasa por WhatsApp">⚡</button>
                   <button @click="abrirConfigSocio(socio)" class="px-3 py-1.5 bg-purple-950/80 border border-purple-600/40 text-purple-300 rounded-xl font-bold text-xs hover:bg-purple-900 transition-all flex-1 sm:flex-none text-center active:scale-95">⚙ Configurar</button>
@@ -587,7 +683,6 @@
             </div>
           </div>
 
-          <!-- BOTONES DE ACCIÓN DEL MODAL -->
           <div class="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-blue-900/60 gap-3">
             <div class="flex items-center gap-2 w-full sm:w-auto">
               <button type="button" 
@@ -973,7 +1068,6 @@
               </table>
             </div>
 
-            <!-- 🟢 TABLA AJUSTADA CON MÁRGENES Y ANCHOS OPTIMIZADOS PARA CADA COLUMNA -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
               <thead>
                 <tr style="border-bottom: 2px solid #0f172a; font-size: 11px; font-weight: 900; color: #475569; text-transform: uppercase; text-align: left;">
@@ -1000,11 +1094,9 @@
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 13px; font-weight: 900; color: #1e40af; vertical-align: middle;"
                         x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,7) : '')"></td>
 
-                    <!-- 🟢 MONTO ORIGEN CON MARGEN A LA DERECHA (padding-right: 16px) PARA DESPEGAR DE LA TASA -->
                     <td style="padding: 4px 16px 4px 4px; font-family: monospace; font-size: 13px; font-weight: 800; color: #0f172a; text-align: right; vertical-align: middle;"
                         x-text="formatMonto(item.monto) + ' ' + (item.moneda || '')"></td>
 
-                    <!-- 🟢 TASA HOLGADA AL CENTRO (width: 110px) -->
                     <td style="padding: 4px 4px; font-family: monospace; font-size: 12px; text-align: center; vertical-align: middle; white-space: nowrap;">
                       <span style="font-weight: 800; color: #0f172a;" x-text="getTasaItemSocio(item)"></span>
                       <template x-if="item.lote_tasa_asignado || item.lote_tasa">
@@ -1012,7 +1104,6 @@
                       </template>
                     </td>
 
-                    <!-- 🟢 TITULAR/BANCO CORRIDO A LA DERECHA (padding-left: 14px) PARA SEPARAR DEL LOTE -->
                     <td style="padding: 4px 4px 4px 14px; font-size: 10.5px; font-weight: 600; color: #475569; text-transform: uppercase; vertical-align: middle;">
                       <span x-text="(item.titular || 'N/D').trim().split(' ')[0]"></span>
                       <span style="color: #cbd5e1; margin: 0 2px;">/</span>
