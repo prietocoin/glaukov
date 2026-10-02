@@ -45,6 +45,21 @@ function normalizarMapTasas(tasasObj) {
   return mapNormalizado;
 }
 
+/**
+ * Obtiene la tasa base global de una divisa.
+ * Garantiza que divisas dolarizadas (USD, USDT, PYUSD, ECU, PAN) retornen 1.0 si no están en el mapa.
+ */
+function getTasaBaseMercado(mapa, code) {
+  const c = (code || '').toUpperCase().trim();
+  if (mapa[c] !== undefined && parseFloat(mapa[c]) > 0) {
+    return parseFloat(mapa[c]);
+  }
+  if (['USD', 'USDT', 'PYUSD', 'ECU', 'PAN'].includes(c)) {
+    return 1.0;
+  }
+  return 1.0;
+}
+
 async function obtenerSociosYProcesarTasas(options = null) {
   let filtroNombre = null;
   let idTasaRequerida = null;
@@ -108,7 +123,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
-    // 🟢 MONEDA BASE DEL SOCIO: Lectura desde la columna PostgreSQL
+    // 🟢 MONEDA NATIVA EXACTA DEL SOCIO (PEN, CLP, COP, BRL, USDT, etc.)
     const monedaRaw = socioData.moneda_socio || socioData.monedasocio || socioData.moneda || "USDT";
     const monedaExtraida = String(monedaRaw).toUpperCase().trim();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
@@ -151,36 +166,52 @@ async function obtenerSociosYProcesarTasas(options = null) {
 
       if (!codeP) continue;
 
-      let rawFactorD = ajustes[`D-${codeP}`] || ajustes[`D${codeP}`];
-      let rawFactorP = ajustes[`P-${codeP}`] || ajustes[`P${codeP}`];
+      // 🟢 1. LECTURA DE PORCENTAJES (%) Y POLARIDADES (SUMA / RESTA)
+      const pctD = ajustes[`pct_D_${codeP}`] !== undefined ? parseFloat(ajustes[`pct_D_${codeP}`]) : null;
+      const restaD = ajustes[`resta_D_${codeP}`] !== undefined ? Boolean(ajustes[`resta_D_${codeP}`]) : false;
 
-      if (rawFactorD === undefined || rawFactorD === null) rawFactorD = FACTORES_RESPALDO[codeP]?.D ?? 1.0;
-      if (rawFactorP === undefined || rawFactorP === null) rawFactorP = FACTORES_RESPALDO[codeP]?.P ?? 0.95;
+      const pctP = ajustes[`pct_P_${codeP}`] !== undefined ? parseFloat(ajustes[`pct_P_${codeP}`]) : null;
+      const restaP = ajustes[`resta_P_${codeP}`] !== undefined ? Boolean(ajustes[`resta_P_${codeP}`]) : true;
 
-      const factorD = Math.abs(parseFloat(rawFactorD) || 0);
-      const factorP = Math.abs(parseFloat(rawFactorP) || 0);
+      // 🟢 2. CONVERSIÓN A FACTOR MULTIPLICADOR (CON FALLBACK RETROCOMPATIBLE)
+      let factorD, factorP;
 
-      // CÁLCULO DE TASAS CON MONEDA DEL SOCIO
-      const tasaBaseDestino = parseFloat(tasasMercado[codeP] || 1.0);
-      let tasaBaseSocio = 1.0;
-      if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocio = parseFloat(tasasMercado[monedaProcesada] || 1.0);
-      if (tasaBaseSocio <= 0) tasaBaseSocio = 1.0;
+      if (pctD !== null && !isNaN(pctD)) {
+        factorD = restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100));
+      } else {
+        let rawFactorD = ajustes[`D-${codeP}`] ?? ajustes[`D${codeP}`] ?? ajustes[`factor_D_${codeP}`];
+        if (rawFactorD === undefined || rawFactorD === null) rawFactorD = FACTORES_RESPALDO[codeP]?.D ?? 1.0;
+        factorD = Math.abs(parseFloat(rawFactorD) || 1.0);
+      }
+
+      if (pctP !== null && !isNaN(pctP)) {
+        factorP = restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100));
+      } else {
+        let rawFactorP = ajustes[`P-${codeP}`] ?? ajustes[`P${codeP}`] ?? ajustes[`factor_P_${codeP}`];
+        if (rawFactorP === undefined || rawFactorP === null) rawFactorP = FACTORES_RESPALDO[codeP]?.P ?? 0.95;
+        factorP = Math.abs(parseFloat(rawFactorP) || 0.95);
+      }
+
+      // 🟢 3. CÁLCULO DE TASA CRUZADA BASADO EN LA MONEDA NATIVA DEL SOCIO
+      const tasaBaseDestino = getTasaBaseMercado(tasasMercado, codeP);
+      const tasaBaseSocio   = getTasaBaseMercado(tasasMercado, monedaProcesada);
+
       const crossBaseActual = tasaBaseDestino / tasaBaseSocio;
 
       const numCompraActual = crossBaseActual * factorD;
-      const numVentaActual = crossBaseActual * factorP;
+      const numVentaActual  = crossBaseActual * factorP;
 
-      const tasaBaseDestinoAnt = parseFloat(tasasMercadoAnterior[codeP] || tasaBaseDestino);
-      let tasaBaseSocioAnt = 1.0;
-      if (!['USD', 'USDT', 'PYUSD'].includes(monedaProcesada)) tasaBaseSocioAnt = parseFloat(tasasMercadoAnterior[monedaProcesada] || tasaBaseSocio);
-      if (tasaBaseSocioAnt <= 0) tasaBaseSocioAnt = 1.0;
+      // 🟢 4. CÁLCULO HISTÓRICO PARA TENDENCIA
+      const tasaBaseDestinoAnt = getTasaBaseMercado(tasasMercadoAnterior, codeP);
+      const tasaBaseSocioAnt   = getTasaBaseMercado(tasasMercadoAnterior, monedaProcesada);
+
       const crossBaseAnt = tasaBaseDestinoAnt / tasaBaseSocioAnt;
 
       const numCompraAnt = crossBaseAnt * factorD;
-      const numVentaAnt = crossBaseAnt * factorP;
+      const numVentaAnt  = crossBaseAnt * factorP;
 
       const valCompraStr = (factorD > 0) ? truncarTasaOficial(numCompraActual) : "-";
-      const valVentaStr = (factorP > 0) ? truncarTasaOficial(numVentaActual) : "-";
+      const valVentaStr  = (factorP > 0) ? truncarTasaOficial(numVentaActual)  : "-";
 
       tarjetasPaises.push({
         bandera: BANDERAS_MAP[codeP] || '🌐',
@@ -188,7 +219,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
         compra: valCompraStr,
         venta: valVentaStr,
         trend_compra: (factorD > 0) ? getTrend(numCompraActual, numCompraAnt) : 'stable',
-        trend_venta: (factorP > 0) ? getTrend(numVentaActual, numVentaAnt) : 'stable'
+        trend_venta:  (factorP > 0) ? getTrend(numVentaActual, numVentaAnt)   : 'stable'
       });
     }
 
