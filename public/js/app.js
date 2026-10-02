@@ -552,7 +552,45 @@ function registrarAppAlpine() {
     }
   }));
 }
+// 🟢 CALCULA EL SALDO FINAL HISTÓRICO DE CADA SOCIO Y EXCLUYE LOS SALDOS EN CERO (0)
+    get sociosPendientesConsolidado() {
+      if (!Array.isArray(this.directorio)) return [];
 
+      return this.directorio.map(socio => {
+        const nombreUpper = (socio.nombre || '').trim().toUpperCase();
+        const saldoBase = parseFloat(socio.saldo_anterior) || 0;
+
+        // Suma de movimientos históricos evaluando si actúa como Socio 1 o Socio 2
+        const movimientoHistorico = (this.comprobantes || []).reduce((acc, item) => {
+          const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
+          const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
+
+          if (s1 === nombreUpper) {
+            const val1 = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
+            return acc + val1;
+          } else if (s2 === nombreUpper) {
+            const val2 = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
+            return acc + val2;
+          }
+          return acc;
+        }, 0);
+
+        const saldoFinal = Math.trunc((saldoBase + movimientoHistorico + 0.0000001) * 100) / 100;
+
+        return {
+          nombre: socio.nombre,
+          moneda: (socio.moneda_socio || 'USDT').toUpperCase(),
+          saldoBase,
+          movimientoHistorico,
+          saldoFinal
+        };
+      }).filter(s => Math.abs(s.saldoFinal) >= 0.01); // Excluye socios con saldo 0
+    },
+
+    // 🟢 SUMA ALGEBRAICA GENERAL DE TODOS LOS SOCIOS CON PENDIENTES
+    get totalSumaAlgebraicaPendientes() {
+      return this.sociosPendientesConsolidado.reduce((sum, s) => sum + s.saldoFinal, 0);
+    },
 if (window.Alpine) {
   registrarAppAlpine();
 } else {
