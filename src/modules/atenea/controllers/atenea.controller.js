@@ -551,6 +551,27 @@ async function deleteColaAdmin(req, res) {
   }
 }
 
+// Función para obtener el historial de tasas
+exports.getHistorialTasas = async (req, res) => {
+  try {
+    // Si tienes un archivo db.js o pool.js importado en tu controlador, úsalo aquí.
+    // Asumiendo que tu conexión se llama 'db' (ej. const db = require('../../config/db')):
+    const sql = `
+      SELECT id_tasa, tasas, created_at
+      FROM tasas_mercado
+      ORDER BY created_at DESC
+      LIMIT 20
+    `;
+    const result = await db.query(sql);
+    
+    // Devolvemos el resultado al frontend
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al obtener historial de tasas:', error);
+    res.status(500).json({ error: 'Error interno del servidor al consultar historial' });
+  }
+};
+
 module.exports = {
   previewData,
   previewImage,
