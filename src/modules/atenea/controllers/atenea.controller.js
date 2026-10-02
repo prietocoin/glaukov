@@ -5,6 +5,7 @@ const mercadoService = require('../services/mercado.service');
 const reportesService = require('../services/reportes.service');
 const adminService = require('../services/admin.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
+const db = require('../../../config/db'); // 🟢 Se importó la base de datos para getHistorialTasas
 
 // Helper de pausa para rate-limiting en envíos masivos de WhatsApp
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -551,11 +552,9 @@ async function deleteColaAdmin(req, res) {
   }
 }
 
-// Función para obtener el historial de tasas
-exports.getHistorialTasas = async (req, res) => {
+// 🟢 Función para obtener el historial de tasas
+async function getHistorialTasas(req, res) {
   try {
-    // Si tienes un archivo db.js o pool.js importado en tu controlador, úsalo aquí.
-    // Asumiendo que tu conexión se llama 'db' (ej. const db = require('../../config/db')):
     const sql = `
       SELECT id_tasa, tasas, created_at
       FROM tasas_mercado
@@ -564,13 +563,12 @@ exports.getHistorialTasas = async (req, res) => {
     `;
     const result = await db.query(sql);
     
-    // Devolvemos el resultado al frontend
     res.json(result.rows);
   } catch (error) {
     console.error('Error al obtener historial de tasas:', error);
     res.status(500).json({ error: 'Error interno del servidor al consultar historial' });
   }
-};
+}
 
 module.exports = {
   previewData,
@@ -599,5 +597,6 @@ module.exports = {
   postEnviarMediaWhatsApp,
   getColaAdmin,
   updateColaAdmin,
-  deleteColaAdmin
+  deleteColaAdmin,
+  getHistorialTasas
 };
