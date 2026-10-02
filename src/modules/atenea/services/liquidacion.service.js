@@ -47,7 +47,7 @@ function truncarMontoSeguro(valor) {
 }
 
 /**
- * Calcula el snapshot contable respetando la divisa y polaridad explícita de cada socio en DB
+ * Calcula el snapshot financiero desacoplando la tasa lineal del signo de polaridad del saldo
  */
 function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const montoRaw = Math.abs(parseFloat(String(raw?.monto || 0).replace(/,/g, '')) || 0);
@@ -64,13 +64,19 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const aj1 = typeof socio1Data?.ajustes === 'string' 
     ? JSON.parse(socio1Data.ajustes || '{}') 
     : (socio1Data?.ajustes || {});
-  
-  const rawFactor1 = aj1[`${tipoOp}-${divisaRaw}`] ?? aj1[divisaRaw] ?? 1.0;
-  const numFactor1 = parseFloat(rawFactor1);
 
-  // Polaridad Socio 1: Estrictamente desde su factor guardado en DB
-  const signo1 = (!isNaN(numFactor1) && numFactor1 < 0) ? -1 : 1;
-  const factor1Abs = Math.abs(numFactor1) || 1.0;
+  // 1. POLARIDAD CONTABLE DEL SALDO (+1 o -1): Leída de resta_D_DIVISA o resta_P_DIVISA
+  const esResta1 = aj1[`resta_${tipoOp}_${divisaRaw}`] ?? (tipoOp === 'D');
+  const signo1 = esResta1 ? -1 : 1;
+
+  // 2. FACTOR DE TASA LINEAL FIJO (Depósito SUMA %, Pago RESTA %)
+  const pct1 = Math.abs(parseFloat(aj1[`pct_${tipoOp}_${divisaRaw}`]) || 0);
+  let factor1Abs;
+  if (aj1[`pct_${tipoOp}_${divisaRaw}`] !== undefined) {
+    factor1Abs = tipoOp === 'D' ? (1 + (pct1 / 100)) : (1 - (pct1 / 100));
+  } else {
+    factor1Abs = Math.abs(parseFloat(aj1[`${tipoOp}-${divisaRaw}`] ?? aj1[`factor_${tipoOp}_${divisaRaw}`] ?? 1.0)) || 1.0;
+  }
 
   const tasaBaseSocio1USDT = parseFloat(mapaTasas[monedaSocio1] || 1.0);
 
@@ -81,10 +87,10 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
 
   const divisorTasa1 = tasa1Efectiva > 0 ? tasa1Efectiva : 1.0;
 
-  // M1: Monto nominal en divisa nativa del Socio 1
+  // M1: Monto nominal en divisa nativa del Socio 1 con el signo contable de la polaridad
   const m1Nominal = truncarMontoSeguro(signo1 * (montoRaw / divisorTasa1));
 
-  // ME1: Equivalente SIEMPRE en USDT
+  // ME1: Equivalente en USDT
   const divisorSocio1 = Math.abs(tasaBaseSocio1USDT) > 0 ? tasaBaseSocio1USDT : 1.0;
   const me1USDT = truncarMontoSeguro(m1Nominal / divisorSocio1);
 
@@ -100,26 +106,31 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
       ? JSON.parse(socio2Data.ajustes || '{}') 
       : (socio2Data?.ajustes || {});
 
-    const rawFactor2 = aj2[`${tipoOp}-${divisaRaw}`] ?? aj2[divisaRaw] ?? 1.0;
-    const numFactor2 = parseFloat(rawFactor2);
+    const tipoOp2 = tipoOp === 'D' ? 'P' : 'D';
 
-    // Polaridad Socio 2: Estrictamente desde su factor guardado en DB
-    const signo2 = (!isNaN(numFactor2) && numFactor2 < 0) ? -1 : 1;
-    const factor2Abs = Math.abs(numFactor2) || 1.0;
+    // 1. POLARIDAD CONTABLE DEL SALDO SOCIO 2
+    const esResta2 = aj2[`resta_${tipoOp2}_${divisaRaw}`] ?? (tipoOp2 === 'D');
+    const signo2 = esResta2 ? -1 : 1;
+
+    // 2. FACTOR DE TASA LINEAL SOCIO 2
+    const pct2 = Math.abs(parseFloat(aj2[`pct_${tipoOp2}_${divisaRaw}`]) || 0);
+    let factor2Abs;
+    if (aj2[`pct_${tipoOp2}_${divisaRaw}`] !== undefined) {
+      factor2Abs = tipoOp2 === 'D' ? (1 + (pct2 / 100)) : (1 - (pct2 / 100));
+    } else {
+      factor2Abs = Math.abs(parseFloat(aj2[`${tipoOp2}-${divisaRaw}`] ?? aj2[`factor_${tipoOp2}_${divisaRaw}`] ?? 1.0)) || 1.0;
+    }
 
     const tasaBaseSocio2USDT = parseFloat(mapaTasas[monedaSocio2] || 1.0);
 
-    // Tasa comercial T2 - SIEMPRE POSITIVA
     const tasaBaseCalculada2 = tasaBaseRawUSDT / (tasaBaseSocio2USDT > 0 ? tasaBaseSocio2USDT : 1.0);
     const crossBase2 = tasaBaseCalculada2 * factor2Abs;
     tasa2Efectiva = truncarTasaSegura(crossBase2);
 
     const divisorTasa2 = tasa2Efectiva > 0 ? tasa2Efectiva : 1.0;
 
-    // M2: Monto nominal en divisa nativa del Socio 2
     m2Nominal = truncarMontoSeguro(signo2 * (montoRaw / divisorTasa2));
 
-    // ME2: Equivalente SIEMPRE en USDT
     const divisorSocio2 = Math.abs(tasaBaseSocio2USDT) > 0 ? tasaBaseSocio2USDT : 1.0;
     me2USDT = truncarMontoSeguro(m2Nominal / divisorSocio2);
   }
@@ -133,7 +144,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     me1: isNaN(me1USDT) ? 0 : me1USDT,
 
     socio_2: socio2Data?.nombre && socio2Data.nombre.toUpperCase() !== 'GENERAL' ? socio2Data.nombre : null,
-    tipo_op2: `${tipoOp}-${divisaRaw}`,
+    tipo_op2: `${tipoOp === 'D' ? 'P' : 'D'}-${divisaRaw}`,
     monto_2: isNaN(m2Nominal) ? 0 : m2Nominal,
     tasa_2: isNaN(tasa2Efectiva) ? 1.0 : tasa2Efectiva,
     me2: isNaN(me2USDT) ? 0 : me2USDT,
