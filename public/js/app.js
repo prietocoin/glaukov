@@ -308,7 +308,7 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 LECTURA DEDICADA: Carga ÚNICAMENTE las divisas activas del socio (sin tarjetas inactivas forzadas)
+    // 🟢 LECTURA DEDICADA: Carga ÚNICAMENTE las divisas activas del socio (sin forzar tarjetas inactivas)
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
@@ -399,7 +399,7 @@ function registrarAppAlpine() {
       this.socioConfigEdit = {
         nombre: socioObj.nombre || '',
         roles: socioObj.roles || 'SOCIO',
-        moneda_socio: socioObj.moneda_socio || 'USDT',
+        moneda_socio: String(socioObj.moneda_socio || socioObj.monedasocio || 'USDT').toUpperCase().trim(),
         whatsapp: socioObj.whatsapp || socioObj.id_grupo || '',
         saldo_anterior: socioObj.saldo_anterior || 0,
         activo: socioObj.activo ?? true,
@@ -497,7 +497,7 @@ function registrarAppAlpine() {
           // Multiplicadores equivalentes para Puppeteer / Generador de imágenes
           const multD = Math.round((restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100))) * 10000) / 10000;
           const multP = Math.round((restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100))) * 10000) / 10000;
-          
+
           ajustes[`D-${code}`] = multD;
           ajustes[`P-${code}`] = multP;
           ajustes[`factor_D_${code}`] = multD;
@@ -516,7 +516,7 @@ function registrarAppAlpine() {
         const payload = {
           nombre: this.socioConfigEdit.nombre,
           roles: this.socioConfigEdit.roles,
-          moneda_socio: this.socioConfigEdit.moneda_socio,
+          moneda_socio: String(this.socioConfigEdit.moneda_socio || 'USDT').toUpperCase().trim(),
           whatsapp: this.socioConfigEdit.whatsapp,
           saldo_anterior: this.socioConfigEdit.saldo_anterior,
           activo: this.socioConfigEdit.activo,
