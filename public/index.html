@@ -138,9 +138,42 @@
           <span class="text-xs font-bold text-slate-400 font-mono" x-text="'Lote Activo: ' + (loteActivo || 'CARGANDO...')"></span>
         </div>
 
-        <!-- SUBMENÚ 1: BALANCE DE PENDIENTES (SOCIOS CON DASH: ON) -->
+        <!-- SUBMENÚ 1: BALANCE DE PENDIENTES CON CORTE DE PERÍODO -->
         <div x-show="vistaDashboardSubmenu === 'balance'" class="space-y-4">
           
+          <!-- BARRA DE CORTES DE PERÍODO Y FILTROS EN DASHBOARD -->
+          <div class="bg-[#060c24] rounded-2xl p-3 border border-blue-900/50 shadow-xl grid grid-cols-2 md:grid-cols-4 gap-2.5 items-end">
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">📅 FECHA INICIO CORTE</label>
+              <input type="date" x-model="filtroFechaInicio" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+            </div>
+
+            <div>
+              <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">📅 FECHA FIN CORTE</label>
+              <input type="date" x-model="filtroFechaFin" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+            </div>
+
+            <div>
+              <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">🔑 DESDE HASH</label>
+              <select x-model="filtroDesdeHash" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
+                <option value="">TODOS (HASTA EL INICIO)</option>
+                <template x-for="item in comprobantes" :key="'dash-desde-'+item.hash_largo">
+                  <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
+                </template>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">🔑 HASTA HASH</label>
+              <select x-model="filtroHastaHash" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
+                <option value="">TODOS (HASTA EL FINAL)</option>
+                <template x-for="item in comprobantes" :key="'dash-hasta-'+item.hash_largo">
+                  <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+
           <div class="bg-[#060c24] border border-blue-900/60 rounded-2xl p-4 md:p-5 space-y-4 shadow-2xl">
             
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-blue-900/50 pb-3">
@@ -149,7 +182,7 @@
                   <span class="text-base md:text-lg font-black text-cyan-300 uppercase tracking-wider">📊 Balance de Pendientes</span>
                   <span class="px-2 py-0.5 bg-blue-950 text-cyan-400 text-[10px] font-bold rounded-lg font-mono border border-blue-800/40" x-text="sociosPendientesConsolidado.length + ' socios visibles'"></span>
                 </div>
-                <p class="text-xs text-slate-400 mt-0.5">Controla la presencia de cada socio en el Dashboard activando <strong class="text-cyan-400">📊 DASH: ON</strong> en el Directorio.</p>
+                <p class="text-xs text-slate-400 mt-0.5">Mostrando únicamente socios marcados como <strong class="text-cyan-400">📊 DASH: ON</strong> en el Directorio.</p>
               </div>
 
               <!-- CARD MASTER: SUMA ALGEBRAICA GLOBAL DE SOCIOS VISIBLES -->
@@ -160,7 +193,7 @@
               </div>
             </div>
 
-            <!-- GRILLA DE CARDS DIMINUTAS (CADA SOCIO CON DASH: OFF DESAPARECE COMPLETAMENTE) -->
+            <!-- GRILLA DE CARDS DIMINUTAS -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2.5">
               <template x-for="socio in sociosPendientesConsolidado" :key="'dash-socio-' + socio.nombre">
                 <div @click="filtroSocio = socio.nombre; vistaActiva = 'comprobantes'; actualizarSocioSeleccionado()"
