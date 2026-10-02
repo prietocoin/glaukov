@@ -9,7 +9,11 @@ function truncarTasaComercial(valor) {
 
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
-    vistaActiva: 'comprobantes',
+    vistaActiva: 'dashboard', // 🟢 Dashboard como vista inicial
+    vistaDashboardSubmenu: 'balance', // 'balance' | 'inspeccion'
+    sociosApagados: {}, // ⚡ Registro de Mini Power individual por socio { 'SOCIO': true }
+    loteSeleccionadoInspector: '',
+
     comprobantes: [],
     directorio: [],
     socios: [],
@@ -19,6 +23,7 @@ function registrarAppAlpine() {
     loteActivo: '',
     tasasProduccion: {},
     borradorCapturado: {},
+    historialTasas: [],
     imagenPreviewUrl: '',
     socioPreviewSeleccionado: 'GENERAL',
     cargandoPreviewImagen: false,
@@ -54,6 +59,7 @@ function registrarAppAlpine() {
       await this.cargarDirectorio();
       await this.cargarComprobantes();
       await this.cargarTasasMercado();
+      await this.cargarHistorialTasas();
       this.iniciarAutoSync();
     },
 
@@ -65,19 +71,66 @@ function registrarAppAlpine() {
       }, 5000);
     },
 
+    // ⚡ CONTROL MINI POWER INDIVIDUAL POR CARD
+    togglePowerSocio(nombre) {
+      const key = String(nombre || '').trim().toUpperCase();
+      this.sociosApagados[key] = !this.sociosApagados[key];
+    },
+
+    isSocioEncendido(nombre) {
+      const key = String(nombre || '').trim().toUpperCase();
+      return !this.sociosApagados[key];
+    },
+
     // ==========================================
-    // MERCADO, HOO API & PREVIEW IMAGE
+    // MERCADO, HOO API & HISTORIAL DE TASAS
     // ==========================================
     async cargarTasasMercado() {
       try {
         const res = await window.AteneaAPI.getUltimasTasas();
         if (res) {
-          if (res.id_tasa) this.loteActivo = res.id_tasa;
+          if (res.id_tasa) {
+            this.loteActivo = res.id_tasa;
+            if (!this.loteSeleccionadoInspector) this.loteSeleccionadoInspector = res.id_tasa;
+          }
           if (res.tasas) this.tasasProduccion = res.tasas;
         }
       } catch (err) {
         console.error('[Glaukov UI ❌ Error al cargar tasas mercado]', err);
       }
+    },
+
+    async cargarHistorialTasas() {
+      try {
+        if (window.AteneaAPI && typeof window.AteneaAPI.getHistorialTasas === 'function') {
+          const res = await window.AteneaAPI.getHistorialTasas();
+          this.historialTasas = Array.isArray(res) ? res : [];
+          if (this.historialTasas.length > 0 && !this.loteSeleccionadoInspector) {
+            this.loteSeleccionadoInspector = this.historialTasas[0].id_tasa || this.loteActivo;
+          }
+        }
+      } catch (err) {
+        console.error('[Glaukov UI ❌ Error al cargar historial de tasas]', err);
+      }
+    },
+
+    get datosLoteInspeccionado() {
+      if (!this.loteSeleccionadoInspector) {
+        return { id_tasa: this.loteActivo, tasas: this.tasasProduccion };
+      }
+      const loteFound = (this.historialTasas || []).find(l => String(l.id_tasa).toUpperCase() === String(this.loteSeleccionadoInspector).toUpperCase());
+      if (loteFound) {
+        let tasasObj = loteFound.tasas;
+        if (typeof tasasObj === 'string') {
+          try { tasasObj = JSON.parse(tasasObj); } catch (e) { tasasObj = {}; }
+        }
+        return { 
+          id_tasa: loteFound.id_tasa, 
+          tasas: tasasObj || {}, 
+          fecha: loteFound.created_at ? new Date(loteFound.created_at).toLocaleString('es-ES') : ''
+        };
+      }
+      return { id_tasa: this.loteActivo, tasas: this.tasasProduccion };
     },
 
     async conectarHooAPI() {
@@ -134,6 +187,7 @@ function registrarAppAlpine() {
         
         alert(`Tasa oficial ${res?.id_tasa || ''} publicada. ${this.modoPruebaActivo ? '🧪 Enviado al grupo de pruebas.' : '🚀 Enviado a producción.'}`);
         await this.cargarTasasMercado();
+        await this.cargarHistorialTasas();
       } catch (err) {
         console.error(err);
         alert('Error al publicar tasa: ' + err.message);
@@ -513,7 +567,6 @@ function registrarAppAlpine() {
       return this.filtroSocio ? this.filtroSocio.toUpperCase() : 'TODOS LOS SOCIOS';
     },
 
-    // 🟢 EVALUACIÓN DINÁMICA DE SOCIO 1 VS SOCIO 2 PARA EL KPI DE MOVIMIENTO
     get movimientoFiltradoTotal() {
       if (!Array.isArray(this.comprobantes)) return 0;
       const socioTarget = (this.filtroSocio || '').trim().toUpperCase();
@@ -551,7 +604,7 @@ function registrarAppAlpine() {
       );
     },
 
-    // 🟢 CALCULA EL SALDO FINAL HISTÓRICO DE CADA SOCIO Y EXCLUYE LOS SALDOS EN CERO (0)
+    // 🟢 CALCULA EL SALDO FINAL HISTÓRICO DE CADA SOCIO Y DETECTA ESTADO MINI POWER
     get sociosPendientesConsolidado() {
       if (!Array.isArray(this.directorio)) return [];
 
@@ -559,7 +612,6 @@ function registrarAppAlpine() {
         const nombreUpper = (socio.nombre || '').trim().toUpperCase();
         const saldoBase = parseFloat(socio.saldo_anterior) || 0;
 
-        // Suma de movimientos históricos evaluando si actúa como Socio 1 o Socio 2
         const movimientoHistorico = (this.comprobantes || []).reduce((acc, item) => {
           const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
           const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
@@ -581,14 +633,17 @@ function registrarAppAlpine() {
           moneda: (socio.moneda_socio || 'USDT').toUpperCase(),
           saldoBase,
           movimientoHistorico,
-          saldoFinal
+          saldoFinal,
+          encendido: this.isSocioEncendido(socio.nombre)
         };
-      }).filter(s => Math.abs(s.saldoFinal) >= 0.01); // Excluye socios con saldo 0
+      }).filter(s => Math.abs(s.saldoFinal) >= 0.01);
     },
 
-    // 🟢 SUMA ALGEBRAICA GENERAL DE TODOS LOS SOCIOS CON PENDIENTES
+    // 🟢 CARD MASTER: SUMA ALGEBRAICA GENERAL SOLO DE CARDS ENCENDIDAS (POWER ON)
     get totalSumaAlgebraicaPendientes() {
-      return this.sociosPendientesConsolidado.reduce((sum, s) => sum + s.saldoFinal, 0);
+      return this.sociosPendientesConsolidado
+        .filter(s => s.encendido)
+        .reduce((sum, s) => sum + s.saldoFinal, 0);
     }
   }));
 }
