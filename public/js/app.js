@@ -9,8 +9,8 @@ function truncarTasaComercial(valor) {
 
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
-    vistaActiva: 'dashboard',
-    vistaDashboardSubmenu: 'balance',
+    vistaActiva: 'dashboard', // 🟢 Dashboard como vista principal
+    vistaDashboardSubmenu: 'balance', // 'balance' | 'inspeccion'
     loteSeleccionadoInspector: '',
 
     comprobantes: [],
@@ -27,7 +27,7 @@ function registrarAppAlpine() {
     socioPreviewSeleccionado: 'GENERAL',
     cargandoPreviewImagen: false,
 
-    // Filtros Comprobantes
+    // Filtros Comprobantes y Cortes de Período
     filtroRol: '',
     filtroSocio: '',
     filtroFechaInicio: '',
@@ -70,11 +70,13 @@ function registrarAppAlpine() {
       }, 5000);
     },
 
+    // 🟢 ACCIÓN SEPARADA DE DASHBOARD (NO INTERFIERE CON WHATSAPP)
     toggleDashSocio(socio) {
       if (!socio) return;
       socio.mostrar_dashboard = socio.mostrar_dashboard === false ? true : false;
     },
 
+    // 🟢 ACCIÓN SEPARADA DE WHATSAPP / TASAS
     async toggleEstadoSocio(socio) {
       if (!socio) return;
       try {
@@ -308,7 +310,7 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 LECTURA Y UNIFICACIÓN DE PAÍSES Y MONEDAS GUARDADAS
+    // 🟢 LECTURA DE PAÍSES/MONEDAS GUARDADOS DE LA BD
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
@@ -331,7 +333,6 @@ function registrarAppAlpine() {
       const codigosActivos = new Set(carteleraExistente.map(c => (c.moneda || c.code || '').toUpperCase()));
       const paisesMap = new Map();
 
-      // 1. Agregar defaults y verificar si están activos en la BD
       listaPaisesDefault.forEach(p => {
         const code = p.code;
         const esActivo = codigosActivos.size > 0 ? codigosActivos.has(code) : (p.code !== 'PYG' && p.code !== 'EUR' && p.code !== 'USD');
@@ -346,7 +347,6 @@ function registrarAppAlpine() {
         });
       });
 
-      // 2. Agregar cualquier otra moneda guardada previamente que no esté en defaults
       carteleraExistente.forEach(c => {
         const code = (c.moneda || c.code || '').toUpperCase();
         if (code && !paisesMap.has(code)) {
@@ -376,7 +376,7 @@ function registrarAppAlpine() {
       this.modalConfigSocioAbierto = true;
     },
 
-    // 🟢 BOTÓN PARA AGREGAR NUEVA MONEDA/PAÍS DINÁMICAMENTE
+    // 🟢 FUNCIÓN PARA AGREGAR NUEVA MONEDA AL SOCIO
     agregarNuevaMoneda() {
       if (!this.socioConfigEdit) return;
       const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, USDT):');
