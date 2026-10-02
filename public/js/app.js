@@ -9,8 +9,8 @@ function truncarTasaComercial(valor) {
 
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
-    vistaActiva: 'dashboard', // 🟢 VISTA INICIAL
-    vistaDashboardSubmenu: 'balance', // 'balance' | 'inspeccion'
+    vistaActiva: 'dashboard',
+    vistaDashboardSubmenu: 'balance',
     loteSeleccionadoInspector: '',
 
     comprobantes: [],
@@ -27,7 +27,7 @@ function registrarAppAlpine() {
     socioPreviewSeleccionado: 'GENERAL',
     cargandoPreviewImagen: false,
 
-    // Filtros Comprobantes y Cortes de Período
+    // Filtros Comprobantes
     filtroRol: '',
     filtroSocio: '',
     filtroFechaInicio: '',
@@ -70,13 +70,11 @@ function registrarAppAlpine() {
       }, 5000);
     },
 
-    // 🟢 ACCIÓN SEPARADA DE DASHBOARD (NO INTERFIERE CON WHATSAPP/TASAS)
     toggleDashSocio(socio) {
       if (!socio) return;
       socio.mostrar_dashboard = socio.mostrar_dashboard === false ? true : false;
     },
 
-    // 🟢 ACCIÓN SEPARADA DE WHATSAPP / TASAS
     async toggleEstadoSocio(socio) {
       if (!socio) return;
       try {
@@ -310,21 +308,59 @@ function registrarAppAlpine() {
       }
     },
 
+    // 🟢 LECTURA Y UNIFICACIÓN DE PAÍSES Y MONEDAS GUARDADAS
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
-      
+
+      let carteleraExistente = [];
+      try { carteleraExistente = typeof socioObj.cartelera_paises === 'string' ? JSON.parse(socioObj.cartelera_paises || '[]') : (socioObj.cartelera_paises || []); } catch (e) {}
+
       const listaPaisesDefault = [
-        { code: 'ARS', nombre: 'Argentina', bandera: '🇦🇷', activo: true, factorD: aj['D-ARS'] ?? 1.0, factorP: aj['P-ARS'] ?? -0.95, naturaleza: aj['naturaleza_ARS'] || aj['NAT-ARS'] || 'D' },
-        { code: 'VES', nombre: 'Venezuela', bandera: '🇻🇪', activo: true, factorD: aj['D-VES'] ?? 1.0, factorP: aj['P-VES'] ?? -0.95, naturaleza: aj['naturaleza_VES'] || aj['NAT-VES'] || 'D' },
-        { code: 'PEN', nombre: 'Peru', bandera: '🇵🇪', activo: true, factorD: aj['D-PEN'] ?? 1.0, factorP: aj['P-PEN'] ?? -0.95, naturaleza: aj['naturaleza_PEN'] || aj['NAT-PEN'] || 'D' },
-        { code: 'COP', nombre: 'Colombia', bandera: '🇨🇴', activo: true, factorD: aj['D-COP'] ?? 1.03, factorP: aj['P-COP'] ?? -0.97, naturaleza: aj['naturaleza_COP'] || aj['NAT-COP'] || 'D' },
-        { code: 'CLP', nombre: 'Chile', bandera: '🇨🇱', activo: true, factorD: aj['D-CLP'] ?? 1.0, factorP: aj['P-CLP'] ?? -0.95, naturaleza: aj['naturaleza_CLP'] || aj['NAT-CLP'] || 'D' },
-        { code: 'BRL', nombre: 'Brazil', bandera: '🇧🇷', activo: true, factorD: aj['D-BRL'] ?? 1.0, factorP: aj['P-BRL'] ?? -0.95, naturaleza: aj['naturaleza_BRL'] || aj['NAT-BRL'] || 'D' },
-        { code: 'PYG', nombre: 'Paraguay', bandera: '🇵🇾', activo: false, factorD: aj['D-PYG'] ?? 1.0, factorP: aj['P-PYG'] ?? -0.95, naturaleza: aj['naturaleza_PYG'] || aj['NAT-PYG'] || 'D' },
-        { code: 'EUR', nombre: 'Europa', bandera: '🇪🇺', activo: false, factorD: aj['D-EUR'] ?? 1.0, factorP: aj['P-EUR'] ?? -0.95, naturaleza: aj['naturaleza_EUR'] || aj['NAT-EUR'] || 'D' },
-        { code: 'USD', nombre: 'EEUU-Zelle', bandera: '🇺🇸', activo: false, factorD: aj['D-USD'] ?? 1.0, factorP: aj['P-USD'] ?? -0.95, naturaleza: aj['naturaleza_USD'] || aj['NAT-USD'] || 'D' }
+        { code: 'ARS', nombre: 'Argentina', bandera: '🇦🇷' },
+        { code: 'VES', nombre: 'Venezuela', bandera: '🇻🇪' },
+        { code: 'PEN', nombre: 'Peru', bandera: '🇵🇪' },
+        { code: 'COP', nombre: 'Colombia', bandera: '🇨🇴' },
+        { code: 'CLP', nombre: 'Chile', bandera: '🇨🇱' },
+        { code: 'BRL', nombre: 'Brazil', bandera: '🇧🇷' },
+        { code: 'PYG', nombre: 'Paraguay', bandera: '🇵🇾' },
+        { code: 'EUR', nombre: 'Europa', bandera: '🇪🇺' },
+        { code: 'USD', nombre: 'EEUU-Zelle', bandera: '🇺🇸' }
       ];
+
+      const codigosActivos = new Set(carteleraExistente.map(c => (c.moneda || c.code || '').toUpperCase()));
+      const paisesMap = new Map();
+
+      // 1. Agregar defaults y verificar si están activos en la BD
+      listaPaisesDefault.forEach(p => {
+        const code = p.code;
+        const esActivo = codigosActivos.size > 0 ? codigosActivos.has(code) : (p.code !== 'PYG' && p.code !== 'EUR' && p.code !== 'USD');
+        paisesMap.set(code, {
+          code: p.code,
+          nombre: p.nombre,
+          bandera: p.bandera,
+          activo: esActivo,
+          factorD: aj[`D-${code}`] ?? 1.0,
+          factorP: aj[`P-${code}`] ?? -0.95,
+          naturaleza: aj[`naturaleza_${code}`] || aj[`NAT-${code}`] || 'D'
+        });
+      });
+
+      // 2. Agregar cualquier otra moneda guardada previamente que no esté en defaults
+      carteleraExistente.forEach(c => {
+        const code = (c.moneda || c.code || '').toUpperCase();
+        if (code && !paisesMap.has(code)) {
+          paisesMap.set(code, {
+            code,
+            nombre: c.pais || c.nombre || code,
+            bandera: '🌐',
+            activo: c.activo ?? true,
+            factorD: aj[`D-${code}`] ?? 1.0,
+            factorP: aj[`P-${code}`] ?? -0.95,
+            naturaleza: aj[`naturaleza_${code}`] || aj[`NAT-${code}`] || 'D'
+          });
+        }
+      });
 
       this.socioConfigEdit = {
         nombre: socioObj.nombre || 'NUEVO_SOCIO',
@@ -334,10 +370,35 @@ function registrarAppAlpine() {
         saldo_anterior: socioObj.saldo_anterior || 0,
         activo: socioObj.activo ?? true,
         mostrar_dashboard: socioObj.mostrar_dashboard ?? true,
-        paises: listaPaisesDefault
+        paises: Array.from(paisesMap.values())
       };
 
       this.modalConfigSocioAbierto = true;
+    },
+
+    // 🟢 BOTÓN PARA AGREGAR NUEVA MONEDA/PAÍS DINÁMICAMENTE
+    agregarNuevaMoneda() {
+      if (!this.socioConfigEdit) return;
+      const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, USDT):');
+      if (!codeRaw) return;
+
+      const codeUpper = codeRaw.trim().toUpperCase();
+      if (this.socioConfigEdit.paises.some(p => p.code === codeUpper)) {
+        alert(`La moneda ${codeUpper} ya existe en la lista de este socio.`);
+        return;
+      }
+
+      const nombrePais = prompt(`Ingresa el nombre del país o etiqueta para ${codeUpper}:`, codeUpper);
+
+      this.socioConfigEdit.paises.push({
+        code: codeUpper,
+        nombre: nombrePais ? nombrePais.trim() : codeUpper,
+        bandera: '🌐',
+        activo: true,
+        factorD: 1.0,
+        factorP: -0.95,
+        naturaleza: 'D'
+      });
     },
 
     crearNuevoSocio() {
@@ -366,11 +427,18 @@ function registrarAppAlpine() {
         const carteleraPaises = [];
 
         this.socioConfigEdit.paises.forEach(p => {
-          ajustes[`D-${p.code}`] = parseFloat(p.factorD) || 1.0;
-          ajustes[`P-${p.code}`] = parseFloat(p.factorP) || -0.95;
-          ajustes[`naturaleza_${p.code}`] = p.naturaleza || 'D';
+          const code = p.code.toUpperCase();
+          ajustes[`D-${code}`] = parseFloat(p.factorD) || 1.0;
+          ajustes[`P-${code}`] = parseFloat(p.factorP) || -0.95;
+          ajustes[`naturaleza_${code}`] = p.naturaleza || 'D';
+          
           if (p.activo) {
-            carteleraPaises.push({ moneda: p.code, pais: p.nombre, activo: true });
+            carteleraPaises.push({
+              moneda: code,
+              code: code,
+              pais: p.nombre,
+              activo: true
+            });
           }
         });
 
@@ -391,6 +459,7 @@ function registrarAppAlpine() {
         await this.cargarDirectorio();
         await this.cargarSocios();
         await this.cargarComprobantes();
+        alert('✅ Configuración del socio guardada con éxito.');
       } catch (err) {
         console.error('Error al guardar socio:', err);
         alert('Error guardando socio: ' + err.message);
@@ -607,7 +676,6 @@ function registrarAppAlpine() {
     get sociosPendientesConsolidado() {
       if (!Array.isArray(this.directorio)) return [];
 
-      // 1. Filtrar comprobantes según corte de período
       let compFiltrados = Array.isArray(this.comprobantes) ? [...this.comprobantes] : [];
 
       if (this.filtroFechaInicio) {
@@ -642,9 +710,8 @@ function registrarAppAlpine() {
         compFiltrados = compFiltrados.slice(start, end + 1);
       }
 
-      // 2. Mapear cada socio considerando su saldo_anterior de directorio + cortes
       return this.directorio
-        .filter(socio => socio.mostrar_dashboard !== false) // 🟢 INDEPENDIENTE DE socio.activo
+        .filter(socio => socio.mostrar_dashboard !== false)
         .map(socio => {
           const nombreUpper = (socio.nombre || '').trim().toUpperCase();
           const saldoBase = parseFloat(socio.saldo_anterior) || 0;
@@ -676,7 +743,6 @@ function registrarAppAlpine() {
         .filter(s => Math.abs(s.saldoFinal) >= 0.01);
     },
 
-    // 🟢 CARD MASTER: SUMA ALGEBRAICA GENERAL DE SOCIOS VISIBLES EN DASHBOARD
     get totalSumaAlgebraicaPendientes() {
       return this.sociosPendientesConsolidado.reduce((sum, s) => sum + s.saldoFinal, 0);
     }
