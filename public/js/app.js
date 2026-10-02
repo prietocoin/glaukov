@@ -297,10 +297,11 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 CÁLCULO DE TASA EN VIVO CON PORCENTAJE (%) Y POLARIDAD (SUMA / RESTA)
+    // 🟢 CÁLCULO DE TASA EN VIVO: esResta falso = suma (Depósito), esResta verdadero = resta (Pago)
     calcularTasaEnVivo(code, pct, esResta = false) {
       const base = parseFloat(this.tasasProduccion[code]) || 1.0;
       const p = parseFloat(pct) || 0;
+      // La tasa SIEMPRE se calcula matemáticamente fija, independientemente del signo contable del saldo.
       const factor = esResta ? (1 - (p / 100)) : (1 + (p / 100));
       const res = base * factor;
       if (res === 0) return '0';
@@ -308,7 +309,6 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 LECTURA DEDICADA: Carga ÚNICAMENTE las divisas activas del socio (sin forzar tarjetas inactivas)
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
@@ -362,9 +362,11 @@ function registrarAppAlpine() {
           const legacyP = parseLegacyFactor(aj[`P-${code}`] ?? aj[`factor_P_${code}`]);
 
           const pctD = aj[`pct_D_${code}`] ?? legacyD.pct;
-          const restaD = aj[`resta_D_${code}`] ?? legacyD.resta;
           const pctP = aj[`pct_P_${code}`] ?? legacyP.pct;
-          const restaP = aj[`resta_P_${code}`] ?? legacyP.resta;
+          
+          // 🟢 Lectura de la polaridad contable específica (D-MONEDA y P-MONEDA)
+          const restaD = aj[`resta_D_${code}`] ?? true;  // Por omisión: un Depósito resta saldo
+          const restaP = aj[`resta_P_${code}`] ?? false; // Por omisión: un Pago suma saldo
 
           paisesArray.push({
             code,
@@ -388,9 +390,9 @@ function registrarAppAlpine() {
             bandera: info.bandera,
             activo: true,
             pctD: 0,
-            restaD: false,
+            restaD: true,   // Depósito por defecto resta saldo
             pctP: 0,
-            restaP: false,
+            restaP: false,  // Pago por defecto suma saldo
             naturaleza: 'D'
           });
         });
@@ -410,7 +412,6 @@ function registrarAppAlpine() {
       this.modalConfigSocioAbierto = true;
     },
 
-    // 🟢 PERMITE AGREGAR UNA DIVISA ESPECÍFICA AL SOCIO
     agregarNuevaMoneda() {
       if (!this.socioConfigEdit) return;
       const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, DOP, USD):');
@@ -450,14 +451,13 @@ function registrarAppAlpine() {
         bandera: info.bandera,
         activo: true,
         pctD: 0,
-        restaD: false,
+        restaD: true,   // Depósito por defecto resta saldo
         pctP: 0,
-        restaP: false,
+        restaP: false,  // Pago por defecto suma saldo
         naturaleza: 'D'
       });
     },
 
-    // 🟢 ELIMINA UNA DIVISA DE LA LISTA DEL SOCIO
     quitarMonedaSocio(index) {
       if (!this.socioConfigEdit || !this.socioConfigEdit.paises) return;
       this.socioConfigEdit.paises.splice(index, 1);
@@ -469,7 +469,7 @@ function registrarAppAlpine() {
       });
     },
 
-    // 🟢 GUARDAR PORCENTAJES Y MULTIPLICADORES DE COMPATIBILIDAD
+    // 🟢 GUARDAR PORCENTAJES Y POLARIDAD CONTABLE
     async guardarConfigSocioModal() {
       if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
         alert('Por favor especifica el nombre del socio.');
@@ -484,19 +484,20 @@ function registrarAppAlpine() {
           const code = p.code.toUpperCase();
           const pctD = Math.abs(parseFloat(p.pctD) || 0);
           const pctP = Math.abs(parseFloat(p.pctP) || 0);
+          
+          // La polaridad es exclusiva para decidir el signo en la contabilidad
           const restaD = Boolean(p.restaD);
           const restaP = Boolean(p.restaP);
 
-          // Porcentajes puros y polaridad
           ajustes[`pct_D_${code}`] = pctD;
           ajustes[`resta_D_${code}`] = restaD;
           ajustes[`pct_P_${code}`] = pctP;
           ajustes[`resta_P_${code}`] = restaP;
           ajustes[`naturaleza_${code}`] = p.naturaleza || 'D';
 
-          // Multiplicadores equivalentes para Puppeteer / Generador de imágenes
-          const multD = Math.round((restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100))) * 10000) / 10000;
-          const multP = Math.round((restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100))) * 10000) / 10000;
+          // 🟢 LOS MULTIPLICADORES SE GUARDAN CON TASA LINEAL (Depósito siempre suma, Pago siempre resta)
+          const multD = Math.round((1 + (pctD / 100)) * 10000) / 10000;
+          const multP = Math.round((1 - (pctP / 100)) * 10000) / 10000;
 
           ajustes[`D-${code}`] = multD;
           ajustes[`P-${code}`] = multP;
