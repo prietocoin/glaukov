@@ -742,7 +742,8 @@
                     <div class="bg-[#080e26] p-2 rounded-xl border border-cyan-500/30 space-y-1.5">
                       <div class="flex justify-between items-center text-[8px] font-extrabold">
                         <span class="text-cyan-400">DEPÓSITO (D) %</span>
-                        <span class="text-slate-300 font-mono text-[10px] font-bold" x-text="calcularTasaEnVivo(p.code, p.pctD, p.restaD)"></span>
+                        <!-- 🟢 TASA DEPÓSITO: Se pasa 'false' para que SIEMPRE sume el % a la tasa comercial, sin variar al tocar el botón -->
+                        <span class="text-slate-300 font-mono text-[10px] font-bold" x-text="calcularTasaEnVivo(p.code, p.pctD, false)"></span>
                       </div>
                       <div class="flex items-center gap-1.5">
                         <input type="number" step="0.1" min="0" 
@@ -750,6 +751,7 @@
                                placeholder="0" 
                                class="w-full bg-[#030611] border border-cyan-500/40 text-cyan-300 text-center font-mono font-bold rounded px-1 py-1 text-xs outline-none focus:border-cyan-400">
                         
+                        <!-- 🟢 BOTÓN POLARIDAD SALDO DEPÓSITO (D): Cambia p.restaD (solo afecta el saldo contable en DB, NO la tasa comercial) -->
                         <button type="button" 
                                 @click="p.restaD = !p.restaD"
                                 class="text-[9px] font-extrabold shrink-0 select-none px-2 py-1 rounded border transition-colors"
@@ -763,7 +765,8 @@
                     <div class="bg-[#080e26] p-2 rounded-xl border border-amber-500/30 space-y-1.5">
                       <div class="flex justify-between items-center text-[8px] font-extrabold">
                         <span class="text-amber-400">PAGO (P) %</span>
-                        <span class="text-slate-300 font-mono text-[10px] font-bold" x-text="calcularTasaEnVivo(p.code, p.pctP, p.restaP)"></span>
+                        <!-- 🟢 TASA PAGO: Se pasa 'true' para que SIEMPRE reste el % a la tasa comercial, sin variar al tocar el botón -->
+                        <span class="text-slate-300 font-mono text-[10px] font-bold" x-text="calcularTasaEnVivo(p.code, p.pctP, true)"></span>
                       </div>
                       <div class="flex items-center gap-1.5">
                         <input type="number" step="0.1" min="0" 
@@ -771,6 +774,7 @@
                                placeholder="0" 
                                class="w-full bg-[#030611] border border-amber-500/40 text-amber-300 text-center font-mono font-bold rounded px-1 py-1 text-xs outline-none focus:border-amber-400">
                         
+                        <!-- 🟢 BOTÓN POLARIDAD SALDO PAGO (P): Cambia p.restaP (solo afecta el saldo contable en DB, NO la tasa comercial) -->
                         <button type="button" 
                                 @click="p.restaP = !p.restaP"
                                 class="text-[9px] font-extrabold shrink-0 select-none px-2 py-1 rounded border transition-colors"
