@@ -38,75 +38,91 @@ async function obtenerListaSocios() {
 /**
  * Crea o actualiza la configuración integral de un socio o de la entidad GENERAL
  */
-async function guardarConfigSocio(datos) {
-  const { 
-    nombre, roles, moneda_socio, saldo_anterior, whatsapp, activo,
-    pen, cop, clp, ars, ves, brl, mxn, pyg, dop, crc, eur, cad, usd, ecu, pan, usdt,
-    cartelera_paises, ajustes 
-  } = datos;
+// directorio.service.js
 
-  if (!nombre || !nombre.trim()) {
-    throw new Error('El nombre del socio es obligatorio.');
-  }
+async function guardarSocioConfig(payload) {
+  const {
+    nombre,
+    roles,
+    moneda_socio,
+    whatsapp,
+    saldo_anterior,
+    activo,
+    mostrar_dashboard,
+    ajustes,
+    cartelera_paises
+  } = payload;
 
-  const socioNombre = nombre.trim();
-  const isGeneral = socioNombre.toUpperCase() === 'GENERAL';
-  const estadoActivo = isGeneral ? true : (activo ?? true);
+  const nombreClean = String(nombre || '').trim().toUpperCase();
 
-  const cpArray = (Array.isArray(cartelera_paises) && cartelera_paises.length > 0) ? cartelera_paises : [];
-  const conteoActivos = cpArray.filter(p => p.activo).length;
-  const tallaCalculada = calcularTallaAutomatica(conteoActivos);
+  // Serialización segura previa al envío a la BD
+  const ajustesJson = typeof ajustes === 'object' 
+    ? JSON.stringify(ajustes) 
+    : (ajustes || '{}');
+    
+  const carteleraJson = Array.isArray(cartelera_paises) || typeof cartelera_paises === 'object'
+    ? JSON.stringify(cartelera_paises)
+    : (cartelera_paises || '[]');
 
-  const jsonCartelera = JSON.stringify(cpArray);
-  const jsonAjustes = JSON.stringify(ajustes || {});
-  const valSaldo = parseFloat(saldo_anterior) || 0;
+  const query = `
+    UPDATE nombres_fb
+    SET 
+      roles = $1,
+      moneda_socio = $2,
+      whatsapp = $3,
+      saldo_anterior = $4,
+      activo = $5,
+      mostrar_dashboard = $6,
+      ajustes = $7::jsonb,
+      cartelera_paises = $8::jsonb
+    WHERE UPPER(TRIM(nombre)) = $9
+    RETURNING *;
+  `;
 
-  const checkRes = await db.query(
-    `SELECT id_grupo, whatsapp FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1));`,
-    [socioNombre]
-  );
+  const values = [
+    roles || 'SOCIO',
+    (moneda_socio || 'USDT').toUpperCase(),
+    whatsapp || '',
+    parseFloat(saldo_anterior) || 0,
+    activo ?? true,
+    mostrar_dashboard ?? true,
+    ajustesJson,
+    carteleraJson,
+    nombreClean
+  ];
 
-  let rows;
-  if (checkRes.rows.length > 0) {
-    const updateQuery = `
-      UPDATE nombres_fb SET
-        roles = $1, moneda_socio = $2, talla = $3, whatsapp = $4, activo = $5, saldo_anterior = $6,
-        pen = $7, cop = $8, clp = $9, ars = $10, ves = $11, brl = $12, mxn = $13, pyg = $14,
-        dop = $15, crc = $16, eur = $17, cad = $18, usd = $19, ecu = $20, pan = $21, usdt = $22,
-        cartelera_paises = $23::jsonb, ajustes = $24::jsonb
-      WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($25))
-      RETURNING *;
-    `;
-    const updateRes = await db.query(updateQuery, [
-      roles || (isGeneral ? 'MATRIZ_GENERAL' : 'SOCIO'), moneda_socio || 'USDT', tallaCalculada, 
-      whatsapp || checkRes.rows[0].whatsapp || '', estadoActivo, valSaldo,
-      pen || 'D', cop || 'D', clp || 'D', ars || 'D', ves || 'D', brl || 'D', mxn || 'D', pyg || 'D',
-      dop || 'D', crc || 'D', eur || 'D', cad || 'D', usd || 'D', ecu || 'D', pan || 'D', usdt || 'A',
-      jsonCartelera, jsonAjustes, socioNombre
-    ]);
-    rows = updateRes.rows;
-  } else {
-    const idGrupo = whatsapp && whatsapp.trim() ? whatsapp.trim() : ('GRP_' + socioNombre.toUpperCase().replace(/\s+/g, '_'));
+  const { rows } = await db.query(query, values);
+
+  // Si el socio no existía previamente, se inserta la fila inicial
+  if (rows.length === 0) {
     const insertQuery = `
       INSERT INTO nombres_fb (
-        id_grupo, nombre, roles, moneda_socio, talla, whatsapp, activo, saldo_anterior,
-        pen, cop, clp, ars, ves, brl, mxn, pyg, dop, crc, eur, cad, usd, ecu, pan, usdt,
-        cartelera_paises, ajustes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25::jsonb, $26::jsonb)
+        id_grupo, nombre, roles, moneda_socio, whatsapp, 
+        saldo_anterior, activo, mostrar_dashboard, ajustes, cartelera_paises
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb)
       RETURNING *;
     `;
-    const insertRes = await db.query(insertQuery, [
-      idGrupo, socioNombre, roles || (isGeneral ? 'MATRIZ_GENERAL' : 'SOCIO'), moneda_socio || 'USDT', tallaCalculada, whatsapp || '',
-      estadoActivo, valSaldo,
-      pen || 'D', cop || 'D', clp || 'D', ars || 'D', ves || 'D', brl || 'D', mxn || 'D', pyg || 'D',
-      dop || 'D', crc || 'D', eur || 'D', cad || 'D', usd || 'D', ecu || 'D', pan || 'D', usdt || 'A',
-      jsonCartelera, jsonAjustes
-    ]);
-    rows = insertRes.rows;
+    const insertValues = [
+      whatsapp || `${nombreClean}_JID`,
+      nombreClean,
+      roles || 'SOCIO',
+      (moneda_socio || 'USDT').toUpperCase(),
+      whatsapp || '',
+      parseFloat(saldo_anterior) || 0,
+      activo ?? true,
+      mostrar_dashboard ?? true,
+      ajustesJson,
+      carteleraJson
+    ];
+    const insertRes = await db.query(insertQuery, insertValues);
+    return insertRes.rows[0];
   }
 
   return rows[0];
 }
+
+module.exports = { guardarSocioConfig };
 
 /**
  * Cambia el estado Activo/Inactivo de un socio
