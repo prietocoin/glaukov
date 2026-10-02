@@ -9,15 +9,14 @@ function truncarTasaComercial(valor) {
 
 function registrarAppAlpine() {
   Alpine.data('app', () => ({
-    vistaActiva: 'dashboard', // 🟢 Dashboard como vista principal
-    vistaDashboardSubmenu: 'balance', // 'balance' | 'inspeccion'
+    vistaActiva: 'dashboard',
+    vistaDashboardSubmenu: 'balance',
     loteSeleccionadoInspector: '',
 
     comprobantes: [],
     directorio: [],
     socios: [],
 
-    // Estado Mercado & Modo Prueba
     modoPruebaActivo: false,
     loteActivo: '',
     tasasProduccion: {},
@@ -27,7 +26,6 @@ function registrarAppAlpine() {
     socioPreviewSeleccionado: 'GENERAL',
     cargandoPreviewImagen: false,
 
-    // Filtros Comprobantes y Cortes de Período
     filtroRol: '',
     filtroSocio: '',
     filtroFechaInicio: '',
@@ -38,10 +36,8 @@ function registrarAppAlpine() {
     filtroHashBusqueda: '',
     saldoAnterior: 0,
 
-    // Directorio & Filtros
     busquedaDirectorio: '',
 
-    // Modales
     modalAbierto: false,
     itemEdicion: null,
     modalImagenAbierto: false,
@@ -49,7 +45,6 @@ function registrarAppAlpine() {
     modalConfigSocioAbierto: false,
     socioConfigEdit: null,
 
-    // Sync
     timerPolling: null,
     ultimaActualizacion: '',
 
@@ -70,13 +65,11 @@ function registrarAppAlpine() {
       }, 5000);
     },
 
-    // 🟢 ACCIÓN SEPARADA DE DASHBOARD (NO INTERFIERE CON WHATSAPP)
     toggleDashSocio(socio) {
       if (!socio) return;
       socio.mostrar_dashboard = socio.mostrar_dashboard === false ? true : false;
     },
 
-    // 🟢 ACCIÓN SEPARADA DE WHATSAPP / TASAS
     async toggleEstadoSocio(socio) {
       if (!socio) return;
       try {
@@ -88,9 +81,6 @@ function registrarAppAlpine() {
       }
     },
 
-    // ==========================================
-    // MERCADO, HOO API & HISTORIAL DE TASAS
-    // ==========================================
     async cargarTasasMercado() {
       try {
         const res = await window.AteneaAPI.getUltimasTasas();
@@ -249,9 +239,6 @@ function registrarAppAlpine() {
       }
     },
 
-    // ==========================================
-    // COMPROBANTES, DIRECTORIO & MODALES
-    // ==========================================
     actualizarSocioSeleccionado() {
       const socioNom = (this.filtroSocio || '').trim().toUpperCase();
       if (socioNom) {
@@ -310,7 +297,18 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 LECTURA DE PAÍSES/MONEDAS GUARDADOS DE LA BD
+    // 🟢 FÓRMULA DE CÁLCULO DE TASA POR PORCENTAJE (NEUTRA)
+    calcularTasaEnVivo(code, pct, esResta = false) {
+      const base = parseFloat(this.tasasProduccion[code]) || 1.0;
+      const p = parseFloat(pct) || 0;
+      const factor = esResta ? (1 - (p / 100)) : (1 + (p / 100));
+      const res = base * factor;
+      if (res === 0) return '0';
+      if (res > 99.99) return Math.trunc(res).toLocaleString('en-US');
+      return (Math.trunc(res * 100) / 100).toFixed(2);
+    },
+
+    // 🟢 LECTURA Y CARGA DE CONFIGURACIÓN SIN ASUMIR SIGNOS FIJOS
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
@@ -333,16 +331,41 @@ function registrarAppAlpine() {
       const codigosActivos = new Set(carteleraExistente.map(c => (c.moneda || c.code || '').toUpperCase()));
       const paisesMap = new Map();
 
+      // Convierte factores almacenados anteriormente sin imponer comportamiento por defecto
+      const parseLegacyFactor = (valOriginal) => {
+        if (valOriginal === undefined || valOriginal === null) return { pct: 0, resta: false };
+        const num = parseFloat(valOriginal);
+        if (isNaN(num)) return { pct: 0, resta: false };
+
+        const absNum = Math.abs(num);
+        if (absNum < 1) {
+          return { pct: Math.round((1 - absNum) * 1000) / 10, resta: true };
+        } else {
+          return { pct: Math.round((absNum - 1) * 1000) / 10, resta: false };
+        }
+      };
+
       listaPaisesDefault.forEach(p => {
         const code = p.code;
         const esActivo = codigosActivos.size > 0 ? codigosActivos.has(code) : (p.code !== 'PYG' && p.code !== 'EUR' && p.code !== 'USD');
+        
+        const legacyD = parseLegacyFactor(aj[`D-${code}`]);
+        const legacyP = parseLegacyFactor(aj[`P-${code}`]);
+
+        const pctD = aj[`pct_D_${code}`] ?? legacyD.pct;
+        const restaD = aj[`resta_D_${code}`] ?? legacyD.resta;
+        const pctP = aj[`pct_P_${code}`] ?? legacyP.pct;
+        const restaP = aj[`resta_P_${code}`] ?? legacyP.resta;
+
         paisesMap.set(code, {
-          code: p.code,
+          code,
           nombre: p.nombre,
           bandera: p.bandera,
           activo: esActivo,
-          factorD: aj[`D-${code}`] ?? 1.0,
-          factorP: aj[`P-${code}`] ?? -0.95,
+          pctD: Math.abs(parseFloat(pctD) || 0),
+          restaD: !!restaD,
+          pctP: Math.abs(parseFloat(pctP) || 0),
+          restaP: !!restaP,
           naturaleza: aj[`naturaleza_${code}`] || aj[`NAT-${code}`] || 'D'
         });
       });
@@ -350,13 +373,23 @@ function registrarAppAlpine() {
       carteleraExistente.forEach(c => {
         const code = (c.moneda || c.code || '').toUpperCase();
         if (code && !paisesMap.has(code)) {
+          const legacyD = parseLegacyFactor(aj[`D-${code}`]);
+          const legacyP = parseLegacyFactor(aj[`P-${code}`]);
+
+          const pctD = aj[`pct_D_${code}`] ?? legacyD.pct;
+          const restaD = aj[`resta_D_${code}`] ?? legacyD.resta;
+          const pctP = aj[`pct_P_${code}`] ?? legacyP.pct;
+          const restaP = aj[`resta_P_${code}`] ?? legacyP.resta;
+
           paisesMap.set(code, {
             code,
             nombre: c.pais || c.nombre || code,
             bandera: '🌐',
             activo: c.activo ?? true,
-            factorD: aj[`D-${code}`] ?? 1.0,
-            factorP: aj[`P-${code}`] ?? -0.95,
+            pctD: Math.abs(parseFloat(pctD) || 0),
+            restaD: !!restaD,
+            pctP: Math.abs(parseFloat(pctP) || 0),
+            restaP: !!restaP,
             naturaleza: aj[`naturaleza_${code}`] || aj[`NAT-${code}`] || 'D'
           });
         }
@@ -376,7 +409,6 @@ function registrarAppAlpine() {
       this.modalConfigSocioAbierto = true;
     },
 
-    // 🟢 FUNCIÓN PARA AGREGAR NUEVA MONEDA AL SOCIO
     agregarNuevaMoneda() {
       if (!this.socioConfigEdit) return;
       const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, USDT):');
@@ -395,8 +427,10 @@ function registrarAppAlpine() {
         nombre: nombrePais ? nombrePais.trim() : codeUpper,
         bandera: '🌐',
         activo: true,
-        factorD: 1.0,
-        factorP: -0.95,
+        pctD: 0,
+        restaD: false,
+        pctP: 0,
+        restaP: false,
         naturaleza: 'D'
       });
     },
@@ -405,15 +439,6 @@ function registrarAppAlpine() {
       this.abrirConfigSocio({
         nombre: '', roles: 'SOCIO', moneda_socio: 'USDT', whatsapp: '', saldo_anterior: 0, activo: true, mostrar_dashboard: true
       });
-    },
-
-    calcularTasaEnVivo(code, factor, esDeposito = true) {
-      const base = this.tasasProduccion[code] || 1.0;
-      const f = parseFloat(factor) || (esDeposito ? 1.0 : -0.95);
-      const res = base * Math.abs(f);
-      if (res === 0) return '0';
-      if (res > 99.99) return Math.trunc(res).toLocaleString('en-US');
-      return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
     async guardarConfigSocioModal() {
@@ -428,10 +453,21 @@ function registrarAppAlpine() {
 
         this.socioConfigEdit.paises.forEach(p => {
           const code = p.code.toUpperCase();
-          ajustes[`D-${code}`] = parseFloat(p.factorD) || 1.0;
-          ajustes[`P-${code}`] = parseFloat(p.factorP) || -0.95;
+          const pctD = Math.abs(parseFloat(p.pctD) || 0);
+          const pctP = Math.abs(parseFloat(p.pctP) || 0);
+          const restaD = !!p.restaD;
+          const restaP = !!p.restaP;
+
+          ajustes[`pct_D_${code}`] = pctD;
+          ajustes[`resta_D_${code}`] = restaD;
+          ajustes[`pct_P_${code}`] = pctP;
+          ajustes[`resta_P_${code}`] = restaP;
           ajustes[`naturaleza_${code}`] = p.naturaleza || 'D';
-          
+
+          // Se persisten ambos formatos para mantener retrocompatibilidad total con el generador de imágenes
+          ajustes[`D-${code}`] = restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100));
+          ajustes[`P-${code}`] = restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100));
+
           if (p.activo) {
             carteleraPaises.push({
               moneda: code,
@@ -672,7 +708,6 @@ function registrarAppAlpine() {
       );
     },
 
-    // 🟢 CALCULA EL SALDO CON CORTE DE PERÍODO (FECHAS Y RANGO DE HASH)
     get sociosPendientesConsolidado() {
       if (!Array.isArray(this.directorio)) return [];
 
