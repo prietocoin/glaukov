@@ -121,6 +121,12 @@ window.AteneaAPI = {
     return await res.json();
   },
 
+  async getHistorialTasas() {
+    const res = await fetch('/api/tasas/historial');
+    if (!res.ok) throw new Error('Error al obtener historial de tasas');
+    return await res.json();
+  },
+
   async fetchHoo() {
     const res = await fetch('/api/tasas/fetch-hoo');
     if (!res.ok) throw new Error('Error al consultar Hoo API');
