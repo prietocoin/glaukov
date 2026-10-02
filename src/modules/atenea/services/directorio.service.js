@@ -188,9 +188,11 @@ async function eliminarSocio(nombre) {
 }
 
 module.exports = {
+  calcularTallaAutomatica,
   obtenerDirectorio,
   obtenerListaSocios,
-  guardarConfigSocio,
+  guardarSocioConfig,
+  guardarConfigSocio: guardarSocioConfig, // 👈 Alias asignado para que atenea.controller.js lo encuentre
   cambiarEstadoSocio,
   desactivarTodosSocios,
   guardarSociosVigentes,
