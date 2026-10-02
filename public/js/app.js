@@ -297,7 +297,7 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 FÓRMULA DE CÁLCULO DE TASA POR PORCENTAJE (NEUTRA)
+    // 🟢 CÁLCULO DE TASA EN VIVO CON PORCENTAJE (%) Y POLARIDAD (SUMA / RESTA)
     calcularTasaEnVivo(code, pct, esResta = false) {
       const base = parseFloat(this.tasasProduccion[code]) || 1.0;
       const p = parseFloat(pct) || 0;
@@ -308,7 +308,7 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 LECTURA Y CARGA DE CONFIGURACIÓN SIN ASUMIR SIGNOS FIJOS
+    // 🟢 LECTURA Y CONVERSIÓN DE FACTORES A PORCENTAJES EN EL MODAL
     abrirConfigSocio(socioObj) {
       let aj = {};
       try { aj = typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}); } catch (e) {}
@@ -331,7 +331,7 @@ function registrarAppAlpine() {
       const codigosActivos = new Set(carteleraExistente.map(c => (c.moneda || c.code || '').toUpperCase()));
       const paisesMap = new Map();
 
-      // Convierte factores almacenados anteriormente sin imponer comportamiento por defecto
+      // Convierte multiplicadores decimales antiguos (ej: 1.03 o 0.976) a porcentaje + resta
       const parseLegacyFactor = (valOriginal) => {
         if (valOriginal === undefined || valOriginal === null) return { pct: 0, resta: false };
         const num = parseFloat(valOriginal);
@@ -349,8 +349,8 @@ function registrarAppAlpine() {
         const code = p.code;
         const esActivo = codigosActivos.size > 0 ? codigosActivos.has(code) : (p.code !== 'PYG' && p.code !== 'EUR' && p.code !== 'USD');
         
-        const legacyD = parseLegacyFactor(aj[`D-${code}`]);
-        const legacyP = parseLegacyFactor(aj[`P-${code}`]);
+        const legacyD = parseLegacyFactor(aj[`D-${code}`] ?? aj[`factor_D_${code}`]);
+        const legacyP = parseLegacyFactor(aj[`P-${code}`] ?? aj[`factor_P_${code}`]);
 
         const pctD = aj[`pct_D_${code}`] ?? legacyD.pct;
         const restaD = aj[`resta_D_${code}`] ?? legacyD.resta;
@@ -373,8 +373,8 @@ function registrarAppAlpine() {
       carteleraExistente.forEach(c => {
         const code = (c.moneda || c.code || '').toUpperCase();
         if (code && !paisesMap.has(code)) {
-          const legacyD = parseLegacyFactor(aj[`D-${code}`]);
-          const legacyP = parseLegacyFactor(aj[`P-${code}`]);
+          const legacyD = parseLegacyFactor(aj[`D-${code}`] ?? aj[`factor_D_${code}`]);
+          const legacyP = parseLegacyFactor(aj[`P-${code}`] ?? aj[`factor_P_${code}`]);
 
           const pctD = aj[`pct_D_${code}`] ?? legacyD.pct;
           const restaD = aj[`resta_D_${code}`] ?? legacyD.resta;
@@ -441,6 +441,7 @@ function registrarAppAlpine() {
       });
     },
 
+    // 🟢 GUARDAR PORCENTAJES Y MULTIPLICADORES DE COMPATIBILIDAD
     async guardarConfigSocioModal() {
       if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
         alert('Por favor especifica el nombre del socio.');
@@ -458,15 +459,21 @@ function registrarAppAlpine() {
           const restaD = !!p.restaD;
           const restaP = !!p.restaP;
 
+          // Porcentajes puros y polaridad
           ajustes[`pct_D_${code}`] = pctD;
           ajustes[`resta_D_${code}`] = restaD;
           ajustes[`pct_P_${code}`] = pctP;
           ajustes[`resta_P_${code}`] = restaP;
           ajustes[`naturaleza_${code}`] = p.naturaleza || 'D';
 
-          // Se persisten ambos formatos para mantener retrocompatibilidad total con el generador de imágenes
-          ajustes[`D-${code}`] = restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100));
-          ajustes[`P-${code}`] = restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100));
+          // Multiplicadores equivalentes para Puppeteer / Generador de imágenes
+          const multD = restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100));
+          const multP = restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100));
+          
+          ajustes[`D-${code}`] = multD;
+          ajustes[`P-${code}`] = multP;
+          ajustes[`factor_D_${code}`] = multD;
+          ajustes[`factor_P_${code}`] = multP;
 
           if (p.activo) {
             carteleraPaises.push({
