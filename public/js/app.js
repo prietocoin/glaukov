@@ -17,6 +17,37 @@ function registrarAppAlpine() {
     directorio: [],
     socios: [],
 
+    // 🟢 LISTA MAESTRA CENTRALIZADA DE LAS 18 MONEDAS DE GLAUKOV
+    listaMonedasActivas: [
+      { code: 'ARS', label: 'ARS (Peso Argentino)', nombre: 'Argentina', bandera: '🇦🇷' },
+      { code: 'BOB', label: 'BOB (Boliviano)', nombre: 'Bolivia', bandera: '🇧🇴' },
+      { code: 'BRL', label: 'BRL (Real Brasileño)', nombre: 'Brazil', bandera: '🇧🇷' },
+      { code: 'CAD', label: 'CAD (Dólar Canadiense)', nombre: 'Canada', bandera: '🇨🇦' },
+      { code: 'CLP', label: 'CLP (Peso Chileno)', nombre: 'Chile', bandera: '🇨🇱' },
+      { code: 'COP', label: 'COP (Peso Colombiano)', nombre: 'Colombia', bandera: '🇨🇴' },
+      { code: 'CRC', label: 'CRC (Colón Costarricense)', nombre: 'Costa Rica', bandera: '🇨🇷' },
+      { code: 'DOP', label: 'DOP (Peso Dominicano)', nombre: 'Dominicana', bandera: '🇩🇴' },
+      { code: 'ECU', label: 'ECU (Dólar Ecuador)', nombre: 'Ecuador', bandera: '🇪🇨' },
+      { code: 'EUR', label: 'EUR (Euro)', nombre: 'Europa', bandera: '🇪🇺' },
+      { code: 'MXN', label: 'MXN (Peso Mexicano)', nombre: 'Mexico', bandera: '🇲🇽' },
+      { code: 'PAN', label: 'PAN (Balboa / Dólar Panamá)', nombre: 'Panamá', bandera: '🇵🇦' },
+      { code: 'PEN', label: 'PEN (Sol Peruano)', nombre: 'Peru', bandera: '🇵🇪' },
+      { code: 'PYG', label: 'PYG (Guaraní Paraguayo)', nombre: 'Paraguay', bandera: '🇵🇾' },
+      { code: 'PYUSD', label: 'PYUSD (PayPal USD)', nombre: 'PYUSD', bandera: '🪙' },
+      { code: 'USD', label: 'USD (EEUU - Zelle)', nombre: 'EEUU-Zelle', bandera: '🇺🇸' },
+      { code: 'USDT', label: 'USDT (Tether)', nombre: 'USDT', bandera: '🪙' },
+      { code: 'VES', label: 'VES (Bolívar Venezolano)', nombre: 'Venezuela', bandera: '🇻🇪' }
+    ],
+
+    // 🟢 DICCIONARIO MAESTRO (DERIVADO DINÁMICAMENTE)
+    get infoMonedasMaestra() {
+      const map = {};
+      this.listaMonedasActivas.forEach(m => {
+        map[m.code] = { nombre: m.nombre, bandera: m.bandera };
+      });
+      return map;
+    },
+
     modoPruebaActivo: false,
     loteActivo: '',
     tasasProduccion: {},
@@ -301,7 +332,6 @@ function registrarAppAlpine() {
     calcularTasaEnVivo(code, pct, esResta = false) {
       const base = parseFloat(this.tasasProduccion[code]) || 1.0;
       const p = parseFloat(pct) || 0;
-      // La tasa SIEMPRE se calcula matemáticamente fija, independientemente del signo contable del saldo.
       const factor = esResta ? (1 - (p / 100)) : (1 + (p / 100));
       const res = base * factor;
       if (res === 0) return '0';
@@ -315,26 +345,6 @@ function registrarAppAlpine() {
 
       let carteleraExistente = [];
       try { carteleraExistente = typeof socioObj.cartelera_paises === 'string' ? JSON.parse(socioObj.cartelera_paises || '[]') : (socioObj.cartelera_paises || []); } catch (e) {}
-
-      const infoMonedasMaestra = {
-        'ARS': { nombre: 'Argentina', bandera: '🇦🇷' },
-        'VES': { nombre: 'Venezuela', bandera: '🇻🇪' },
-        'PEN': { nombre: 'Peru', bandera: '🇵🇪' },
-        'COP': { nombre: 'Colombia', bandera: '🇨🇴' },
-        'CLP': { nombre: 'Chile', bandera: '🇨🇱' },
-        'BRL': { nombre: 'Brazil', bandera: '🇧🇷' },
-        'PYG': { nombre: 'Paraguay', bandera: '🇵🇾' },
-        'MXN': { nombre: 'Mexico', bandera: '🇲🇽' },
-        'ECU': { nombre: 'Ecuador', bandera: '🇪🇨' },
-        'DOP': { nombre: 'Dominicana', bandera: '🇩🇴' },
-        'CRC': { nombre: 'Costa Rica', bandera: '🇨🇷' },
-        'EUR': { nombre: 'Europa', bandera: '🇪🇺' },
-        'USD': { nombre: 'EEUU-Zelle', bandera: '🇺🇸' },
-        'BOB': { nombre: 'Bolivia', bandera: '🇧🇴' },
-        'CAD': { nombre: 'Canada', bandera: '🇨🇦' },
-        'USDT': { nombre: 'USDT', bandera: '🪙' },
-        'PYUSD': { nombre: 'PYUSD', bandera: '🪙' }
-      };
 
       const parseLegacyFactor = (valOriginal) => {
         if (valOriginal === undefined || valOriginal === null) return { pct: 0, resta: false };
@@ -356,7 +366,7 @@ function registrarAppAlpine() {
           const code = (c.moneda || c.code || '').toUpperCase();
           if (!code) return;
 
-          const info = infoMonedasMaestra[code] || { nombre: c.pais || c.nombre || code, bandera: '🌐' };
+          const info = this.infoMonedasMaestra[code] || { nombre: c.pais || c.nombre || code, bandera: '🌐' };
 
           const legacyD = parseLegacyFactor(aj[`D-${code}`] ?? aj[`factor_D_${code}`]);
           const legacyP = parseLegacyFactor(aj[`P-${code}`] ?? aj[`factor_P_${code}`]);
@@ -364,9 +374,8 @@ function registrarAppAlpine() {
           const pctD = aj[`pct_D_${code}`] ?? legacyD.pct;
           const pctP = aj[`pct_P_${code}`] ?? legacyP.pct;
           
-          // 🟢 Lectura de la polaridad contable específica (D-MONEDA y P-MONEDA)
-          const restaD = aj[`resta_D_${code}`] ?? true;  // Por omisión: un Depósito resta saldo
-          const restaP = aj[`resta_P_${code}`] ?? false; // Por omisión: un Pago suma saldo
+          const restaD = aj[`resta_D_${code}`] ?? true;  // Por omisión: Depósito resta saldo
+          const restaP = aj[`resta_P_${code}`] ?? false; // Por omisión: Pago suma saldo
 
           paisesArray.push({
             code,
@@ -383,16 +392,16 @@ function registrarAppAlpine() {
       } else {
         const baseDefecto = ['ARS', 'VES', 'PEN', 'COP', 'CLP', 'BRL'];
         baseDefecto.forEach(code => {
-          const info = infoMonedasMaestra[code];
+          const info = this.infoMonedasMaestra[code] || { nombre: code, bandera: '🌐' };
           paisesArray.push({
             code,
             nombre: info.nombre,
             bandera: info.bandera,
             activo: true,
             pctD: 0,
-            restaD: true,   // Depósito por defecto resta saldo
+            restaD: true,
             pctP: 0,
-            restaP: false,  // Pago por defecto suma saldo
+            restaP: false,
             naturaleza: 'D'
           });
         });
@@ -414,7 +423,7 @@ function registrarAppAlpine() {
 
     agregarNuevaMoneda() {
       if (!this.socioConfigEdit) return;
-      const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, DOP, USD):');
+      const codeRaw = prompt('Ingresa el código de la moneda (ej: BOB, MXN, CAD, DOP, USD, PAN, ECU):');
       if (!codeRaw) return;
 
       const codeUpper = codeRaw.trim().toUpperCase();
@@ -423,27 +432,7 @@ function registrarAppAlpine() {
         return;
       }
 
-      const infoMonedasMaestra = {
-        'ARS': { nombre: 'Argentina', bandera: '🇦🇷' },
-        'VES': { nombre: 'Venezuela', bandera: '🇻🇪' },
-        'PEN': { nombre: 'Peru', bandera: '🇵🇪' },
-        'COP': { nombre: 'Colombia', bandera: '🇨🇴' },
-        'CLP': { nombre: 'Chile', bandera: '🇨🇱' },
-        'BRL': { nombre: 'Brazil', bandera: '🇧🇷' },
-        'PYG': { nombre: 'Paraguay', bandera: '🇵🇾' },
-        'MXN': { nombre: 'Mexico', bandera: '🇲🇽' },
-        'ECU': { nombre: 'Ecuador', bandera: '🇪🇨' },
-        'DOP': { nombre: 'Dominicana', bandera: '🇩🇴' },
-        'CRC': { nombre: 'Costa Rica', bandera: '🇨🇷' },
-        'EUR': { nombre: 'Europa', bandera: '🇪🇺' },
-        'USD': { nombre: 'EEUU-Zelle', bandera: '🇺🇸' },
-        'BOB': { nombre: 'Bolivia', bandera: '🇧🇴' },
-        'CAD': { nombre: 'Canada', bandera: '🇨🇦' },
-        'USDT': { nombre: 'USDT', bandera: '🪙' },
-        'PYUSD': { nombre: 'PYUSD', bandera: '🪙' }
-      };
-
-      const info = infoMonedasMaestra[codeUpper] || { nombre: codeUpper, bandera: '🌐' };
+      const info = this.infoMonedasMaestra[codeUpper] || { nombre: codeUpper, bandera: '🌐' };
 
       this.socioConfigEdit.paises.push({
         code: codeUpper,
@@ -451,9 +440,9 @@ function registrarAppAlpine() {
         bandera: info.bandera,
         activo: true,
         pctD: 0,
-        restaD: true,   // Depósito por defecto resta saldo
+        restaD: true,
         pctP: 0,
-        restaP: false,  // Pago por defecto suma saldo
+        restaP: false,
         naturaleza: 'D'
       });
     },
@@ -469,7 +458,6 @@ function registrarAppAlpine() {
       });
     },
 
-    // 🟢 GUARDAR PORCENTAJES Y POLARIDAD CONTABLE
     async guardarConfigSocioModal() {
       if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
         alert('Por favor especifica el nombre del socio.');
@@ -485,7 +473,6 @@ function registrarAppAlpine() {
           const pctD = Math.abs(parseFloat(p.pctD) || 0);
           const pctP = Math.abs(parseFloat(p.pctP) || 0);
           
-          // La polaridad es exclusiva para decidir el signo en la contabilidad
           const restaD = Boolean(p.restaD);
           const restaP = Boolean(p.restaP);
 
@@ -495,7 +482,6 @@ function registrarAppAlpine() {
           ajustes[`resta_P_${code}`] = restaP;
           ajustes[`naturaleza_${code}`] = p.naturaleza || 'D';
 
-          // 🟢 LOS MULTIPLICADORES SE GUARDAN CON TASA LINEAL (Depósito siempre suma, Pago siempre resta)
           const multD = Math.round((1 + (pctD / 100)) * 10000) / 10000;
           const multP = Math.round((1 - (pctP / 100)) * 10000) / 10000;
 
