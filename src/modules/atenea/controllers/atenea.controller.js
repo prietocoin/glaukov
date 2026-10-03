@@ -5,7 +5,7 @@ const mercadoService = require('../services/mercado.service');
 const reportesService = require('../services/reportes.service');
 const adminService = require('../services/admin.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
-const db = require('../../../config/db'); // 🟢 Se importó la base de datos para getHistorialTasas
+const db = require('../../../config/db'); // 🟢 Base de datos cargada
 
 // Helper de pausa para rate-limiting en envíos masivos de WhatsApp
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -65,14 +65,13 @@ async function previewImage(req, res) {
       }
     }
 
-    // 3. Fallback dinámico leyendo la última tasa de la BD (sin hardcode 'T055')
+    // 3. Fallback dinámico leyendo la última tasa de la BD
     let targetData;
     if (foundData) {
       targetData = JSON.parse(JSON.stringify(foundData));
     } else if (data.length > 0) {
       targetData = JSON.parse(JSON.stringify(data[0]));
     } else {
-      // Intentar recuperar el último correlativo real
       let ultimoLote = 'T001';
       try {
         const ult = await mercadoService.obtenerUltimasTasas();
@@ -309,7 +308,7 @@ async function getFetchHoo(req, res) {
   }
 }
 
-// 🟢 PUBLICACIÓN DE TASA
+// 🟢 PUBLICACIÓN DE TASA (ACTUALIZADO CON INSERT PARA N8N)
 async function postPublicarTasa(req, res) {
   try {
     const { id_tasa, tasas } = req.body;
@@ -317,6 +316,17 @@ async function postPublicarTasa(req, res) {
     // 1. Guardar el nuevo lote en tasas_glaukov
     const resultado = await mercadoService.publicarTasaOficial(id_tasa, tasas);
     console.log(`[Publicar Tasa 🚀] Lote ${resultado.id_tasa} guardado en tasas_glaukov.`);
+
+    // ⚡ INSERTAR EN notificaciones_tasas (DISPARA EL TRIGGER DE N8N)
+    try {
+      await db.query(
+        `INSERT INTO notificaciones_tasas (id_tasa) VALUES ($1)`,
+        [resultado.id_tasa]
+      );
+      console.log(`[Trigger n8n 🔔] Inserción registrada en notificaciones_tasas para: ${resultado.id_tasa}`);
+    } catch (notifErr) {
+      console.error('❌ Error al insertar en notificaciones_tasas:', notifErr.message);
+    }
 
     // 2. Disparar el envío masivo en segundo plano
     dispararWhatsApp(req, null)
@@ -552,7 +562,6 @@ async function deleteColaAdmin(req, res) {
   }
 }
 
-// 🟢 Corregido el nombre de la tabla a 'tasas_glaukov'
 async function getHistorialTasas(req, res) {
   try {
     const sql = `
