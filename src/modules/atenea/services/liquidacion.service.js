@@ -106,8 +106,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
       ? JSON.parse(socio2Data.ajustes || '{}') 
       : (socio2Data?.ajustes || {});
 
-    const tipoOp2 = tipoOp === 'D' ? 'P' : 'D';
-
+    const tipoOp2 = tipoOp;
     // 1. POLARIDAD CONTABLE DEL SALDO SOCIO 2
     const esResta2 = aj2[`resta_${tipoOp2}_${divisaRaw}`] ?? (tipoOp2 === 'D');
     const signo2 = esResta2 ? -1 : 1;
