@@ -166,18 +166,15 @@ async function obtenerSociosYProcesarTasas(options = null) {
 
       if (!codeP) continue;
 
-      // 🟢 1. LECTURA DE PORCENTAJES (%) Y POLARIDADES (SUMA / RESTA)
+      // 🟢 1. LECTURA DE PORCENTAJES (%)
       const pctD = ajustes[`pct_D_${codeP}`] !== undefined ? parseFloat(ajustes[`pct_D_${codeP}`]) : null;
-      const restaD = ajustes[`resta_D_${codeP}`] !== undefined ? Boolean(ajustes[`resta_D_${codeP}`]) : false;
-
       const pctP = ajustes[`pct_P_${codeP}`] !== undefined ? parseFloat(ajustes[`pct_P_${codeP}`]) : null;
-      const restaP = ajustes[`resta_P_${codeP}`] !== undefined ? Boolean(ajustes[`resta_P_${codeP}`]) : true;
 
-      // 🟢 2. CONVERSIÓN A FACTOR MULTIPLICADOR (CON FALLBACK RETROCOMPATIBLE)
+      // 🟢 2. CONVERSIÓN A FACTOR MULTIPLICADOR (DEPÓSITO SIEMPRE SUMA %, PAGO SIEMPRE RESTA %)
       let factorD, factorP;
 
       if (pctD !== null && !isNaN(pctD)) {
-        factorD = restaD ? (1 - (pctD / 100)) : (1 + (pctD / 100));
+        factorD = 1 + (pctD / 100);
       } else {
         let rawFactorD = ajustes[`D-${codeP}`] ?? ajustes[`D${codeP}`] ?? ajustes[`factor_D_${codeP}`];
         if (rawFactorD === undefined || rawFactorD === null) rawFactorD = FACTORES_RESPALDO[codeP]?.D ?? 1.0;
@@ -185,7 +182,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
       }
 
       if (pctP !== null && !isNaN(pctP)) {
-        factorP = restaP ? (1 - (pctP / 100)) : (1 + (pctP / 100));
+        factorP = 1 - (pctP / 100);
       } else {
         let rawFactorP = ajustes[`P-${codeP}`] ?? ajustes[`P${codeP}`] ?? ajustes[`factor_P_${codeP}`];
         if (rawFactorP === undefined || rawFactorP === null) rawFactorP = FACTORES_RESPALDO[codeP]?.P ?? 0.95;
