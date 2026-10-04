@@ -1,93 +1,76 @@
 const db = require('../../../config/db');
 
 /**
- * Calcula la talla visual (S, M, L) según la cantidad de países activos
- */
-function calcularTallaAutomatica(conteo) {
-  if (conteo <= 3) return 'S';
-  if (conteo <= 6) return 'M';
-  return 'L';
-}
-
-/**
  * Obtiene el directorio completo de socios ordenado por nombre
  */
 async function obtenerDirectorio() {
-  const sql = `SELECT * FROM nombres_fb ORDER BY nombre ASC;`;
+  const sql = `SELECT * FROM perfiles_glaukov ORDER BY nombre ASC;`;
   const { rows } = await db.query(sql);
   return rows;
 }
 
 /**
- * Obtiene la lista simplificada de nombres de socios activos para dropdowns
- * Corregido: Lee exclusivamente de nombres_fb para evitar columnas inexistentes en comprobantes_raw
+ * Obtiene la lista simplificada de nombres de socios activos en tasas para dropdowns
  */
 async function obtenerListaSocios() {
   const sql = `
     SELECT DISTINCT TRIM(nombre) AS nombre 
-    FROM nombres_fb 
+    FROM perfiles_glaukov 
     WHERE nombre IS NOT NULL 
       AND TRIM(nombre) != '' 
-      AND roles IN ('SOCIO', 'MATRIZ_GENERAL', 'ASESOR', 'GRUPO', 'COMPRAS')
+      AND (mostrar->>'tasas')::boolean = TRUE
     ORDER BY nombre ASC;
   `;
   const { rows } = await db.query(sql);
-  return rows.map(r => r.nombre);
+  return rows.map((r) => r.nombre);
 }
 
 /**
- * Crea o actualiza la configuración integral de un socio o de la entidad GENERAL
+ * Crea o actualiza la configuración integral de un socio
  */
-// directorio.service.js
-
 async function guardarSocioConfig(payload) {
   const {
     nombre,
-    roles,
-    moneda_socio,
-    whatsapp,
-    saldo_anterior,
-    activo,
-    mostrar_dashboard,
-    ajustes,
-    cartelera_paises
+    id_grupo,
+    rol,
+    moneda_base,
+    saldo_inicial,
+    mostrar,
+    monedas
   } = payload;
 
   const nombreClean = String(nombre || '').trim().toUpperCase();
 
-  // Serialización segura previa al envío a la BD
-  const ajustesJson = typeof ajustes === 'object' 
-    ? JSON.stringify(ajustes) 
-    : (ajustes || '{}');
-    
-  const carteleraJson = Array.isArray(cartelera_paises) || typeof cartelera_paises === 'object'
-    ? JSON.stringify(cartelera_paises)
-    : (cartelera_paises || '[]');
+  // Objeto 'mostrar' por defecto si no viene en el payload
+  const mostrarObj = typeof mostrar === 'object' && mostrar !== null
+    ? mostrar
+    : { tasas: true, dashboard: true };
+
+  const mostrarJson = JSON.stringify(mostrarObj);
+  const monedasJson = typeof monedas === 'object' && monedas !== null
+    ? JSON.stringify(monedas)
+    : (monedas || '{}');
 
   const query = `
-    UPDATE nombres_fb
+    UPDATE perfiles_glaukov
     SET 
-      roles = $1,
-      moneda_socio = $2,
-      whatsapp = $3,
-      saldo_anterior = $4,
-      activo = $5,
-      mostrar_dashboard = $6,
-      ajustes = $7::jsonb,
-      cartelera_paises = $8::jsonb
-    WHERE UPPER(TRIM(nombre)) = $9
+      id_grupo = $1,
+      rol = $2,
+      moneda_base = $3,
+      saldo_inicial = $4,
+      mostrar = $5::jsonb,
+      monedas = $6::jsonb
+    WHERE UPPER(TRIM(nombre)) = $7
     RETURNING *;
   `;
 
   const values = [
-    roles || 'SOCIO',
-    (moneda_socio || 'USDT').toUpperCase(),
-    whatsapp || '',
-    parseFloat(saldo_anterior) || 0,
-    activo ?? true,
-    mostrar_dashboard ?? true,
-    ajustesJson,
-    carteleraJson,
+    id_grupo || '',
+    rol || 'SOCIO',
+    (moneda_base || 'USDT').toUpperCase(),
+    parseFloat(saldo_inicial) || 0,
+    mostrarJson,
+    monedasJson,
     nombreClean
   ];
 
@@ -96,24 +79,20 @@ async function guardarSocioConfig(payload) {
   // Si el socio no existía previamente, se inserta la fila inicial
   if (rows.length === 0) {
     const insertQuery = `
-      INSERT INTO nombres_fb (
-        id_grupo, nombre, roles, moneda_socio, whatsapp, 
-        saldo_anterior, activo, mostrar_dashboard, ajustes, cartelera_paises
+      INSERT INTO perfiles_glaukov (
+        id_grupo, nombre, rol, moneda_base, saldo_inicial, mostrar, monedas
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb)
+      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
       RETURNING *;
     `;
     const insertValues = [
-      whatsapp || `${nombreClean}_JID`,
+      id_grupo || `${nombreClean}_JID`,
       nombreClean,
-      roles || 'SOCIO',
-      (moneda_socio || 'USDT').toUpperCase(),
-      whatsapp || '',
-      parseFloat(saldo_anterior) || 0,
-      activo ?? true,
-      mostrar_dashboard ?? true,
-      ajustesJson,
-      carteleraJson
+      rol || 'SOCIO',
+      (moneda_base || 'USDT').toUpperCase(),
+      parseFloat(saldo_inicial) || 0,
+      mostrarJson,
+      monedasJson
     ];
     const insertRes = await db.query(insertQuery, insertValues);
     return insertRes.rows[0];
@@ -122,19 +101,25 @@ async function guardarSocioConfig(payload) {
   return rows[0];
 }
 
-module.exports = { guardarSocioConfig };
-
 /**
- * Cambia el estado Activo/Inactivo de un socio
+ * Cambia el estado Activo/Inactivo de tasas para un socio dentro del JSONB 'mostrar'
  */
 async function cambiarEstadoSocio(nombre, activo) {
   const isGeneral = nombre.trim().toUpperCase() === 'GENERAL';
-  const estadoActivo = isGeneral ? true : Boolean(activo);
+  const estadoTasas = isGeneral ? true : Boolean(activo);
 
-  const { rows } = await db.query(
-    `UPDATE nombres_fb SET activo = $1 WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($2)) RETURNING nombre, activo;`,
-    [estadoActivo, nombre.trim()]
-  );
+  const query = `
+    UPDATE perfiles_glaukov 
+    SET mostrar = jsonb_set(
+      COALESCE(mostrar, '{"tasas": true, "dashboard": true}'::jsonb), 
+      '{tasas}', 
+      to_jsonb($1::boolean)
+    ) 
+    WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($2)) 
+    RETURNING nombre, mostrar;
+  `;
+
+  const { rows } = await db.query(query, [estadoTasas, nombre.trim()]);
 
   if (rows.length === 0) {
     throw new Error('Socio no encontrado.');
@@ -144,29 +129,52 @@ async function cambiarEstadoSocio(nombre, activo) {
 }
 
 /**
- * Desactiva todos los socios excepto la matriz GENERAL
+ * Desactiva las tasas de todos los socios excepto la matriz GENERAL
  */
 async function desactivarTodosSocios() {
-  await db.query(`UPDATE nombres_fb SET activo = FALSE WHERE UPPER(TRIM(nombre)) != 'GENERAL';`);
-  await db.query(`UPDATE nombres_fb SET activo = TRUE WHERE UPPER(TRIM(nombre)) = 'GENERAL';`);
-  return { success: true, message: 'Todos los socios desactivados correctamente.' };
+  await db.query(`
+    UPDATE perfiles_glaukov 
+    SET mostrar = jsonb_set(COALESCE(mostrar, '{}'::jsonb), '{tasas}', 'false'::jsonb) 
+    WHERE UPPER(TRIM(nombre)) != 'GENERAL';
+  `);
+
+  await db.query(`
+    UPDATE perfiles_glaukov 
+    SET mostrar = jsonb_set(COALESCE(mostrar, '{}'::jsonb), '{tasas}', 'true'::jsonb) 
+    WHERE UPPER(TRIM(nombre)) = 'GENERAL';
+  `);
+
+  return { success: true, message: 'Todas las tasas de socios desactivadas correctamente.' };
 }
 
 /**
- * Memoriza la plantilla actual de socios activos
+ * Memoriza la plantilla actual de socios activos copiando el JSONB 'mostrar'
  */
 async function guardarSociosVigentes() {
-  await db.query(`UPDATE nombres_fb SET recordar_activo = activo;`);
-  return { success: true, message: 'Plantilla de socios vigentes memorizada.' };
+  try {
+    await db.query(`ALTER TABLE perfiles_glaukov ADD COLUMN IF NOT EXISTS recordar_mostrar JSONB;`);
+    await db.query(`UPDATE perfiles_glaukov SET recordar_mostrar = mostrar;`);
+    return { success: true, message: 'Plantilla de socios vigentes memorizada.' };
+  } catch (error) {
+    return { success: false, message: 'No se pudo memorizar la plantilla.' };
+  }
 }
 
 /**
  * Restaura la plantilla previamente memorizada
  */
 async function restaurarSociosVigentes() {
-  await db.query(`UPDATE nombres_fb SET activo = COALESCE(recordar_activo, FALSE);`);
-  await db.query(`UPDATE nombres_fb SET activo = TRUE WHERE UPPER(TRIM(nombre)) = 'GENERAL';`);
-  return { success: true, message: 'Socios vigentes restaurados correctamente.' };
+  try {
+    await db.query(`UPDATE perfiles_glaukov SET mostrar = COALESCE(recordar_mostrar, '{"tasas": false, "dashboard": false}'::jsonb);`);
+    await db.query(`
+      UPDATE perfiles_glaukov 
+      SET mostrar = jsonb_set(COALESCE(mostrar, '{}'::jsonb), '{tasas}', 'true'::jsonb) 
+      WHERE UPPER(TRIM(nombre)) = 'GENERAL';
+    `);
+    return { success: true, message: 'Socios vigentes restaurados correctamente.' };
+  } catch (error) {
+    return { success: false, message: 'No se pudo restaurar la plantilla.' };
+  }
 }
 
 /**
@@ -179,7 +187,7 @@ async function eliminarSocio(nombre) {
   }
 
   const { rows } = await db.query(
-    `DELETE FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) RETURNING *;`,
+    `DELETE FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) RETURNING *;`,
     [nombre.trim()]
   );
 
@@ -188,11 +196,10 @@ async function eliminarSocio(nombre) {
 }
 
 module.exports = {
-  calcularTallaAutomatica,
   obtenerDirectorio,
   obtenerListaSocios,
   guardarSocioConfig,
-  guardarConfigSocio: guardarSocioConfig, // 👈 Alias asignado para que atenea.controller.js lo encuentre
+  guardarConfigSocio: guardarSocioConfig,
   cambiarEstadoSocio,
   desactivarTodosSocios,
   guardarSociosVigentes,
