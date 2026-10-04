@@ -1,13 +1,26 @@
 const { Worker, Queue } = require('bullmq');
 const redisConnection = require('../config/redis');
-// ✅ Ruta corregida apuntando a modules/render:
-const { generarImagenTasa } = require('../modules/render/services/puppeteer.service');
 
 const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
 
-/**
- * Envía la imagen renderizada por WhatsApp a través de Evolution API (vía fetch nativo)
- */
+const TASASHUB_BASE_URL = (process.env.TASASHUB_URL || 'http://automat_tasashub:3002').replace(/\/$/, '');
+
+// ⏱️ Función utilitaria para crear pausas (Delay)
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function obtenerImagenTasasHub(nombreSocio) {
+  const url = `${TASASHUB_BASE_URL}/api/v1/tasas/render/${encodeURIComponent(nombreSocio)}`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`[TasasHub HTTP ${response.status}]: ${errorText}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
 async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
   const evolutionUrl = process.env.EVOLUTION_API_URL;
   const apiKey = process.env.EVOLUTION_API_KEY || process.env.AUTHENTICATION_API_KEY;
@@ -24,8 +37,8 @@ async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
     number: remoteJid,
     media: rawBase64,
     mediatype: 'image',
-    mimetype: 'image/jpeg',
-    fileName: 'tasa.jpg',
+    mimetype: 'image/png', 
+    fileName: 'tasa.png',
     caption: caption || 'Actualización de tasa 📊'
   };
 
@@ -49,6 +62,7 @@ async function enviarImagenWhatsApp(remoteJid, imageBuffer, caption) {
     console.log(`[Glaukov Worker 🟢] Mensaje enviado exitosamente a ${remoteJid} (Status ${response.status})`);
   } catch (error) {
     console.error(`[Glaukov Worker ❌] Error enviando a Evolution API (${remoteJid}):`, error.message);
+    throw error;
   }
 }
 
@@ -59,14 +73,12 @@ const tasasWorker = new Worker(
     const datosSocio = job.data;
     console.log(`[Glaukov Worker ⚙️] Procesando imagen para: ${datosSocio.nombre_socio}`);
 
-    // 🟢 1. PRIORIDAD DE DESTINO: Respetar si la tarea trae un jidOverride (Modo Prueba),
-    // o fallback a remoteJid del socio.
     const destinoFinal = datosSocio.jidOverride || datosSocio.destinationJid || datosSocio.remoteJid;
 
-    // 2. Renderizar imagen 1080x1350 vía Puppeteer
-    const imageBuffer = await generarImagenTasa(datosSocio);
+    // 1. Obtener imagen desde TasasHub
+    const imageBuffer = await obtenerImagenTasasHub(datosSocio.nombre_socio);
 
-    // 3. Despachar a WhatsApp si existe un JID final válido
+    // 2. Despachar a WhatsApp
     if (destinoFinal) {
       console.log(`[Glaukov Worker 📤] Enviando tasa a WhatsApp JID: ${destinoFinal}`);
       await enviarImagenWhatsApp(
@@ -74,6 +86,11 @@ const tasasWorker = new Worker(
         imageBuffer,
         `Hola 👋 *${datosSocio.nombre_socio}*. Adjunto la actualización de tasas 📊.`
       );
+      
+      // 🛡️ 3. PAUSA ANTI-SPAM (Respira 5 segundos antes de terminar el trabajo)
+      console.log(`[Glaukov Worker 🛡️] Esperando 5 segundos por seguridad (Anti-ban)...`);
+      await delay(5000); // 5000 milisegundos = 5 segundos de espera
+
     } else {
       console.log(`[Glaukov Worker ℹ️] ${datosSocio.nombre_socio} no posee remoteJid asignado.`);
     }
@@ -82,7 +99,8 @@ const tasasWorker = new Worker(
   },
   {
     connection: redisConnection,
-    concurrency: 2
+    // 🛡️ Concurrencia en 1 para que NUNCA intente mandar dos mensajes al mismo tiempo
+    concurrency: 1 
   }
 );
 
