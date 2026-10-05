@@ -701,15 +701,14 @@
               </select>
             </div>
 
-            <!-- 🟢 6. HEREDA? (SI/NO) (CORREGIDO CON .boolean) -->
-            <div>
-              <label class="block text-[9px] font-bold text-purple-400 uppercase mb-1">Hereda? (Si/No)</label>
-              <select x-model.boolean="socioConfigEdit.herencia" class="w-full bg-[#080e26] border border-purple-500/40 rounded-xl px-2.5 py-1.5 text-xs text-purple-300 font-bold outline-none">
-                <option :value="true">SÍ</option>
-                <option :value="false">NO</option>
-              </select>
-            </div>
-          </div>
+           <!-- 6. HEREDA? (SI/NO) -->
+<div>
+  <label class="block text-[9px] font-bold text-purple-400 uppercase mb-1">Hereda? (Si/No)</label>
+  <select x-model.boolean="socioConfigEdit.herencia" class="w-full bg-[#080e26] border border-purple-500/40 rounded-xl px-2.5 py-1.5 text-xs text-purple-300 font-bold outline-none">
+    <option :value="true" :selected="socioConfigEdit.herencia === true">SÍ</option>
+    <option :value="false" :selected="socioConfigEdit.herencia === false">NO</option>
+  </select>
+</div>
 
           <div class="space-y-2">
             <!-- HEADER CON BOTÓN DE AGREGAR MONEDA -->
