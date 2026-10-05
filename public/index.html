@@ -300,15 +300,15 @@
               <p class="text-[8px] md:text-[9px] font-extrabold text-amber-400 uppercase truncate">SALDO ANTERIOR</p>
               <input type="number" x-model="saldoAnterior" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-1.5 py-0.5 text-xs md:text-sm font-bold text-amber-300 mt-0.5 outline-none">
             </div>
-            <span class="text-[10px] font-bold text-amber-500 mt-3 shrink-0" x-text="(directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_socio || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></span>
+            <span class="text-[10px] font-bold text-amber-500 mt-3 shrink-0" x-text="(directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_base || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></span>
           </div>
           <div class="bg-[#060c24] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-blue-900/50 shadow-xl col-span-1">
             <p class="text-[8px] md:text-[9px] font-extrabold text-emerald-400 uppercase">MOVIMIENTO</p>
-            <h3 class="text-xs md:text-base font-black text-emerald-400 mt-0.5 truncate" x-text="formatMonto(movimientoFiltradoTotal) + ' ' + (directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_socio || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></h3>
+            <h3 class="text-xs md:text-base font-black text-emerald-400 mt-0.5 truncate" x-text="formatMonto(movimientoFiltradoTotal) + ' ' + (directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_base || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></h3>
           </div>
           <div class="bg-[#010a14] p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-emerald-500/40 shadow-xl col-span-2 sm:col-span-1">
             <p class="text-[8px] md:text-[9px] font-extrabold text-emerald-400 uppercase">SALDO ACTUAL TOTAL</p>
-            <h3 class="text-xs md:text-base font-black text-emerald-300 mt-0.5 truncate" x-text="formatMonto(saldoActualTotal) + ' ' + (directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_socio || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></h3>
+            <h3 class="text-xs md:text-base font-black text-emerald-300 mt-0.5 truncate" x-text="formatMonto(saldoActualTotal) + ' ' + (directorio.find(d => (d.nombre || '').trim().toUpperCase() === (filtroSocio || sujetoAuditado || '').trim().toUpperCase())?.moneda_base || comprobantes[0]?.moneda_socio_1 || 'USDT').toUpperCase()"></h3>
           </div>
         </div>
 
@@ -570,11 +570,11 @@
       <div x-show="vistaActiva === 'directorio'" class="space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-blue-900/50 pb-3">
           <div>
-            <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Directorio (`nombres_fb`)</h2>
+            <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Directorio de Socios</h2>
           </div>
 
           <div class="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
-            <button @click="abrirConfigSocio({ nombre: 'GENERAL', roles: 'MATRIZ_GENERAL' })" class="px-2.5 py-1.5 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-lg text-[10px] md:text-xs font-bold">🌐 General</button>
+            <button @click="abrirConfigSocio({ nombre: 'GENERAL', rol: 'MATRIZ_GENERAL' })" class="px-2.5 py-1.5 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-lg text-[10px] md:text-xs font-bold">🌐 General</button>
             <button @click="apagarTodosSocios()" class="px-2.5 py-1.5 bg-rose-950/80 border border-rose-500/50 text-rose-300 rounded-lg text-[10px] md:text-xs font-bold">🔴 Apagar Todos</button>
             <button @click="guardarVigentes()" class="px-2.5 py-1.5 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-lg text-[10px] md:text-xs font-bold">📌 Guardar</button>
             <button @click="restaurarVigentes()" class="px-2.5 py-1.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 rounded-lg text-[10px] md:text-xs font-bold">📄 Restaurar</button>
@@ -613,10 +613,10 @@
                   </div>
 
                   <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="px-1.5 py-0.5 rounded bg-blue-950 text-cyan-300 text-[8px] md:text-[9px] font-bold border border-blue-800/40" x-text="socio.roles || 'SOCIO'"></span>
-                    <span class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[8px] md:text-[9px] font-bold border border-emerald-800/40" x-text="socio.moneda_socio || 'USDT'"></span>
+                    <span class="px-1.5 py-0.5 rounded bg-blue-950 text-cyan-300 text-[8px] md:text-[9px] font-bold border border-blue-800/40" x-text="socio.rol || socio.roles || 'SOCIO'"></span>
+                    <span class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[8px] md:text-[9px] font-bold border border-emerald-800/40" x-text="socio.moneda_base || socio.moneda_socio || 'USDT'"></span>
                     <span class="px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-bold border" :class="getTallaClass(socio).color" x-text="getTallaClass(socio).label"></span>
-                    <span class="font-mono text-slate-400 text-[10px] ml-1" x-text="socio.whatsapp || socio.id_grupo || '-'"></span>
+                    <span class="font-mono text-slate-400 text-[10px] ml-1" x-text="socio.id_grupo || socio.whatsapp || '-'"></span>
                   </div>
                 </div>
 
@@ -727,7 +727,7 @@
                     </div>
                   </div>
 
-                  <!-- Grilla Depósito / Pago con Porcentaje (%) y Botón Suma/Resta -->
+                  <!-- Grilla Depósito / Pago con Porcentaje (%) y Botón Suma/Resta Corregido -->
                   <div class="grid grid-cols-2 gap-2">
                     <!-- DEPÓSITO (D) -->
                     <div class="bg-[#080e26] p-2 rounded-xl border border-cyan-500/30 space-y-1.5">
@@ -741,11 +741,12 @@
                                placeholder="0" 
                                class="w-full bg-[#030611] border border-cyan-500/40 text-cyan-300 text-center font-mono font-bold rounded px-1 py-1 text-xs outline-none focus:border-cyan-400">
                         
+                        <!-- 🟢 BINDING CORREGIDO A p.polaridadSuma -->
                         <button type="button" 
-                                @click="p.restaD = !p.restaD"
+                                @click="p.polaridadSuma = !p.polaridadSuma"
                                 class="text-[9px] font-extrabold shrink-0 select-none px-2 py-1 rounded border transition-colors"
-                                :class="p.restaD ? 'bg-rose-950/80 border-rose-500/50 text-rose-300' : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'">
-                          <span x-text="p.restaD ? '➖ Resta' : '➕ Suma'"></span>
+                                :class="!p.polaridadSuma ? 'bg-rose-950/80 border-rose-500/50 text-rose-300' : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'">
+                          <span x-text="!p.polaridadSuma ? '➖ Resta' : '➕ Suma'"></span>
                         </button>
                       </div>
                     </div>
@@ -762,11 +763,12 @@
                                placeholder="0" 
                                class="w-full bg-[#030611] border border-amber-500/40 text-amber-300 text-center font-mono font-bold rounded px-1 py-1 text-xs outline-none focus:border-amber-400">
                         
+                        <!-- 🟢 BINDING CORREGIDO A p.polaridadSuma (Refleja la polaridad opuesta) -->
                         <button type="button" 
-                                @click="p.restaP = !p.restaP"
+                                @click="p.polaridadSuma = !p.polaridadSuma"
                                 class="text-[9px] font-extrabold shrink-0 select-none px-2 py-1 rounded border transition-colors"
-                                :class="p.restaP ? 'bg-rose-950/80 border-rose-500/50 text-rose-300' : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'">
-                          <span x-text="p.restaP ? '➖ Resta' : '➕ Suma'"></span>
+                                :class="p.polaridadSuma ? 'bg-rose-950/80 border-rose-500/50 text-rose-300' : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'">
+                          <span x-text="p.polaridadSuma ? '➖ Resta' : '➕ Suma'"></span>
                         </button>
                       </div>
                     </div>
@@ -952,7 +954,7 @@
          getMonedaReporte() {
            const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
            const socioFound = (directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
-           if (socioFound && socioFound.moneda_socio) return socioFound.moneda_socio.toUpperCase();
+           if (socioFound && (socioFound.moneda_base || socioFound.moneda_socio)) return (socioFound.moneda_base || socioFound.moneda_socio).toUpperCase();
            if (comprobantes && comprobantes.length > 0) {
              const item0 = comprobantes[0];
              const s2 = (item0.nombre_socio_2 || item0.socio_2 || '').trim().toUpperCase();
@@ -996,10 +998,9 @@
            const socioObj = (directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
            
            let saldoBase = 0;
-           if (socioObj && socioObj.saldo_anterior !== undefined && socioObj.saldo_anterior !== null && parseFloat(socioObj.saldo_anterior) !== 0) {
-             saldoBase = parseFloat(socioObj.saldo_anterior);
-           } else if (typeof saldoAnterior !== 'undefined' && !isNaN(parseFloat(saldoAnterior)) && parseFloat(saldoAnterior) !== 0) {
-             saldoBase = parseFloat(saldoAnterior);
+           const valSaldo = socioObj?.saldo_inicial ?? socioObj?.saldo_anterior ?? saldoAnterior;
+           if (valSaldo !== undefined && valSaldo !== null && parseFloat(valSaldo) !== 0) {
+             saldoBase = parseFloat(valSaldo);
            }
 
            let saldo = saldoBase;
