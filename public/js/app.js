@@ -229,7 +229,7 @@ function registrarAppAlpine() {
         window.open(this.imagenPreviewUrl, '_blank');
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } fontalmente {
+      } finally {
         this.cargandoPreviewImagen = false;
       }
     },
