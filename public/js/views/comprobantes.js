@@ -43,14 +43,13 @@ export function comprobantesView() {
           soloDuplicados: this.soloDuplicados
         };
 
-        // Sincroniza saldo anterior del socio desde el directorio
+        // 🟢 Sincroniza saldo inicial del socio desde perfiles_glaukov
         if (this.filtroSocio) {
           const socioNorm = this.filtroSocio.trim().toUpperCase();
           const reg = this.directorio.find(d => d.nombre && d.nombre.trim().toUpperCase() === socioNorm);
           if (reg) {
-            const aj = typeof reg.ajustes === 'string' ? JSON.parse(reg.ajustes || '{}') : (reg.ajustes || {});
-            const valSaldo = aj.saldo_anterior !== undefined ? aj.saldo_anterior : reg.saldo_anterior;
-            this.saldoAnteriorReporte = valSaldo !== undefined && valSaldo !== null ? parseFloat(valSaldo) : 0;
+            const valSaldo = reg.saldo_inicial ?? reg.saldo_anterior ?? 0;
+            this.saldoAnteriorReporte = parseFloat(valSaldo) || 0;
           }
         }
 
@@ -192,8 +191,9 @@ export function comprobantesView() {
       if (!this.filtroSocio) return 'USDT';
       const socioNorm = this.filtroSocio.trim().toUpperCase();
       const reg = this.directorio.find(d => d.nombre && d.nombre.trim().toUpperCase() === socioNorm);
-      if (reg && reg.moneda_socio) {
-        return reg.moneda_socio === 'USD' ? 'USDT' : reg.moneda_socio.toUpperCase();
+      if (reg) {
+        const m = (reg.moneda_base || reg.moneda_socio || 'USDT').toUpperCase();
+        return m === 'USD' ? 'USDT' : m;
       }
       return 'USDT';
     },
@@ -202,7 +202,7 @@ export function comprobantesView() {
       if (!this.filtroSocio) return '';
       const socioNorm = this.filtroSocio.trim().toUpperCase();
       const reg = this.directorio.find(d => d.nombre && d.nombre.trim().toUpperCase() === socioNorm);
-      return reg ? (reg.whatsapp || reg.id_grupo || '') : '';
+      return reg ? (reg.id_grupo || reg.whatsapp || '') : '';
     },
 
     obtenerEtiquetaHash(c) {
@@ -222,7 +222,6 @@ export function comprobantesView() {
         dateInput = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 16);
       }
 
-      // 🟢 Unificación estricta de la clave del Lote
       const loteSeleccionado = item.id_tasa || item.lote_tasa || item.lote_tasa_asignado || 'T052';
 
       this.itemEdicion = {
@@ -244,7 +243,6 @@ export function comprobantesView() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
-        // 🟢 Garantizar que id_tasa se envíe siempre explicitamente en el req.body
         const payload = {
           ...this.itemEdicion,
           id_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
