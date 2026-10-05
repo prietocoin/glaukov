@@ -42,14 +42,10 @@ async function enviarMediaWhatsApp(datos) {
     throw new Error('No se proporcionó la imagen en formato Base64.');
   }
 
-  // 1. Consulta SQL en nombres_fb: toma id_grupo si existe, si no usa whatsapp
+  // 🟢 1. Consulta SQL limpia en perfiles_glaukov: toma id_grupo
   const sql = `
-    SELECT 
-      COALESCE(
-        NULLIF(TRIM(id_grupo), ''), 
-        NULLIF(TRIM(whatsapp), '')
-      ) AS jid
-    FROM nombres_fb
+    SELECT NULLIF(TRIM(id_grupo), '') AS jid
+    FROM perfiles_glaukov
     WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1))
     LIMIT 1;
   `;
@@ -58,7 +54,7 @@ async function enviarMediaWhatsApp(datos) {
   const row = dbRes.rows?.[0];
 
   if (!row || !row.jid) {
-    throw new Error(`El socio "${socio}" no posee un "id_grupo" ni "whatsapp" configurado en nombres_fb.`);
+    throw new Error(`El socio "${socio}" no posee un "id_grupo" configurado en perfiles_glaukov.`);
   }
 
   const jidDestino = row.jid.trim();
@@ -66,7 +62,7 @@ async function enviarMediaWhatsApp(datos) {
   // 2. Preparar credenciales de Evolution API desde el .env
   const evoUrlBase = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, "");
   const apiKey = process.env.AUTHENTICATION_API_KEY;
-  const instance = process.env.EVOLUTION_INSTANCE || 'Jairo'; // 🟢 Usa 'Jairo' exacto como está registrado
+  const instance = process.env.EVOLUTION_INSTANCE || 'Jairo';
 
   if (!evoUrlBase || !apiKey) {
     throw new Error('EVOLUTION_API_URL o AUTHENTICATION_API_KEY no están configuradas en el .env');
@@ -102,32 +98,44 @@ async function enviarMediaWhatsApp(datos) {
   return { success: true, jid: jidDestino, data: responseData };
 }
 
-async function obtenerFiltrosReportes(rol) {
+async function obtenerFiltrosReportes(rolParam) {
+  // 🟢 Buscar los roles existentes en la nueva tabla (Columna 'rol' singular)
   const rolesQuery = `
-    SELECT DISTINCT UPPER(TRIM(roles)) AS rol 
-    FROM nombres_fb 
-    WHERE roles IS NOT NULL AND TRIM(roles) != ''
+    SELECT DISTINCT UPPER(TRIM(rol)) AS rol 
+    FROM perfiles_glaukov 
+    WHERE rol IS NOT NULL AND TRIM(rol) != ''
     ORDER BY rol ASC;
   `;
 
+  // 🟢 Armar la consulta de nombres basada en perfiles_glaukov cruzada con cola_fb
   let nombresQuery = `
     SELECT DISTINCT nombre FROM (
-      SELECT nombre_socio_1 AS nombre, n1.roles AS rol FROM cola_fb c LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(c.nombre_socio_1)) WHERE nombre_socio_1 IS NOT NULL AND nombre_socio_1 != ''
+      SELECT nombre_socio_1 AS nombre, n1.rol AS rol 
+      FROM cola_fb c 
+      LEFT JOIN perfiles_glaukov n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(c.nombre_socio_1)) 
+      WHERE nombre_socio_1 IS NOT NULL AND nombre_socio_1 != ''
       UNION
-      SELECT nombre_socio_2 AS nombre, n2.roles AS rol FROM cola_fb c LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(c.nombre_socio_2)) WHERE nombre_socio_2 IS NOT NULL AND nombre_socio_2 != ''
+      SELECT nombre_socio_2 AS nombre, n2.rol AS rol 
+      FROM cola_fb c 
+      LEFT JOIN perfiles_glaukov n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(c.nombre_socio_2)) 
+      WHERE nombre_socio_2 IS NOT NULL AND nombre_socio_2 != ''
       UNION
-      SELECT nombre, roles AS rol FROM nombres_fb WHERE roles IN ('SOCIO', 'MATRIZ_GENERAL', 'ASESOR', 'GRUPO', 'COMPRAS')
-    ) s WHERE nombre IS NOT NULL AND TRIM(nombre) != ''
+      SELECT nombre, rol 
+      FROM perfiles_glaukov 
+      WHERE rol IN ('SOCIO', 'MATRIZ_GENERAL', 'ASESOR', 'GRUPO', 'COMPRAS')
+    ) s 
+    WHERE nombre IS NOT NULL AND TRIM(nombre) != ''
   `;
 
   const params = [];
-  if (rol && rol.trim() && rol.trim().toUpperCase() !== 'TODOS') {
-    params.push(rol.trim());
+  if (rolParam && rolParam.trim() && rolParam.trim().toUpperCase() !== 'TODOS') {
+    params.push(rolParam.trim());
     nombresQuery += ` AND UPPER(TRIM(rol)) = UPPER(TRIM($1))`;
   }
 
   nombresQuery += ` ORDER BY nombre ASC;`;
 
+  // Consulta inalterada a los comprobantes
   const hashesQuery = `
     SELECT DISTINCT hash_corto AS hash
     FROM comprobantes_auditados_fb
