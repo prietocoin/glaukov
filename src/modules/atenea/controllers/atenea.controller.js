@@ -5,7 +5,7 @@ const mercadoService = require('../services/mercado.service');
 const reportesService = require('../services/reportes.service');
 const adminService = require('../services/admin.service');
 const { generarImagenTasa } = require('../../render/services/puppeteer.service');
-const db = require('../../../config/db'); // 🟢 Base de datos cargada
+const db = require('../../../config/db');
 
 // Helper de pausa para rate-limiting en envíos masivos de WhatsApp
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,7 +38,7 @@ async function previewImage(req, res) {
       return nombreItem === socioBuscado;
     });
 
-    // 2. Si no está en la cartelera, buscar en el Directorio
+    // 2. Si no está en la cartelera, buscar en el Directorio (perfiles_glaukov)
     if (!foundData) {
       try {
         const fnDir = directorioService.obtenerDirectorio || directorioService.obtenerDirectorioCompleto;
@@ -51,12 +51,12 @@ async function previewImage(req, res) {
           } else if (typeof tasasService.construirCarteleraSocio === 'function') {
             foundData = await tasasService.construirCarteleraSocio(socioObj);
           } else {
+            // 🟢 Mapeo a las columnas de perfiles_glaukov
             foundData = {
               nombre_socio: socioObj.nombre,
-              roles: socioObj.roles,
-              moneda_socio: socioObj.moneda_socio || socioObj.monedasocio || 'USDT',
-              ajustes: typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}),
-              cartelera_paises: socioObj.cartelera_paises || []
+              rol: socioObj.rol || 'SOCIO',
+              moneda_socio: socioObj.moneda_base || 'USDT',
+              monedas: socioObj.monedas || {}
             };
           }
         }
@@ -308,7 +308,6 @@ async function getFetchHoo(req, res) {
   }
 }
 
-// 🟢 PUBLICACIÓN DE TASA (ACTUALIZADO CON INSERT PARA N8N)
 async function postPublicarTasa(req, res) {
   try {
     const { id_tasa, tasas } = req.body;
@@ -346,7 +345,6 @@ async function postPublicarTasa(req, res) {
   }
 }
 
-// 🟢 REENVÍO DE TASA
 async function postReenviarTasa(req, res) {
   const rawSocio = req.body && typeof req.body.socio === 'string' ? req.body.socio : 'GENERAL';
   const socioBuscado = String(rawSocio).trim().toUpperCase();
@@ -376,12 +374,12 @@ async function postReenviarTasa(req, res) {
       const directorio = (await fnDir()) || [];
       const socioObj = directorio.find(s => String(s.nombre || '').trim().toUpperCase() === socioBuscado);
       if (socioObj) {
+        // 🟢 Mapeo a las columnas de perfiles_glaukov
         targetData = {
           nombre_socio: socioObj.nombre,
-          roles: socioObj.roles,
-          moneda_socio: socioObj.moneda_socio || socioObj.monedasocio || 'USDT',
-          ajustes: typeof socioObj.ajustes === 'string' ? JSON.parse(socioObj.ajustes || '{}') : (socioObj.ajustes || {}),
-          cartelera_paises: socioObj.cartelera_paises || []
+          rol: socioObj.rol || 'SOCIO',
+          moneda_socio: socioObj.moneda_base || 'USDT',
+          monedas: socioObj.monedas || {}
         };
       }
     }
@@ -413,7 +411,7 @@ async function postReenviarTasa(req, res) {
 }
 
 // ==========================================
-// 4. DIRECTORIO Y SOCIOS (nombres_fb)
+// 4. DIRECTORIO Y SOCIOS (perfiles_glaukov)
 // ==========================================
 async function getDirectorio(req, res) {
   try {
