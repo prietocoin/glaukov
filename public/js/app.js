@@ -435,7 +435,7 @@ function registrarAppAlpine() {
         saldo_anterior: parseFloat(socioObj.saldo_inicial ?? socioObj.saldo_anterior ?? 0) || 0,
         activo: mostrarConfig.tasas ?? socioObj.activo ?? true, 
         mostrar_dashboard: mostrarConfig.dashboard ?? socioObj.mostrar_dashboard ?? true,
-        herencia: Boolean(socioObj.herencia ?? false),
+        herencia: (socioObj.herencia === true || String(socioObj.herencia) === 'true'),
         paises: paisesArray
       };
 
