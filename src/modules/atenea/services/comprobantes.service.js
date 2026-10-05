@@ -130,7 +130,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       LEFT JOIN impactos_ordenados i2 
         ON LOWER(TRIM(i2.hash_largo)) = LOWER(TRIM(c.hash_largo)) AND i2.num_impacto = 2
 
-      -- 🟢 UNIONES CON PERFILES_GLAUKOV
+      -- UNIONES CON PERFILES_GLAUKOV
       LEFT JOIN perfiles_glaukov n_grupo1 
         ON i1.grupo_raw IS NOT NULL AND TRIM(i1.grupo_raw) != '' 
         AND LOWER(TRIM(n_grupo1.id_grupo)) = LOWER(TRIM(i1.grupo_raw))
@@ -196,16 +196,18 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const socio1Row = r.socio1_row || {};
       const socio2Row = r.socio2_row || {};
 
-      // 🟢 LECTURA DIRECTA DE MONEDAS JSONB
       const monedas1 = typeof socio1Row.monedas === 'object' && socio1Row.monedas !== null ? socio1Row.monedas : {};
       const monedas2 = typeof socio2Row.monedas === 'object' && socio2Row.monedas !== null ? socio2Row.monedas : {};
 
       const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
       const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
 
-      const naturalezaSocio1 = conf1.tipo || 'D';
-      const tipoOp1Final = r.tipo_op1 || `${naturalezaSocio1}-${divisaRecibo}`;
-      const tipoOp2Final = r.tipo_op2 || tipoOp1Final;
+      // 🟢 Operación dictada por el comprobante
+      const tipoOpLetra = conf1.tipo || 'D';
+      const tipoOpTag = `${tipoOpLetra}-${divisaRecibo}`;
+
+      const tipoOp1Final = r.tipo_op1 || tipoOpTag;
+      const tipoOp2Final = r.tipo_op2 || tipoOpTag;
 
       let tasa1Calculada = 1.0, tasa2Calculada = 1.0;
       let m1Calculado = 0, m2Calculado = 0;
@@ -226,10 +228,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         const tasaBaseS2 = parseFloat(tasasMap[monedaSocio2] || 1.0);
 
         const pctD1 = Math.abs(conf1.porcentaje?.deposito || 0);
-        const pctD2 = Math.abs(conf2.porcentaje?.deposito || 0);
+        const pctP1 = Math.abs(conf1.porcentaje?.pago || 0);
+        const factor1 = tipoOpLetra === 'D' ? (1 + (pctD1 / 100)) : (1 - (pctP1 / 100));
 
-        const factor1 = 1 + (pctD1 / 100);
-        const factor2 = 1 + (pctD2 / 100);
+        const pctD2 = Math.abs(conf2.porcentaje?.deposito || 0);
+        const pctP2 = Math.abs(conf2.porcentaje?.pago || 0);
+        const factor2 = tipoOpLetra === 'D' ? (1 + (pctD2 / 100)) : (1 - (pctP2 / 100));
 
         const cross1 = (tasaBaseDivisa / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0)) * factor1;
         tasa1Calculada = truncarTasaComercial(cross1);
@@ -237,9 +241,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
         tasa2Calculada = truncarTasaComercial(cross2);
 
-        // Polaridad explícita
-        const signo1 = (conf1.polaridad === '-' ? -1 : 1);
-        const signo2 = -1 * signo1;
+        // 🟢 CADA SOCIO DETERMINA SU SIGNO EVALUANDO SU PROPIA POLARIDAD CONFIGURADA
+        const polSocio1EsSuma = conf1.polaridad === '+' || conf1.polaridad === undefined;
+        const signo1 = tipoOpLetra === 'D' ? (polSocio1EsSuma ? 1 : -1) : (polSocio1EsSuma ? -1 : 1);
+
+        const polSocio2EsSuma = conf2.polaridad === '+' || conf2.polaridad === undefined;
+        const signo2 = tipoOpLetra === 'D' ? (polSocio2EsSuma ? 1 : -1) : (polSocio2EsSuma ? -1 : 1);
 
         m1Calculado = tasa1Calculada > 0 ? (signo1 * montoAbsoluto / tasa1Calculada) : (signo1 * montoAbsoluto);
         me1Calculado = m1Calculado / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0);
@@ -513,7 +520,7 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       tasaLote = await obtenerUltimasTasas();
     }
 
-    // 🟢 4. Buscar datos de socios en perfiles_glaukov
+    // 4. Buscar datos de socios en perfiles_glaukov
     let socio1Data = { nombre: socio1Nombre, moneda_base: 'USDT' };
     let socio2Data = { nombre: socio2Nombre, moneda_base: 'USDT' };
 
