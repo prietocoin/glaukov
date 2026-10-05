@@ -24,6 +24,11 @@ async function obtenerComprobantesAuditados(filtros = {}) {
     const { socio, rol, fechaInicio, fechaFin, hash, orden = 'fecha_desc' } = filtros;
     const targetSocio = (socio || '').trim();
 
+    // 🟢 Obtener perfil de FUNDDA una sola vez para resolver herencias en la proyección en vivo
+    const resFundda = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = 'FUNDDA' LIMIT 1`);
+    const funddaRow = resFundda.rows[0] || {};
+    const funddaMonedas = typeof funddaRow.monedas === 'object' && funddaRow.monedas !== null ? funddaRow.monedas : {};
+
     let whereClauses = ["UPPER(TRIM(c.instancia)) = 'JAIRO'"];
     const values = [];
     let paramIndex = 1;
@@ -196,16 +201,23 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const socio1Row = r.socio1_row || {};
       const socio2Row = r.socio2_row || {};
 
-      const monedas1 = typeof socio1Row.monedas === 'object' && socio1Row.monedas !== null ? socio1Row.monedas : {};
-      const monedas2 = typeof socio2Row.monedas === 'object' && socio2Row.monedas !== null ? socio2Row.monedas : {};
+      const hereda1 = Boolean(socio1Row.herencia);
+      const hereda2 = Boolean(socio2Row.herencia);
+
+      // 🟢 FASE 1: HERENCIA DE CONTRATOS (FUNDDA)
+      const monedas1 = hereda1 ? funddaMonedas : (typeof socio1Row.monedas === 'object' && socio1Row.monedas !== null ? socio1Row.monedas : {});
+      const monedas2 = hereda2 ? funddaMonedas : (typeof socio2Row.monedas === 'object' && socio2Row.monedas !== null ? socio2Row.monedas : {});
 
       const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
       const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
 
-      // 🟢 Operación dictada por el comprobante
-      const tipoOpLetra = conf1.tipo || 'D';
-      const tipoOpTag = `${tipoOpLetra}-${divisaRecibo}`;
+      // 🟢 FASE 2: REGLA 1 (ABONO IMPERATIVO)
+      let tipoOpLetra = conf1.tipo || 'D';
+      if (monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
+        tipoOpLetra = 'A';
+      }
 
+      const tipoOpTag = `${tipoOpLetra}-${divisaRecibo}`;
       const tipoOp1Final = r.tipo_op1 || tipoOpTag;
       const tipoOp2Final = r.tipo_op2 || tipoOpTag;
 
@@ -229,11 +241,11 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
         const pctD1 = Math.abs(conf1.porcentaje?.deposito || 0);
         const pctP1 = Math.abs(conf1.porcentaje?.pago || 0);
-        const factor1 = tipoOpLetra === 'D' ? (1 + (pctD1 / 100)) : (1 - (pctP1 / 100));
+        const factor1 = (tipoOpLetra === 'D' || tipoOpLetra === 'A') ? (1 + (pctD1 / 100)) : (1 - (pctP1 / 100));
 
         const pctD2 = Math.abs(conf2.porcentaje?.deposito || 0);
         const pctP2 = Math.abs(conf2.porcentaje?.pago || 0);
-        const factor2 = tipoOpLetra === 'D' ? (1 + (pctD2 / 100)) : (1 - (pctP2 / 100));
+        const factor2 = (tipoOpLetra === 'D' || tipoOpLetra === 'A') ? (1 + (pctD2 / 100)) : (1 - (pctP2 / 100));
 
         const cross1 = (tasaBaseDivisa / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0)) * factor1;
         tasa1Calculada = truncarTasaComercial(cross1);
@@ -241,12 +253,21 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
         tasa2Calculada = truncarTasaComercial(cross2);
 
-        // 🟢 CADA SOCIO DETERMINA SU SIGNO EVALUANDO SU PROPIA POLARIDAD CONFIGURADA
+        // 🟢 FASE 3: POLARIDADES NATURALES
         const polSocio1EsSuma = conf1.polaridad === '+' || conf1.polaridad === undefined;
-        const signo1 = tipoOpLetra === 'D' ? (polSocio1EsSuma ? 1 : -1) : (polSocio1EsSuma ? -1 : 1);
+        let signo1 = tipoOpLetra === 'A' ? 1 : (tipoOpLetra === 'D' ? (polSocio1EsSuma ? 1 : -1) : (polSocio1EsSuma ? -1 : 1));
 
         const polSocio2EsSuma = conf2.polaridad === '+' || conf2.polaridad === undefined;
-        const signo2 = tipoOpLetra === 'D' ? (polSocio2EsSuma ? 1 : -1) : (polSocio2EsSuma ? -1 : 1);
+        let signo2 = tipoOpLetra === 'A' ? 1 : (tipoOpLetra === 'D' ? (polSocio2EsSuma ? 1 : -1) : (polSocio2EsSuma ? -1 : 1));
+
+        // 🟢 FASE 4: ANCLA DE POLARIDAD Y CESIÓN
+        if (socio1Final !== 'GENERAL' && socio2Final && socio2Final !== 'GENERAL') {
+          if (hereda1 && !hereda2) {
+            signo1 = -1 * signo2;
+          } else if (hereda2 && !hereda1) {
+            signo2 = -1 * signo1;
+          }
+        }
 
         m1Calculado = tasa1Calculada > 0 ? (signo1 * montoAbsoluto / tasa1Calculada) : (signo1 * montoAbsoluto);
         me1Calculado = m1Calculado / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0);
@@ -418,6 +439,11 @@ async function liquidarAutomaticoPorOmision(hashLargo) {
       if (res2.rows.length > 0) socio2Data = res2.rows[0];
     }
 
+    // 🟢 Obtener perfil de FUNDDA para herencia
+    let funddaData = null;
+    const resFundda = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = 'FUNDDA' LIMIT 1`);
+    if (resFundda.rows.length > 0) funddaData = resFundda.rows[0];
+
     const rawData = {
       hash_largo: targetHash,
       monto: comp.monto || 0,
@@ -426,7 +452,7 @@ async function liquidarAutomaticoPorOmision(hashLargo) {
       id_tasa: idLote
     };
 
-    const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote);
+    const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote, funddaData);
     await liquidarComprobante(snapshot);
   } catch (err) {
     console.error('⚠️ [Error en liquidarAutomaticoPorOmision]:', err.message);
@@ -540,6 +566,11 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       if (res2.rows.length > 0) socio2Data = res2.rows[0];
     }
 
+    // 🟢 Obtener perfil de FUNDDA para herencia
+    let funddaData = null;
+    const resFundda = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = 'FUNDDA' LIMIT 1`);
+    if (resFundda.rows.length > 0) funddaData = resFundda.rows[0];
+
     // 5. Preparar el payload y calcular el nuevo snapshot financiero
     const rawData = {
       hash_largo: targetHash,
@@ -549,7 +580,7 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       id_tasa: idLote
     };
 
-    const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote);
+    const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote, funddaData);
 
     // 6. Sobrescribir/Congelar el snapshot en la tabla comprobantes_liq
     await liquidarComprobante(snapshot);
