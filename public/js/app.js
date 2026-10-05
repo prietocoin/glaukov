@@ -230,7 +230,7 @@ function registrarAppAlpine() {
         window.open(this.imagenPreviewUrl, '_blank');
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } fontalmente {
+      } finally {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -435,7 +435,7 @@ function registrarAppAlpine() {
         saldo_anterior: parseFloat(socioObj.saldo_inicial ?? socioObj.saldo_anterior ?? 0) || 0,
         activo: mostrarConfig.tasas ?? socioObj.activo ?? true, 
         mostrar_dashboard: mostrarConfig.dashboard ?? socioObj.mostrar_dashboard ?? true,
-        herencia: Boolean(socioObj.herencia ?? false), // 👈 Mapeo de herencia
+        herencia: Boolean(socioObj.herencia ?? false),
         paises: paisesArray
       };
 
@@ -478,7 +478,7 @@ function registrarAppAlpine() {
       });
     },
 
-    // 🟢 GUARDADO CORREGIDO: Guarda 'herencia' explícitamente en el payload de perfiles_glaukov
+    // 🟢 GUARDADO CORREGIDO
     async guardarConfigSocioModal() {
       if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
         alert('Por favor especifica el nombre del socio.');
@@ -510,7 +510,7 @@ function registrarAppAlpine() {
           moneda_base: String(this.socioConfigEdit.moneda_socio || 'USDT').toUpperCase().trim(),
           id_grupo: this.socioConfigEdit.whatsapp,
           saldo_inicial: parseFloat(this.socioConfigEdit.saldo_anterior) || 0,
-          herencia: Boolean(this.socioConfigEdit.herencia), // 👈 Se envía al backend
+          herencia: Boolean(this.socioConfigEdit.herencia),
           mostrar: {
             tasas: Boolean(this.socioConfigEdit.activo),
             dashboard: Boolean(this.socioConfigEdit.mostrar_dashboard)
