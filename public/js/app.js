@@ -380,67 +380,55 @@ function registrarAppAlpine() {
 
     // 🟢 APERTURA DE MODAL ADAPTADA A JSONB 'herencia' Y 'monedas' DE PERFILES_GLAUKOV
     abrirConfigSocio(socioObj) {
-      let monedasConfig = socioObj.monedas;
-      if (typeof monedasConfig === 'string') {
-        try { monedasConfig = JSON.parse(monedasConfig); } catch (e) { monedasConfig = {}; }
-      }
-      monedasConfig = typeof monedasConfig === 'object' && monedasConfig !== null ? monedasConfig : {};
+  let monedasConfig = socioObj.monedas;
+  if (typeof monedasConfig === 'string') {
+    try { monedasConfig = JSON.parse(monedasConfig); } catch (e) { monedasConfig = {}; }
+  }
+  monedasConfig = typeof monedasConfig === 'object' && monedasConfig !== null ? monedasConfig : {};
 
-      let mostrarConfig = socioObj.mostrar;
-      if (typeof mostrarConfig === 'string') {
-        try { mostrarConfig = JSON.parse(mostrarConfig); } catch (e) { mostrarConfig = {}; }
-      }
-      mostrarConfig = typeof mostrarConfig === 'object' && mostrarConfig !== null ? mostrarConfig : {};
+  let mostrarConfig = socioObj.mostrar;
+  if (typeof mostrarConfig === 'string') {
+    try { mostrarConfig = JSON.parse(mostrarConfig); } catch (e) { mostrarConfig = {}; }
+  }
+  mostrarConfig = typeof mostrarConfig === 'object' && mostrarConfig !== null ? mostrarConfig : {};
 
-      const paisesArray = [];
-      const baseDefecto = ['ARS', 'VES', 'PEN', 'COP', 'CLP', 'BRL'];
-      
-      const codigosConfigurados = Object.keys(monedasConfig);
-      const codigosMostrar = [...new Set([...baseDefecto, ...codigosConfigurados])];
+  const paisesArray = [];
+  
+  // 🟢 LEE ÚNICAMENTE LAS MONEDAS EXISTENTES EN POSTGRESQL (SIN INYECTAR DEFECTOS)
+  const codigosMostrar = Object.keys(monedasConfig);
 
-      codigosMostrar.forEach(code => {
-        const info = this.infoMonedasMaestra[code] || { nombre: code, bandera: '🌐' };
-        const config = monedasConfig[code];
+  codigosMostrar.forEach(code => {
+    const info = this.infoMonedasMaestra[code] || { nombre: code, bandera: '🌐' };
+    const config = monedasConfig[code];
 
-        if (config) {
-          paisesArray.push({
-            code,
-            nombre: info.nombre,
-            bandera: info.bandera,
-            activo: config.activo ?? true,
-            pctD: config.porcentaje?.deposito || 0,
-            pctP: config.porcentaje?.pago || 0,
-            polaridadSuma: config.polaridad === '+' || config.polaridad === undefined,
-            naturaleza: config.tipo || 'D' 
-          });
-        } else {
-          paisesArray.push({
-            code,
-            nombre: info.nombre,
-            bandera: info.bandera,
-            activo: false,
-            pctD: 0,
-            pctP: 0,
-            polaridadSuma: true,
-            naturaleza: 'D'
-          });
-        }
+    if (config) {
+      paisesArray.push({
+        code,
+        nombre: info.nombre,
+        bandera: info.bandera,
+        activo: config.activo ?? true,
+        pctD: config.porcentaje?.deposito || 0,
+        pctP: config.porcentaje?.pago || 0,
+        polaridadSuma: config.polaridad === '+' || config.polaridad === undefined,
+        naturaleza: config.tipo || 'D' 
       });
+    }
+  });
 
-      this.socioConfigEdit = {
-        nombre: socioObj.nombre || '',
-        roles: socioObj.rol || socioObj.roles || 'SOCIO',
-        moneda_socio: String(socioObj.moneda_base || socioObj.moneda_socio || 'USDT').toUpperCase().trim(),
-        whatsapp: socioObj.id_grupo || socioObj.whatsapp || '',
-        saldo_anterior: parseFloat(socioObj.saldo_inicial ?? socioObj.saldo_anterior ?? 0) || 0,
-        activo: mostrarConfig.tasas ?? socioObj.activo ?? true, 
-        mostrar_dashboard: mostrarConfig.dashboard ?? socioObj.mostrar_dashboard ?? true,
-        herencia: (socioObj.herencia === true || String(socioObj.herencia) === 'true'),
-        paises: paisesArray
-      };
+  this.socioConfigEdit = {
+    nombre: socioObj.nombre || '',
+    roles: socioObj.rol || socioObj.roles || 'SOCIO',
+    moneda_socio: String(socioObj.moneda_base || socioObj.moneda_socio || 'USDT').toUpperCase().trim(),
+    whatsapp: socioObj.id_grupo || socioObj.whatsapp || '',
+    saldo_anterior: parseFloat(socioObj.saldo_inicial ?? socioObj.saldo_anterior ?? 0) || 0,
+    activo: mostrarConfig.tasas ?? socioObj.activo ?? true, 
+    mostrar_dashboard: mostrarConfig.dashboard ?? socioObj.mostrar_dashboard ?? true,
+    herencia: (socioObj.herencia === true || String(socioObj.herencia) === 'true'),
+    paises: paisesArray
+  };
 
-      this.modalConfigSocioAbierto = true;
-    },
+  this.modalConfigSocioAbierto = true;
+}
 
     agregarNuevaMoneda() {
       if (!this.socioConfigEdit) return;
