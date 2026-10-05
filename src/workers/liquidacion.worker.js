@@ -31,25 +31,25 @@ const liquidacionWorker = new Worker(
     const s1Identifier = (impRes.rows[0]?.grupo_raw || impRes.rows[0]?.usuario_raw || '').trim();
     const s2Identifier = (impRes.rows[1]?.grupo_raw || impRes.rows[1]?.usuario_raw || '').trim();
 
-    // 3. Buscar Socio 1 en nombres_fb
-    let socio1Data = { nombre: 'GENERAL', moneda_socio: 'USDT' };
+    // 🟢 3. Buscar Socio 1 en perfiles_glaukov (por id_grupo o nombre)
+    let socio1Data = { nombre: 'GENERAL', moneda_base: 'USDT', monedas: {} };
     if (s1Identifier) {
       const soc1Res = await db.query(`
-        SELECT * FROM nombres_fb 
-        WHERE (whatsapp IS NOT NULL AND TRIM(whatsapp) <> '' AND LOWER(TRIM(whatsapp)) = LOWER(TRIM($1)))
-           OR (id_grupo IS NOT NULL AND TRIM(id_grupo) <> '' AND LOWER(TRIM(id_grupo)) = LOWER(TRIM($1))) 
+        SELECT * FROM perfiles_glaukov 
+        WHERE (id_grupo IS NOT NULL AND TRIM(id_grupo) <> '' AND LOWER(TRIM(id_grupo)) = LOWER(TRIM($1)))
+           OR LOWER(TRIM(nombre)) = LOWER(TRIM($1))
         LIMIT 1;
       `, [s1Identifier]);
       if (soc1Res.rows.length > 0) socio1Data = soc1Res.rows[0];
     }
 
-    // 4. Buscar Socio 2 en nombres_fb (solo si existe identificador)
+    // 🟢 4. Buscar Socio 2 en perfiles_glaukov (solo si existe identificador)
     let socio2Data = null;
     if (s2Identifier) {
       const soc2Res = await db.query(`
-        SELECT * FROM nombres_fb 
-        WHERE (whatsapp IS NOT NULL AND TRIM(whatsapp) <> '' AND LOWER(TRIM(whatsapp)) = LOWER(TRIM($1)))
-           OR (id_grupo IS NOT NULL AND TRIM(id_grupo) <> '' AND LOWER(TRIM(id_grupo)) = LOWER(TRIM($1))) 
+        SELECT * FROM perfiles_glaukov 
+        WHERE (id_grupo IS NOT NULL AND TRIM(id_grupo) <> '' AND LOWER(TRIM(id_grupo)) = LOWER(TRIM($1)))
+           OR LOWER(TRIM(nombre)) = LOWER(TRIM($1))
         LIMIT 1;
       `, [s2Identifier]);
       if (soc2Res.rows.length > 0) socio2Data = soc2Res.rows[0];
@@ -58,7 +58,7 @@ const liquidacionWorker = new Worker(
     // 5. Obtener lote de mercado activo
     const loteTasa = await mercadoService.obtenerUltimasTasas();
 
-    // 6. Ejecutar cálculo puro
+    // 🟢 6. Ejecutar cálculo financiero (Consume el objeto jsonb 'monedas' y la 'polaridad')
     const snapshot = calcularSnapshotFinanciero(raw, socio1Data, socio2Data, loteTasa);
 
     // 7. UPSERT inmutable en comprobantes_liq
