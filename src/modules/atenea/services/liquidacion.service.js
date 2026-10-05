@@ -47,68 +47,102 @@ function truncarMontoSeguro(valor) {
 }
 
 /**
- * Calcula el snapshot financiero respetando que el tipo ('D'/'P') y la divisa pertenecen
- * al comprobante, mientras que la polaridad y el porcentaje son del socio.
+ * Calcula el snapshot financiero resolviendo las reglas de Abono Imperativo,
+ * Herencia de FUNDDA y Ancla de Polaridad.
+ * 
+ * @param {Object} funddaData - El perfil de FUNDDA (requerido para la herencia)
  */
-function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
+function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote, funddaData = null) {
   const montoRaw = Math.abs(parseFloat(String(raw?.monto || 0).replace(/,/g, '')) || 0);
   const divisaRaw = String(raw?.moneda || 'USDT').toUpperCase().trim();
-  const tipoOp = String(raw?.tipo_manual || raw?.tipo_op || 'D').toUpperCase().trim().charAt(0); // 'D' o 'P'
+  let tipoOpBase = String(raw?.tipo_manual || raw?.tipo_op || 'D').toUpperCase().trim().charAt(0);
+
+  const monedaSocio1 = String(socio1Data?.moneda_base || socio1Data?.moneda_socio || 'USDT').toUpperCase().trim();
+
+  // 🟢 REGLA 1: ABONO IMPERATIVO [A]
+  // Si la moneda del comprobante es igual a la moneda base del Socio 1 (Impacto), se fuerza Abono.
+  if (monedaSocio1 === divisaRaw && socio1Data?.nombre && socio1Data.nombre.toUpperCase() !== 'GENERAL') {
+    tipoOpBase = 'A';
+  }
 
   const loteCodigo = raw?.id_tasa || tasaLote?.id_tasa || 'T052';
   const mapaTasas = tasaLote?.tasas || {};
   const tasaBaseRawUSDT = parseFloat(mapaTasas[divisaRaw] || 1.0);
 
-  const procesarLadoSocio = (socioData) => {
+  // --- FASE 1: RESOLVER HERENCIA DE CONTRATOS ---
+  const getSocioConfig = (socioData) => {
     if (!socioData || !socioData.nombre || socioData.nombre.toUpperCase() === 'GENERAL') {
-      return { mNominal: 0, meUSDT: 0, tasaEfectiva: 1.0 };
+      return { activo: false, confDivisa: null, hereda: false, monedaSocio: 'USDT' };
     }
-
-    const monedaSocio = String(socioData.moneda_base || socioData.moneda_socio || 'USDT').toUpperCase().trim();
-    const monedasConfig = typeof socioData.monedas === 'object' && socioData.monedas !== null
-      ? socioData.monedas 
-      : {};
     
-    const confDivisa = monedasConfig[divisaRaw] || { 
-      activo: true, 
-      polaridad: '+', 
-      porcentaje: { deposito: 0, pago: 0 } 
-    };
+    const hereda = Boolean(socioData.herencia);
+    let monedasConfig = {};
 
-    // 🟢 1. POLARIDAD CONTABLE
-    // 'polaridad' define el comportamiento ante un Depósito ('D'). 'P' invierte la polaridad del socio.
-    const depositoSuma = confDivisa.polaridad === '+' || confDivisa.polaridad === undefined;
-    let signoMonto;
-    if (tipoOp === 'D') {
-      signoMonto = depositoSuma ? 1 : -1;
-    } else { // 'P'
-      signoMonto = depositoSuma ? -1 : 1;
+    // 🟢 REGLA 2: HERENCIA DE FUNDDA
+    if (hereda && funddaData) {
+      monedasConfig = typeof funddaData.monedas === 'object' && funddaData.monedas !== null ? funddaData.monedas : {};
+    } else {
+      monedasConfig = typeof socioData.monedas === 'object' && socioData.monedas !== null ? socioData.monedas : {};
     }
 
-    // 🟢 2. FACTOR COMERCIAL DE TASA
-    const pctD = Math.abs(confDivisa.porcentaje?.deposito || 0);
-    const pctP = Math.abs(confDivisa.porcentaje?.pago || 0);
-    const factorAbs = tipoOp === 'D' ? (1 + (pctD / 100)) : (1 - (pctP / 100));
+    const confDivisa = monedasConfig[divisaRaw] || { activo: true, polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
+    const monedaSocio = String(socioData.moneda_base || socioData.moneda_socio || 'USDT').toUpperCase().trim();
 
-    // 🟢 3. CRUCE DE TASAS
-    const tasaBaseSocioUSDT = parseFloat(mapaTasas[monedaSocio] || 1.0);
+    return { activo: true, confDivisa, hereda, monedaSocio };
+  };
+
+  const cfg1 = getSocioConfig(socio1Data);
+  const cfg2 = getSocioConfig(socio2Data);
+
+  // --- FASE 2: RESOLVER POLARIDAD NATURAL ---
+  const getSignoNatural = (cfg, tipoOp) => {
+    if (!cfg.activo) return 1;
+    if (tipoOp === 'A') return 1; // Un Abono [A] siempre es positivo
+    
+    const depositoSuma = cfg.confDivisa.polaridad === '+' || cfg.confDivisa.polaridad === undefined;
+    return tipoOp === 'D' ? (depositoSuma ? 1 : -1) : (depositoSuma ? -1 : 1);
+  };
+
+  let signo1 = getSignoNatural(cfg1, tipoOpBase);
+  let signo2 = getSignoNatural(cfg2, tipoOpBase);
+
+  // --- FASE 3: REGLA DE PRECEDENCIA (ANCLA DE POLARIDAD) ---
+  // Si ambos son activos, manda el contrato del socio directo (el que NO hereda).
+  if (cfg1.activo && cfg2.activo) {
+    if (cfg1.hereda && !cfg2.hereda) {
+      signo1 = -1 * signo2; // Socio 2 es Ancla, Socio 1 es espejo
+    } else if (cfg2.hereda && !cfg1.hereda) {
+      signo2 = -1 * signo1; // Socio 1 es Ancla, Socio 2 es espejo
+    }
+    // Si ambos heredan o ninguno hereda, mantienen su polaridad natural.
+  }
+
+  // --- FASE 4: APLICAR MATEMÁTICAS ---
+  const calcularLado = (cfg, signoFinal) => {
+    if (!cfg.activo) return { mNominal: 0, meUSDT: 0, tasaEfectiva: 1.0 };
+
+    const pctD = Math.abs(cfg.confDivisa.porcentaje?.deposito || 0);
+    const pctP = Math.abs(cfg.confDivisa.porcentaje?.pago || 0);
+    // Para el spread, el Abono 'A' se comporta como Depósito 'D'
+    const factorAbs = (tipoOpBase === 'D' || tipoOpBase === 'A') ? (1 + (pctD / 100)) : (1 - (pctP / 100));
+
+    const tasaBaseSocioUSDT = parseFloat(mapaTasas[cfg.monedaSocio] || 1.0);
     const divisorBase = tasaBaseSocioUSDT > 0 ? tasaBaseSocioUSDT : 1.0;
     const tasaBaseCalculada = tasaBaseRawUSDT / divisorBase;
 
     const tasaEfectiva = truncarTasaSegura(tasaBaseCalculada * factorAbs);
     const divisorTasa = tasaEfectiva > 0 ? tasaEfectiva : 1.0;
 
-    // 🟢 4. CÁLCULO DE SALDOS
-    const mNominal = truncarMontoSeguro(signoMonto * (montoRaw / divisorTasa));
+    const mNominal = truncarMontoSeguro(signoFinal * (montoRaw / divisorTasa));
     const meUSDT = truncarMontoSeguro(mNominal / divisorBase);
 
     return { mNominal, meUSDT, tasaEfectiva };
   };
 
-  const calc1 = procesarLadoSocio(socio1Data);
-  const calc2 = procesarLadoSocio(socio2Data);
+  const calc1 = calcularLado(cfg1, signo1);
+  const calc2 = calcularLado(cfg2, signo2);
 
-  const etiquetaOpComprobante = `${tipoOp}-${divisaRaw}`;
+  const etiquetaOpComprobante = `${tipoOpBase}-${divisaRaw}`; // Ej: A-USDT, D-COP
 
   return {
     hash_largo: raw.hash_largo,
@@ -119,7 +153,7 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     me1: isNaN(calc1.meUSDT) ? 0 : calc1.meUSDT,
 
     socio_2: socio2Data?.nombre && socio2Data.nombre.toUpperCase() !== 'GENERAL' ? socio2Data.nombre : null,
-    tipo_op2: etiquetaOpComprobante, // 🟢 La etiqueta de operación es idéntica
+    tipo_op2: etiquetaOpComprobante,
     monto_2: isNaN(calc2.mNominal) ? 0 : calc2.mNominal,
     tasa_2: isNaN(calc2.tasaEfectiva) ? 1.0 : calc2.tasaEfectiva,
     me2: isNaN(calc2.meUSDT) ? 0 : calc2.meUSDT,
