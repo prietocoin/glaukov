@@ -670,12 +670,12 @@
               <input type="text" x-model="socioConfigEdit.nombre" class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold outline-none focus:border-cyan-400 uppercase">
             </div>
 
-            <!-- 2. MONEDA NATIVA / BASE (DESPLEGABLE DINÁMICO ISO) -->
+            <!-- 2. MONEDA NATIVA / BASE (CORREGIDO) -->
             <div>
               <label class="block text-[9px] font-bold text-pink-400 uppercase mb-1">Moneda Nativa (Base)</label>
               <select x-model="socioConfigEdit.moneda_socio" class="w-full bg-[#080e26] border border-pink-500/40 rounded-xl px-2.5 py-1.5 text-xs text-pink-300 font-bold outline-none focus:border-pink-400 uppercase">
                 <template x-for="m in listaMonedasActivas" :key="'nativa-' + m.code">
-                  <option :value="m.code" x-text="m.code"></option>
+                  <option :value="m.code" x-text="m.code" :selected="m.code === socioConfigEdit.moneda_socio"></option>
                 </template>
               </select>
             </div>
@@ -701,10 +701,10 @@
               </select>
             </div>
 
-            <!-- 🟢 6. HEREDA? (SI/NO) -->
+            <!-- 🟢 6. HEREDA? (SI/NO) (CORREGIDO CON .boolean) -->
             <div>
               <label class="block text-[9px] font-bold text-purple-400 uppercase mb-1">Hereda? (Si/No)</label>
-              <select x-model="socioConfigEdit.herencia" class="w-full bg-[#080e26] border border-purple-500/40 rounded-xl px-2.5 py-1.5 text-xs text-purple-300 font-bold outline-none">
+              <select x-model.boolean="socioConfigEdit.herencia" class="w-full bg-[#080e26] border border-purple-500/40 rounded-xl px-2.5 py-1.5 text-xs text-purple-300 font-bold outline-none">
                 <option :value="true">SÍ</option>
                 <option :value="false">NO</option>
               </select>
