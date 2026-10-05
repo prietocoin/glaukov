@@ -1,0 +1,67 @@
+<!-- MODAL: CONFIGURACIÓN INTEGRAL DE SOCIO -->
+<div x-show="modalConfigSocioAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/80 backdrop-blur-md" x-cloak>
+  <div class="bg-[#080e26] border border-blue-800/80 rounded-2xl md:rounded-3xl w-[95vw] max-w-4xl p-4 sm:p-5 space-y-3.5 shadow-2xl relative max-h-[90vh] overflow-y-auto" @click.away="modalConfigSocioAbierto = false">
+    <div class="flex items-center justify-between border-b border-blue-900/60 pb-2.5">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-purple-950 border border-purple-500/40 flex items-center justify-center text-purple-300 text-base">⚙</div>
+        <div>
+          <h3 class="font-black text-white text-sm sm:text-base">Configuración Integral</h3>
+          <p class="text-[10px] text-slate-400">Valores con lote <strong class="text-cyan-400" x-text="loteActivo || 'ACTIVO'"></strong>.</p>
+        </div>
+      </div>
+      <button type="button" @click="modalConfigSocioAbierto = false" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
+    </div>
+
+    <template x-if="socioConfigEdit">
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-2.5 bg-[#030611] p-3 rounded-2xl border border-blue-900/60">
+          <div>
+            <label class="block text-[9px] font-bold text-purple-400 uppercase mb-1">Nombre Socio</label>
+            <input type="text" x-model="socioConfigEdit.nombre" class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold outline-none uppercase">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-pink-400 uppercase mb-1">Moneda Nativa</label>
+            <select x-model="socioConfigEdit.moneda_socio" class="w-full bg-[#080e26] border border-pink-500/40 rounded-xl px-2.5 py-1.5 text-xs text-pink-300 font-bold outline-none uppercase">
+              <template x-for="m in listaMonedasActivas" :key="'nativa-' + m.code">
+                <option :value="m.code" x-text="m.code" :selected="m.code === socioConfigEdit.moneda_socio"></option>
+              </template>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">Saldo Anterior</label>
+            <input type="number" step="0.01" x-model="socioConfigEdit.saldo_anterior" class="w-full bg-[#080e26] border border-amber-500/40 rounded-xl px-2.5 py-1.5 text-xs font-black text-amber-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">ID Grupo / WhatsApp</label>
+            <input type="text" x-model="socioConfigEdit.whatsapp" placeholder="120363...@g.us" class="w-full bg-[#080e26] border border-blue-900/80 rounded-xl px-2.5 py-1.5 text-xs text-cyan-300 font-mono outline-none">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-emerald-400 uppercase mb-1">Ver en Dashboard</label>
+            <select x-model="socioConfigEdit.mostrar_dashboard" class="w-full bg-[#080e26] border border-emerald-500/40 rounded-xl px-2.5 py-1.5 text-xs text-emerald-300 font-bold outline-none">
+              <option :value="true">SÍ</option>
+              <option :value="false">NO</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-purple-400 uppercase mb-1">Hereda?</label>
+            <select x-model.boolean="socioConfigEdit.herencia" class="w-full bg-[#080e26] border border-purple-500/40 rounded-xl px-2.5 py-1.5 text-xs text-purple-300 font-bold outline-none">
+              <option :value="true">SÍ</option>
+              <option :value="false">NO</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-blue-900/60 gap-3">
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button type="button" @click="enviarTasaIndividual(socioConfigEdit, true)" class="px-3 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl text-xs font-black">🧪 Enviar a Prueba</button>
+            <button type="button" @click="enviarTasaIndividual(socioConfigEdit, false)" class="px-3 py-2 bg-amber-950/80 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-black">⚡ Enviar Prod</button>
+          </div>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button type="button" @click="modalConfigSocioAbierto = false" class="px-3 py-2 bg-[#030611] text-slate-400 rounded-xl text-xs font-bold border border-blue-900">Cancelar</button>
+            <button type="button" @click="guardarConfigSocioModal()" class="px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-black shadow-lg">💾 Guardar Cambios</button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
