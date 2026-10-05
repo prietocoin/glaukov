@@ -131,8 +131,6 @@ async function obtenerSociosYProcesarTasas(options = null) {
       const pctP = configPais.porcentaje?.pago || 0;
 
       // 🟢 2. CONVERSIÓN A FACTOR MULTIPLICADOR COMERCIAL
-      // En precio de cartelera: El depósito suma al precio base (1 + pct)
-      // En precio de cartelera: El pago resta al precio base (1 - pct)
       const factorD = pctD !== null && !isNaN(pctD) ? 1 + (pctD / 100) : (FACTORES_RESPALDO[codeP]?.D ?? 1.0);
       const factorP = pctP !== null && !isNaN(pctP) ? 1 - (pctP / 100) : (FACTORES_RESPALDO[codeP]?.P ?? 0.95);
 
@@ -162,11 +160,10 @@ async function obtenerSociosYProcesarTasas(options = null) {
         venta: valVentaStr,
         trend_compra: (factorD > 0) ? getTrend(numCompraActual, numCompraAnt) : 'stable',
         trend_venta:  (factorP > 0) ? getTrend(numVentaActual, numVentaAnt)   : 'stable',
-        orden: configPais.orden || 99 // Por si eventualmente le añades un campo de orden al JSONB
+        orden: configPais.orden || 99
       });
     }
     
-    // Opcional: ordenar la cartelera según el código si no hay un orden numérico
     tarjetasPaises.sort((a, b) => a.orden - b.orden || a.nombre_pais.localeCompare(b.nombre_pais));
 
     listaSociosProcesados.push({
@@ -177,7 +174,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
       hora_actualizacion: valorHora,
       tasa_base_ref: `${valorTasa} ${valorFecha}`,
       tarjetas_paises: tarjetasPaises,
-      cartelera_paises: tarjetasPaises // Mantenemos esta llave por compatibilidad con el renderizador EJS de la imagen
+      cartelera_paises: tarjetasPaises
     });
   }
 
@@ -189,21 +186,29 @@ async function obtenerSociosYProcesarTasas(options = null) {
   return listaSociosProcesados;
 }
 
-// 🟢 ENCOLADO A BULLMQ
+// 🟢 ENCOLADO A BULLMQ CON INTERCEPCIÓN DE MODO PRUEBA
 async function encolarNotificacionesTasas(options = null) {
   let optionsObj = options;
   if (typeof options === 'string') {
     optionsObj = { filtroNombre: options };
+  } else if (typeof options !== 'object' || options === null) {
+    optionsObj = {};
   }
 
-  const jidOverride = optionsObj?.jidOverride || optionsObj?.destinationJid || null;
+  // 🟢 1. DETECTAR SI VIENE EN MODO PRUEBA
+  const esModoPrueba = Boolean(optionsObj.modoPrueba || optionsObj.esPrueba);
+
+  // 🟢 2. EVALUAR SI SE USA EL JID DE PRUEBAS DE EASYPANEL (.env)
+  const testJid = process.env.TEST_JID_OVERRIDE;
+  const jidOverride = optionsObj.jidOverride || optionsObj.destinationJid || (esModoPrueba ? testJid : null);
 
   const socios = await obtenerSociosYProcesarTasas(optionsObj);
-  console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
+  console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s)... (Modo Prueba: ${esModoPrueba} | JID Destino: ${jidOverride || 'GRUPO REAL DE CADA SOCIO'})`);
   
   let encoladosConExito = 0;
 
   for (const socio of socios) {
+    // Si jidOverride tiene valor (por ser modo prueba), reemplaza el remoteJid del socio
     const targetJid = (jidOverride && String(jidOverride).trim().length > 0) 
       ? String(jidOverride).trim() 
       : socio.remoteJid;
@@ -212,7 +217,8 @@ async function encolarNotificacionesTasas(options = null) {
       ...socio,
       remoteJid: targetJid,
       jidOverride: targetJid,
-      destinationJid: targetJid
+      destinationJid: targetJid,
+      modoPrueba: esModoPrueba
     };
 
     try {
