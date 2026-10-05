@@ -114,6 +114,42 @@ function registrarAppAlpine() {
       }
     },
 
+    // 🟢 NUEVO TOGGLE RÁPIDO PARA HERENCIA DE SOCIO
+    async toggleHerenciaSocio(socio) {
+      if (!socio) return;
+      try {
+        const nuevaHerencia = !socio.herencia;
+        socio.herencia = nuevaHerencia;
+
+        let monedasObj = socio.monedas;
+        if (typeof monedasObj === 'string') {
+          try { monedasObj = JSON.parse(monedasObj); } catch (e) { monedasObj = {}; }
+        }
+
+        let mostrarObj = socio.mostrar;
+        if (typeof mostrarObj === 'string') {
+          try { mostrarObj = JSON.parse(mostrarObj); } catch (e) { mostrarObj = {}; }
+        }
+
+        const payload = {
+          nombre: socio.nombre,
+          rol: socio.rol || socio.roles || 'SOCIO',
+          moneda_base: String(socio.moneda_base || socio.moneda_socio || 'USDT').toUpperCase().trim(),
+          id_grupo: socio.id_grupo || socio.whatsapp || '',
+          saldo_inicial: parseFloat(socio.saldo_inicial ?? socio.saldo_anterior ?? 0) || 0,
+          mostrar: mostrarObj || { tasas: true, dashboard: true },
+          monedas: monedasObj || {},
+          herencia: Boolean(nuevaHerencia)
+        };
+
+        await window.AteneaAPI.guardarSocioConfig(payload);
+        await this.cargarDirectorio();
+        await this.cargarComprobantes();
+      } catch (err) {
+        console.error('[Glaukov UI ❌ Error al cambiar herencia socio]', err);
+      }
+    },
+
     async cargarTasasMercado() {
       try {
         const res = await window.AteneaAPI.getUltimasTasas();
@@ -194,7 +230,7 @@ function registrarAppAlpine() {
         window.open(this.imagenPreviewUrl, '_blank');
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } finally {
+      } fontalmente {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -342,7 +378,7 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 APERTURA DE MODAL ADAPTADA A JSONB 'monedas' DE PERFILES_GLAUKOV
+    // 🟢 APERTURA DE MODAL ADAPTADA A JSONB 'herencia' Y 'monedas' DE PERFILES_GLAUKOV
     abrirConfigSocio(socioObj) {
       let monedasConfig = socioObj.monedas;
       if (typeof monedasConfig === 'string') {
@@ -378,7 +414,6 @@ function registrarAppAlpine() {
             naturaleza: config.tipo || 'D' 
           });
         } else {
-          // Si la moneda aún no está en la BD, la añadimos inactiva con valores 0 por defecto
           paisesArray.push({
             code,
             nombre: info.nombre,
@@ -400,6 +435,7 @@ function registrarAppAlpine() {
         saldo_anterior: parseFloat(socioObj.saldo_inicial ?? socioObj.saldo_anterior ?? 0) || 0,
         activo: mostrarConfig.tasas ?? socioObj.activo ?? true, 
         mostrar_dashboard: mostrarConfig.dashboard ?? socioObj.mostrar_dashboard ?? true,
+        herencia: Boolean(socioObj.herencia ?? false), // 👈 Mapeo de herencia
         paises: paisesArray
       };
 
@@ -438,11 +474,11 @@ function registrarAppAlpine() {
 
     crearNuevoSocio() {
       this.abrirConfigSocio({
-        nombre: '', rol: 'SOCIO', moneda_base: 'USDT', id_grupo: '', saldo_inicial: 0, mostrar: {tasas: true, dashboard: true}, monedas: {}
+        nombre: '', rol: 'SOCIO', moneda_base: 'USDT', id_grupo: '', saldo_inicial: 0, herencia: false, mostrar: {tasas: true, dashboard: true}, monedas: {}
       });
     },
 
-    // 🟢 GUARDADO CORREGIDO: Guarda el estado exacto de 'activo' sin borrar monedas deshabilitadas
+    // 🟢 GUARDADO CORREGIDO: Guarda 'herencia' explícitamente en el payload de perfiles_glaukov
     async guardarConfigSocioModal() {
       if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
         alert('Por favor especifica el nombre del socio.');
@@ -458,7 +494,7 @@ function registrarAppAlpine() {
           const pctP = Math.abs(parseFloat(p.pctP) || 0);
 
           monedasFinales[code] = {
-            activo: Boolean(p.activo), // 👈 Mantiene el estado activo/inactivo explícito
+            activo: Boolean(p.activo),
             tipo: p.naturaleza || 'D',
             polaridad: p.polaridadSuma ? '+' : '-',
             porcentaje: {
@@ -474,6 +510,7 @@ function registrarAppAlpine() {
           moneda_base: String(this.socioConfigEdit.moneda_socio || 'USDT').toUpperCase().trim(),
           id_grupo: this.socioConfigEdit.whatsapp,
           saldo_inicial: parseFloat(this.socioConfigEdit.saldo_anterior) || 0,
+          herencia: Boolean(this.socioConfigEdit.herencia), // 👈 Se envía al backend
           mostrar: {
             tasas: Boolean(this.socioConfigEdit.activo),
             dashboard: Boolean(this.socioConfigEdit.mostrar_dashboard)
