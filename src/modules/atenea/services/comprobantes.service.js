@@ -17,7 +17,7 @@ function truncarTasaComercial(valor) {
 
 /**
  * Consulta de lectura optimizada con cálculo comercial dinámico en vivo
- * Alineada con la tabla unificada 'tasas_glaukov'
+ * Alineada con la tabla unificada 'perfiles_glaukov' y 'tasas_glaukov'
  */
 async function obtenerComprobantesAuditados(filtros = {}) {
   try {
@@ -107,17 +107,17 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         -- JSONB DE TASAS DEL LOTE (ASIGNADO O HISTÓRICO)
         tj.tasas AS tasas_lote,
 
-        -- MONEDAS Y FILA COMPLETA DE SOCIO 1 Y 2
-        COALESCE(n1.moneda_socio, 'USDT') AS moneda_socio_1,
-        COALESCE(n2.moneda_socio, 'USDT') AS moneda_socio_2,
+        -- MONEDAS Y FILA COMPLETA DE SOCIO 1 Y 2 (DESDE PERFILES_GLAUKOV)
+        COALESCE(n1.moneda_base, 'USDT') AS moneda_socio_1,
+        COALESCE(n2.moneda_base, 'USDT') AS moneda_socio_2,
         to_jsonb(n1) AS socio1_row,
         to_jsonb(n2) AS socio2_row,
 
         -- FALLBACKS DE INGESTA BRUTA
         COALESCE(n_grupo1.nombre, n_user1.nombre, 'GENERAL') AS fb_socio_1,
         COALESCE(n_grupo2.nombre, n_user2.nombre) AS fb_socio_2,
-        COALESCE(n1.roles, 'SOCIO') AS rol_socio_1,
-        COALESCE(n2.roles, 'SOCIO') AS rol_socio_2
+        COALESCE(n1.rol, 'SOCIO') AS rol_socio_1,
+        COALESCE(n2.rol, 'SOCIO') AS rol_socio_2
 
       FROM comprobantes_raw c
 
@@ -130,22 +130,23 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       LEFT JOIN impactos_ordenados i2 
         ON LOWER(TRIM(i2.hash_largo)) = LOWER(TRIM(c.hash_largo)) AND i2.num_impacto = 2
 
-      LEFT JOIN nombres_fb n_grupo1 
+      -- 🟢 UNIONES CON PERFILES_GLAUKOV
+      LEFT JOIN perfiles_glaukov n_grupo1 
         ON i1.grupo_raw IS NOT NULL AND TRIM(i1.grupo_raw) != '' 
-        AND (LOWER(TRIM(n_grupo1.whatsapp)) = LOWER(TRIM(i1.grupo_raw)) OR LOWER(TRIM(n_grupo1.id_grupo)) = LOWER(TRIM(i1.grupo_raw)))
-      LEFT JOIN nombres_fb n_user1 
+        AND LOWER(TRIM(n_grupo1.id_grupo)) = LOWER(TRIM(i1.grupo_raw))
+      LEFT JOIN perfiles_glaukov n_user1 
         ON i1.usuario_raw IS NOT NULL AND TRIM(i1.usuario_raw) != '' 
-        AND LOWER(TRIM(n_user1.whatsapp)) = LOWER(TRIM(i1.usuario_raw))
+        AND LOWER(TRIM(n_user1.id_grupo)) = LOWER(TRIM(i1.usuario_raw))
 
-      LEFT JOIN nombres_fb n_grupo2 
+      LEFT JOIN perfiles_glaukov n_grupo2 
         ON i2.grupo_raw IS NOT NULL AND TRIM(i2.grupo_raw) != '' 
-        AND (LOWER(TRIM(n_grupo2.whatsapp)) = LOWER(TRIM(i2.grupo_raw)) OR LOWER(TRIM(n_grupo2.id_grupo)) = LOWER(TRIM(i2.grupo_raw)))
-      LEFT JOIN nombres_fb n_user2 
+        AND LOWER(TRIM(n_grupo2.id_grupo)) = LOWER(TRIM(i2.grupo_raw))
+      LEFT JOIN perfiles_glaukov n_user2 
         ON i2.usuario_raw IS NOT NULL AND TRIM(i2.usuario_raw) != '' 
-        AND LOWER(TRIM(n_user2.whatsapp)) = LOWER(TRIM(i2.usuario_raw))
+        AND LOWER(TRIM(n_user2.id_grupo)) = LOWER(TRIM(i2.usuario_raw))
 
-      LEFT JOIN nombres_fb n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(l.socio_1, n_grupo1.nombre, n_user1.nombre)))
-      LEFT JOIN nombres_fb n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(l.socio_2, n_grupo2.nombre, n_user2.nombre)))
+      LEFT JOIN perfiles_glaukov n1 ON UPPER(TRIM(n1.nombre)) = UPPER(TRIM(COALESCE(l.socio_1, n_grupo1.nombre, n_user1.nombre)))
+      LEFT JOIN perfiles_glaukov n2 ON UPPER(TRIM(n2.nombre)) = UPPER(TRIM(COALESCE(l.socio_2, n_grupo2.nombre, n_user2.nombre)))
 
       -- UNIFICACIÓN CON TASAS_GLAUKOV
       LEFT JOIN tasas_glaukov tj ON tj.id_tasa = COALESCE(l.lote_tasa, (
@@ -189,26 +190,20 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const socio2Final = estaLiquidado ? r.socio_2 : (r.fb_socio_2 || null);
 
       const divisaRecibo = (r.moneda || 'COP').toUpperCase();
-      const divisaKey = divisaRecibo.toLowerCase();
       const monedaSocio1 = (r.moneda_socio_1 || 'USDT').toUpperCase();
       const monedaSocio2 = (r.moneda_socio_2 || 'USDT').toUpperCase();
 
       const socio1Row = r.socio1_row || {};
       const socio2Row = r.socio2_row || {};
 
-      let aj1 = {}, aj2 = {};
-      try { aj1 = typeof socio1Row.ajustes === 'string' ? JSON.parse(socio1Row.ajustes || '{}') : (socio1Row.ajustes || {}); } catch (e) {}
-      try { aj2 = typeof socio2Row.ajustes === 'string' ? JSON.parse(socio2Row.ajustes || '{}') : (socio2Row.ajustes || {}); } catch (e) {}
+      // 🟢 LECTURA DIRECTA DE MONEDAS JSONB
+      const monedas1 = typeof socio1Row.monedas === 'object' && socio1Row.monedas !== null ? socio1Row.monedas : {};
+      const monedas2 = typeof socio2Row.monedas === 'object' && socio2Row.monedas !== null ? socio2Row.monedas : {};
 
-      // REGLA NATURALEZA
-      let naturalezaSocio1;
-      if (divisaRecibo === 'USDT' || divisaRecibo === monedaSocio1) {
-        naturalezaSocio1 = 'A';
-      } else {
-        const natRaw = socio1Row[divisaKey];
-        naturalezaSocio1 = (typeof natRaw === 'string' && natRaw.trim() ? natRaw.trim() : 'D').toUpperCase();
-      }
+      const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
+      const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
 
+      const naturalezaSocio1 = conf1.tipo || 'D';
       const tipoOp1Final = r.tipo_op1 || `${naturalezaSocio1}-${divisaRecibo}`;
       const tipoOp2Final = r.tipo_op2 || tipoOp1Final;
 
@@ -230,9 +225,11 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         const tasaBaseS1 = parseFloat(tasasMap[monedaSocio1] || 1.0);
         const tasaBaseS2 = parseFloat(tasasMap[monedaSocio2] || 1.0);
 
-        const tipoOpLetra = naturalezaSocio1;
-        const factor1 = Math.abs(parseFloat(aj1[`${tipoOpLetra}-${divisaRecibo}`]) || 1.0);
-        const factor2 = Math.abs(parseFloat(aj2[`${tipoOpLetra}-${divisaRecibo}`]) || 1.0);
+        const pctD1 = Math.abs(conf1.porcentaje?.deposito || 0);
+        const pctD2 = Math.abs(conf2.porcentaje?.deposito || 0);
+
+        const factor1 = 1 + (pctD1 / 100);
+        const factor2 = 1 + (pctD2 / 100);
 
         const cross1 = (tasaBaseDivisa / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0)) * factor1;
         tasa1Calculada = truncarTasaComercial(cross1);
@@ -240,7 +237,8 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
         tasa2Calculada = truncarTasaComercial(cross2);
 
-        const signo1 = tipoOpLetra === 'P' ? -1 : 1;
+        // Polaridad explícita
+        const signo1 = (conf1.polaridad === '-' ? -1 : 1);
         const signo2 = -1 * signo1;
 
         m1Calculado = tasa1Calculada > 0 ? (signo1 * montoAbsoluto / tasa1Calculada) : (signo1 * montoAbsoluto);
@@ -299,7 +297,6 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
 /**
  * Registra o actualiza la liquidación congelada en comprobantes_liq.
- * Respeta la restricción NOT NULL de las columnas socio_2 y tipo_op2.
  */
 async function liquidarComprobante(payload) {
   const {
@@ -340,7 +337,6 @@ async function liquidarComprobante(payload) {
   const t1 = parseFloat(tasa_1);
   const e1 = parseFloat(me1);
 
-  // Garantizar valores no nulos para socio_2 y tipo_op2 (regla NOT NULL en BD)
   const s2 = String(socio_2 && socio_2 !== 'GENERAL' ? socio_2 : 'GENERAL').trim();
   const tOp2 = String(tipo_op2 || tOp1).trim();
 
@@ -385,11 +381,11 @@ async function liquidarAutomaticoPorOmision(hashLargo) {
         ) AS lote_historico
       FROM comprobantes_raw c
       LEFT JOIN impactos_raw i1 ON LOWER(TRIM(i1.hash_largo)) = LOWER(TRIM(c.hash_largo))
-      LEFT JOIN nombres_fb n_grupo1 ON i1.grupo_raw IS NOT NULL AND (LOWER(TRIM(n_grupo1.whatsapp)) = LOWER(TRIM(i1.grupo_raw)) OR LOWER(TRIM(n_grupo1.id_grupo)) = LOWER(TRIM(i1.grupo_raw)))
-      LEFT JOIN nombres_fb n_user1 ON i1.usuario_raw IS NOT NULL AND LOWER(TRIM(n_user1.whatsapp)) = LOWER(TRIM(i1.usuario_raw))
+      LEFT JOIN perfiles_glaukov n_grupo1 ON i1.grupo_raw IS NOT NULL AND LOWER(TRIM(n_grupo1.id_grupo)) = LOWER(TRIM(i1.grupo_raw))
+      LEFT JOIN perfiles_glaukov n_user1 ON i1.usuario_raw IS NOT NULL AND LOWER(TRIM(n_user1.id_grupo)) = LOWER(TRIM(i1.usuario_raw))
       LEFT JOIN impactos_raw i2 ON LOWER(TRIM(i2.hash_largo)) = LOWER(TRIM(c.hash_largo)) AND i2.id != i1.id
-      LEFT JOIN nombres_fb n_grupo2 ON i2.grupo_raw IS NOT NULL AND (LOWER(TRIM(n_grupo2.whatsapp)) = LOWER(TRIM(i2.grupo_raw)) OR LOWER(TRIM(n_grupo2.id_grupo)) = LOWER(TRIM(i2.grupo_raw)))
-      LEFT JOIN nombres_fb n_user2 ON i2.usuario_raw IS NOT NULL AND LOWER(TRIM(n_user2.whatsapp)) = LOWER(TRIM(i2.usuario_raw))
+      LEFT JOIN perfiles_glaukov n_grupo2 ON i2.grupo_raw IS NOT NULL AND LOWER(TRIM(n_grupo2.id_grupo)) = LOWER(TRIM(i2.grupo_raw))
+      LEFT JOIN perfiles_glaukov n_user2 ON i2.usuario_raw IS NOT NULL AND LOWER(TRIM(n_user2.id_grupo)) = LOWER(TRIM(i2.usuario_raw))
       WHERE LOWER(TRIM(c.hash_largo)) = LOWER(TRIM($1))
       LIMIT 1;
     `, [targetHash]);
@@ -402,16 +398,16 @@ async function liquidarAutomaticoPorOmision(hashLargo) {
     let tasaLote = await obtenerTasaPorId(idLote);
     if (!tasaLote) tasaLote = await obtenerUltimasTasas();
 
-    let socio1Data = { nombre: comp.socio_1_auto };
-    let socio2Data = { nombre: comp.socio_2_auto };
+    let socio1Data = { nombre: comp.socio_1_auto, moneda_base: 'USDT' };
+    let socio2Data = { nombre: comp.socio_2_auto, moneda_base: 'USDT' };
 
     if (comp.socio_1_auto !== 'GENERAL') {
-      const res1 = await db.query(`SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`, [comp.socio_1_auto]);
+      const res1 = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`, [comp.socio_1_auto]);
       if (res1.rows.length > 0) socio1Data = res1.rows[0];
     }
 
     if (comp.socio_2_auto !== 'GENERAL') {
-      const res2 = await db.query(`SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`, [comp.socio_2_auto]);
+      const res2 = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`, [comp.socio_2_auto]);
       if (res2.rows.length > 0) socio2Data = res2.rows[0];
     }
 
@@ -517,13 +513,13 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       tasaLote = await obtenerUltimasTasas();
     }
 
-    // 4. Buscar datos de socios en nombres_fb
-    let socio1Data = { nombre: socio1Nombre };
-    let socio2Data = { nombre: socio2Nombre };
+    // 🟢 4. Buscar datos de socios en perfiles_glaukov
+    let socio1Data = { nombre: socio1Nombre, moneda_base: 'USDT' };
+    let socio2Data = { nombre: socio2Nombre, moneda_base: 'USDT' };
 
     if (socio1Nombre && socio1Nombre.toUpperCase() !== 'GENERAL') {
       const res1 = await db.query(
-        `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+        `SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
         [socio1Nombre]
       );
       if (res1.rows.length > 0) socio1Data = res1.rows[0];
@@ -531,7 +527,7 @@ async function actualizarComprobante(hashLargo, datos = {}) {
 
     if (socio2Nombre && socio2Nombre.toUpperCase() !== 'GENERAL') {
       const res2 = await db.query(
-        `SELECT * FROM nombres_fb WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
+        `SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = UPPER(TRIM($1)) LIMIT 1`,
         [socio2Nombre]
       );
       if (res2.rows.length > 0) socio2Data = res2.rows[0];
