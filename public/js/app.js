@@ -98,15 +98,16 @@ function registrarAppAlpine() {
 
     toggleDashSocio(socio) {
       if (!socio) return;
-      if (!socio.mostrar) socio.mostrar = { tasas: true, dashboard: true };
-      socio.mostrar.dashboard = !socio.mostrar.dashboard;
+      let mostrarObj = typeof socio.mostrar === 'string' ? JSON.parse(socio.mostrar || '{}') : (socio.mostrar || {});
+      mostrarObj.dashboard = !(mostrarObj.dashboard ?? true);
+      socio.mostrar = mostrarObj;
     },
 
     async toggleEstadoSocio(socio) {
       if (!socio) return;
       try {
         const nuevoEstado = !socio.activo;
-        socio.activo = nuevoEstado; // Mantiene compatibilidad visual inmediata
+        socio.activo = nuevoEstado;
         await window.AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
       } catch (err) {
         console.error('[Glaukov UI ❌ Error al cambiar estado socio WA]', err);
@@ -275,9 +276,9 @@ function registrarAppAlpine() {
       const socioNom = (this.filtroSocio || '').trim().toUpperCase();
       if (socioNom) {
         const socioFound = (this.directorio || []).find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
-        // Adaptado a la nueva estructura: saldo_inicial
-        if (socioFound && socioFound.saldo_inicial !== undefined && socioFound.saldo_inicial !== null) {
-          this.saldoAnterior = parseFloat(socioFound.saldo_inicial) || 0;
+        const saldoVal = socioFound?.saldo_inicial ?? socioFound?.saldo_anterior;
+        if (saldoVal !== undefined && saldoVal !== null) {
+          this.saldoAnterior = parseFloat(saldoVal) || 0;
         } else {
           this.saldoAnterior = 0;
         }
@@ -312,8 +313,9 @@ function registrarAppAlpine() {
         if (this.filtroSocio) {
           const socioNom = this.filtroSocio.trim().toUpperCase();
           const socioFound = this.directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
-          if (socioFound && socioFound.saldo_inicial !== undefined && socioFound.saldo_inicial !== null) {
-            this.saldoAnterior = parseFloat(socioFound.saldo_inicial) || 0;
+          const saldoVal = socioFound?.saldo_inicial ?? socioFound?.saldo_anterior;
+          if (saldoVal !== undefined && saldoVal !== null) {
+            this.saldoAnterior = parseFloat(saldoVal) || 0;
           }
         }
       } catch (err) {
@@ -330,7 +332,6 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 CÁLCULO DE TASA EN VIVO: esResta falso = suma (Depósito), esResta verdadero = resta (Pago)
     calcularTasaEnVivo(code, pct, esResta = false) {
       const base = parseFloat(this.tasasProduccion[code]) || 1.0;
       const p = parseFloat(pct) || 0;
@@ -341,11 +342,19 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 APERTURA DE MODAL ADAPTADA 100% A JSONB 'monedas' DE PERFILES_GLAUKOV
+    // 🟢 APERTURA DE MODAL ADAPTADA A JSONB 'monedas' DE PERFILES_GLAUKOV
     abrirConfigSocio(socioObj) {
-      const monedasConfig = typeof socioObj.monedas === 'object' && socioObj.monedas !== null
-        ? socioObj.monedas 
-        : {};
+      let monedasConfig = socioObj.monedas;
+      if (typeof monedasConfig === 'string') {
+        try { monedasConfig = JSON.parse(monedasConfig); } catch (e) { monedasConfig = {}; }
+      }
+      monedasConfig = typeof monedasConfig === 'object' && monedasConfig !== null ? monedasConfig : {};
+
+      let mostrarConfig = socioObj.mostrar;
+      if (typeof mostrarConfig === 'string') {
+        try { mostrarConfig = JSON.parse(mostrarConfig); } catch (e) { mostrarConfig = {}; }
+      }
+      mostrarConfig = typeof mostrarConfig === 'object' && mostrarConfig !== null ? mostrarConfig : {};
 
       const paisesArray = [];
       const baseDefecto = ['ARS', 'VES', 'PEN', 'COP', 'CLP', 'BRL'];
@@ -365,15 +374,16 @@ function registrarAppAlpine() {
             activo: config.activo ?? true,
             pctD: config.porcentaje?.deposito || 0,
             pctP: config.porcentaje?.pago || 0,
-            polaridadSuma: config.polaridad === '+' || config.polaridad === undefined, // 👈 Controla la suma/resta contable
+            polaridadSuma: config.polaridad === '+' || config.polaridad === undefined,
             naturaleza: config.tipo || 'D' 
           });
         } else {
+          // Si la moneda aún no está en la BD, la añadimos inactiva con valores 0 por defecto
           paisesArray.push({
             code,
             nombre: info.nombre,
             bandera: info.bandera,
-            activo: true,
+            activo: false,
             pctD: 0,
             pctP: 0,
             polaridadSuma: true,
@@ -382,15 +392,14 @@ function registrarAppAlpine() {
         }
       });
 
-      // Se mantienen los nombres de variables del UI para no romper los 'x-model' del HTML
       this.socioConfigEdit = {
         nombre: socioObj.nombre || '',
-        roles: socioObj.rol || 'SOCIO', // Mapeado desde 'rol'
-        moneda_socio: String(socioObj.moneda_base || 'USDT').toUpperCase().trim(),
-        whatsapp: socioObj.id_grupo || '',
-        saldo_anterior: parseFloat(socioObj.saldo_inicial) || 0,
-        activo: socioObj.mostrar?.tasas ?? true, 
-        mostrar_dashboard: socioObj.mostrar?.dashboard ?? true,
+        roles: socioObj.rol || socioObj.roles || 'SOCIO',
+        moneda_socio: String(socioObj.moneda_base || socioObj.moneda_socio || 'USDT').toUpperCase().trim(),
+        whatsapp: socioObj.id_grupo || socioObj.whatsapp || '',
+        saldo_anterior: parseFloat(socioObj.saldo_inicial ?? socioObj.saldo_anterior ?? 0) || 0,
+        activo: mostrarConfig.tasas ?? socioObj.activo ?? true, 
+        mostrar_dashboard: mostrarConfig.dashboard ?? socioObj.mostrar_dashboard ?? true,
         paises: paisesArray
       };
 
@@ -410,7 +419,6 @@ function registrarAppAlpine() {
 
       const info = this.infoMonedasMaestra[codeUpper] || { nombre: codeUpper, bandera: '🌐' };
 
-      // Se adapta a la nueva estructura de variables en Alpine
       this.socioConfigEdit.paises.push({
         code: codeUpper,
         nombre: info.nombre,
@@ -429,13 +437,12 @@ function registrarAppAlpine() {
     },
 
     crearNuevoSocio() {
-      // Envía objeto vacío con las nuevas llaves de la BD
       this.abrirConfigSocio({
         nombre: '', rol: 'SOCIO', moneda_base: 'USDT', id_grupo: '', saldo_inicial: 0, mostrar: {tasas: true, dashboard: true}, monedas: {}
       });
     },
 
-    // 🟢 GUARDADO DE DATOS ADAPTADO 100% AL NUEVO BACKEND
+    // 🟢 GUARDADO CORREGIDO: Guarda el estado exacto de 'activo' sin borrar monedas deshabilitadas
     async guardarConfigSocioModal() {
       if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
         alert('Por favor especifica el nombre del socio.');
@@ -446,16 +453,14 @@ function registrarAppAlpine() {
         const monedasFinales = {};
 
         this.socioConfigEdit.paises.forEach(p => {
-          if (!p.activo) return;
-
           const code = p.code.toUpperCase();
           const pctD = Math.abs(parseFloat(p.pctD) || 0);
           const pctP = Math.abs(parseFloat(p.pctP) || 0);
 
           monedasFinales[code] = {
-            activo: true,
+            activo: Boolean(p.activo), // 👈 Mantiene el estado activo/inactivo explícito
             tipo: p.naturaleza || 'D',
-            polaridad: p.polaridadSuma ? '+' : '-', // 👈 La polaridad contable se manda limpia
+            polaridad: p.polaridadSuma ? '+' : '-',
             porcentaje: {
               deposito: pctD,
               pago: pctP
@@ -463,7 +468,6 @@ function registrarAppAlpine() {
           };
         });
 
-        // 🟢 Payload directo con los campos de perfiles_glaukov
         const payload = {
           nombre: this.socioConfigEdit.nombre,
           rol: this.socioConfigEdit.roles,
@@ -530,8 +534,13 @@ function registrarAppAlpine() {
     },
 
     getTallaClass(socioObj) {
-      // 🟢 Nueva adaptación para calcular la talla en base a Object.keys de monedas
-      const count = socioObj.monedas ? Object.keys(socioObj.monedas).filter(k => socioObj.monedas[k].activo).length : 3;
+      let monedasObj = socioObj?.monedas;
+      if (typeof monedasObj === 'string') {
+        try { monedasObj = JSON.parse(monedasObj); } catch (e) { monedasObj = {}; }
+      }
+      monedasObj = typeof monedasObj === 'object' && monedasObj !== null ? monedasObj : {};
+
+      const count = Object.keys(monedasObj).filter(k => monedasObj[k]?.activo).length || 3;
       if (count <= 3) return { label: `Talla: S [${count}]`, color: 'border-cyan-500/40 text-cyan-300 bg-cyan-950/40' };
       if (count <= 6) return { label: `Talla: M [${count}]`, color: 'border-amber-500/40 text-amber-300 bg-amber-950/40' };
       return { label: `Talla: L [${count}]`, color: 'border-purple-500/40 text-purple-300 bg-purple-950/40' };
@@ -692,8 +701,8 @@ function registrarAppAlpine() {
       const q = this.busquedaDirectorio.toLowerCase();
       return this.directorio.filter(d => 
         (d && d.nombre && d.nombre.toLowerCase().includes(q)) ||
-        (d && d.rol && d.rol.toLowerCase().includes(q)) ||
-        (d && d.id_grupo && d.id_grupo.toLowerCase().includes(q))
+        (d && (d.rol || d.roles) && (d.rol || d.roles).toLowerCase().includes(q)) ||
+        (d && (d.id_grupo || d.whatsapp) && (d.id_grupo || d.whatsapp).toLowerCase().includes(q))
       );
     },
 
@@ -735,10 +744,16 @@ function registrarAppAlpine() {
       }
 
       return this.directorio
-        .filter(socio => socio.mostrar?.dashboard !== false) // 🟢 Actualizado al JSONB 'mostrar'
+        .filter(socio => {
+          let mostrarObj = socio.mostrar;
+          if (typeof mostrarObj === 'string') {
+            try { mostrarObj = JSON.parse(mostrarObj); } catch (e) { mostrarObj = {}; }
+          }
+          return (mostrarObj?.dashboard ?? true) !== false;
+        })
         .map(socio => {
           const nombreUpper = (socio.nombre || '').trim().toUpperCase();
-          const saldoBase = parseFloat(socio.saldo_inicial) || 0; // 🟢 Actualizado a saldo_inicial
+          const saldoBase = parseFloat(socio.saldo_inicial ?? socio.saldo_anterior) || 0;
 
           const movimientoHistorico = compFiltrados.reduce((acc, item) => {
             const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
@@ -758,7 +773,7 @@ function registrarAppAlpine() {
 
           return {
             nombre: socio.nombre,
-            moneda: (socio.moneda_base || 'USDT').toUpperCase(), // 🟢 Actualizado a moneda_base
+            moneda: (socio.moneda_base || socio.moneda_socio || 'USDT').toUpperCase(),
             saldoBase,
             movimientoHistorico,
             saldoFinal
