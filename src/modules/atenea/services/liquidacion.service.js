@@ -47,53 +47,48 @@ function truncarMontoSeguro(valor) {
 }
 
 /**
- * Calcula el snapshot financiero extrayendo la configuración contable desde perfiles_glaukov
+ * Calcula el snapshot financiero respetando que el tipo ('D'/'P') y la divisa pertenecen
+ * al comprobante, mientras que la polaridad y el porcentaje son del socio.
  */
 function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
   const montoRaw = Math.abs(parseFloat(String(raw?.monto || 0).replace(/,/g, '')) || 0);
   const divisaRaw = String(raw?.moneda || 'USDT').toUpperCase().trim();
-  const tipoOp = String(raw?.tipo_manual || raw?.tipo_op || 'D').toUpperCase().trim().charAt(0); // 'D' (Depósito) o 'P' (Pago)
+  const tipoOp = String(raw?.tipo_manual || raw?.tipo_op || 'D').toUpperCase().trim().charAt(0); // 'D' o 'P'
 
   const loteCodigo = raw?.id_tasa || tasaLote?.id_tasa || 'T052';
   const mapaTasas = tasaLote?.tasas || {};
-
   const tasaBaseRawUSDT = parseFloat(mapaTasas[divisaRaw] || 1.0);
 
-  // --- FUNCIÓN DE CÁLCULO ESTANDARIZADA PARA CUALQUIER SOCIO ---
-  const procesarLadoSocio = (socioData, op) => {
+  const procesarLadoSocio = (socioData) => {
     if (!socioData || !socioData.nombre || socioData.nombre.toUpperCase() === 'GENERAL') {
       return { mNominal: 0, meUSDT: 0, tasaEfectiva: 1.0 };
     }
 
     const monedaSocio = String(socioData.moneda_base || socioData.moneda_socio || 'USDT').toUpperCase().trim();
-    
-    // Extraer configuración limpia de perfiles_glaukov
     const monedasConfig = typeof socioData.monedas === 'object' && socioData.monedas !== null
       ? socioData.monedas 
       : {};
     
-    // Obtener la configuración específica para la divisa del comprobante (si no existe, usa neutra)
     const confDivisa = monedasConfig[divisaRaw] || { 
       activo: true, 
-      polaridad: '+', // Por defecto el depósito suma
+      polaridad: '+', 
       porcentaje: { deposito: 0, pago: 0 } 
     };
 
-    // 🟢 1. POLARIDAD CONTABLE (+1 o -1)
-    // El campo 'polaridad' define el impacto del DEPÓSITO. El pago es siempre el opuesto.
+    // 🟢 1. POLARIDAD CONTABLE
+    // 'polaridad' define el comportamiento ante un Depósito ('D'). 'P' invierte la polaridad del socio.
     const depositoSuma = confDivisa.polaridad === '+' || confDivisa.polaridad === undefined;
     let signoMonto;
-    if (op === 'D') {
+    if (tipoOp === 'D') {
       signoMonto = depositoSuma ? 1 : -1;
     } else { // 'P'
       signoMonto = depositoSuma ? -1 : 1;
     }
 
-    // 🟢 2. FACTOR COMERCIAL DE LA TASA (Absoluto)
-    // Depósito siempre suma porcentaje (>= 1.0) / Pago siempre resta porcentaje (<= 1.0)
+    // 🟢 2. FACTOR COMERCIAL DE TASA
     const pctD = Math.abs(confDivisa.porcentaje?.deposito || 0);
     const pctP = Math.abs(confDivisa.porcentaje?.pago || 0);
-    const factorAbs = op === 'D' ? (1 + (pctD / 100)) : (1 - (pctP / 100));
+    const factorAbs = tipoOp === 'D' ? (1 + (pctD / 100)) : (1 - (pctP / 100));
 
     // 🟢 3. CRUCE DE TASAS
     const tasaBaseSocioUSDT = parseFloat(mapaTasas[monedaSocio] || 1.0);
@@ -110,23 +105,21 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote) {
     return { mNominal, meUSDT, tasaEfectiva };
   };
 
-  // Procesamos al Socio 1 (El que envía o recibe principal)
-  const calc1 = procesarLadoSocio(socio1Data, tipoOp);
-  
-  // Procesamos al Socio 2 (Contraparte, si existe, asume la misma operación 'tipoOp')
-  const calc2 = procesarLadoSocio(socio2Data, tipoOp);
+  const calc1 = procesarLadoSocio(socio1Data);
+  const calc2 = procesarLadoSocio(socio2Data);
+
+  const etiquetaOpComprobante = `${tipoOp}-${divisaRaw}`;
 
   return {
     hash_largo: raw.hash_largo,
     socio_1: socio1Data?.nombre || 'GENERAL',
-    tipo_op1: `${tipoOp}-${divisaRaw}`,
+    tipo_op1: etiquetaOpComprobante,
     monto_1: isNaN(calc1.mNominal) ? 0 : calc1.mNominal,
     tasa_1: isNaN(calc1.tasaEfectiva) ? 1.0 : calc1.tasaEfectiva,
     me1: isNaN(calc1.meUSDT) ? 0 : calc1.meUSDT,
 
     socio_2: socio2Data?.nombre && socio2Data.nombre.toUpperCase() !== 'GENERAL' ? socio2Data.nombre : null,
-    // Nota histórica: El código anterior invertía la operación a 'P' para el socio 2 si el socio 1 era 'D'
-    tipo_op2: `${tipoOp === 'D' ? 'P' : 'D'}-${divisaRaw}`, 
+    tipo_op2: etiquetaOpComprobante, // 🟢 La etiqueta de operación es idéntica
     monto_2: isNaN(calc2.mNominal) ? 0 : calc2.mNominal,
     tasa_2: isNaN(calc2.tasaEfectiva) ? 1.0 : calc2.tasaEfectiva,
     me2: isNaN(calc2.meUSDT) ? 0 : calc2.meUSDT,
