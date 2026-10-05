@@ -229,7 +229,7 @@ function registrarAppAlpine() {
         window.open(this.imagenPreviewUrl, '_blank');
       } catch (err) {
         console.error('Error generando preview de imagen:', err);
-      } finally {
+      } fontalmente {
         this.cargandoPreviewImagen = false;
       }
     },
@@ -280,7 +280,8 @@ function registrarAppAlpine() {
       }
     },
 
-    async enviarTasaIndividual(socioObj) {
+    // 🟢 FUNCIÓN ACTUALIZADA: Acepta 'fuerzaModoPrueba' explícito (true/false) desde el modal
+    async enviarTasaIndividual(socioObj, fuerzaModoPrueba = null) {
       if (!this.loteActivo) {
         alert('No hay un lote activo en producción para enviar.');
         return;
@@ -290,7 +291,8 @@ function registrarAppAlpine() {
         return;
       }
       
-      const modoTexto = this.modoPruebaActivo ? '🧪 [GRUPO PRUEBA]' : '🚀 [PRODUCCIÓN]';
+      const esPrueba = fuerzaModoPrueba !== null ? Boolean(fuerzaModoPrueba) : Boolean(this.modoPruebaActivo);
+      const modoTexto = esPrueba ? '🧪 [GRUPO PRUEBA]' : '🚀 [PRODUCCIÓN]';
 
       if (!socioObj.whatsapp && !socioObj.id_grupo) {
          if (!confirm(`⚠️ El socio ${socioObj.nombre} NO parece tener WhatsApp configurado. ¿Intentar enviar en modo ${modoTexto}?`)) return;
@@ -299,7 +301,7 @@ function registrarAppAlpine() {
       }
       
       try {
-        await window.AteneaAPI.reenviarTasaSocio(this.loteActivo, socioObj.nombre, this.modoPruebaActivo);
+        await window.AteneaAPI.reenviarTasaSocio(this.loteActivo, socioObj.nombre, esPrueba);
         alert(`✅ Cartelera de ${socioObj.nombre} despachada ${modoTexto}.`);
       } catch (err) {
         console.error(err);
@@ -377,7 +379,6 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 APERTURA DE MODAL: Carga estrictamente las monedas que existen en la BD del socio
     abrirConfigSocio(socioObj) {
       let monedasConfig = socioObj.monedas;
       if (typeof monedasConfig === 'string') {
