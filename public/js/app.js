@@ -103,12 +103,21 @@ function registrarAppAlpine() {
       socio.mostrar = mostrarObj;
     },
 
-    async toggleEstadoSocio(socio) {
+   async toggleEstadoSocio(socio) {
       if (!socio) return;
       try {
-        const nuevoEstado = !socio.activo;
+        let mostrarObj = typeof socio.mostrar === 'string' ? JSON.parse(socio.mostrar || '{}') : (socio.mostrar || {});
+        mostrarObj = (typeof mostrarObj === 'object' && mostrarObj !== null) ? mostrarObj : {};
+
+        // Invierte el estado actual de tasas
+        const nuevoEstado = !Boolean(mostrarObj.tasas ?? socio.activo ?? true);
+
         socio.activo = nuevoEstado;
+        mostrarObj.tasas = nuevoEstado;
+        socio.mostrar = mostrarObj;
+
         await window.AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
+        await this.cargarDirectorio(); // Refresca para mantener sincronizados interfaz y BD
       } catch (err) {
         console.error('[Glaukov UI ❌ Error al cambiar estado socio WA]', err);
       }
@@ -343,10 +352,29 @@ function registrarAppAlpine() {
       }
     },
 
-    async cargarDirectorio() {
+   async cargarDirectorio() {
       try {
         const res = await window.AteneaAPI.getDirectorio();
-        this.directorio = Array.isArray(res) ? res : [];
+        const rawList = Array.isArray(res) ? res : [];
+
+        // 🟢 Normaliza 'mostrar.tasas' de PostgreSQL hacia 'socio.activo' en Alpine.js
+        this.directorio = rawList.map(s => {
+          let mostrarObj = s.mostrar;
+          if (typeof mostrarObj === 'string') {
+            try { mostrarObj = JSON.parse(mostrarObj); } catch (e) { mostrarObj = {}; }
+          }
+          mostrarObj = (typeof mostrarObj === 'object' && mostrarObj !== null) ? mostrarObj : {};
+
+          const estaActivo = mostrarObj.tasas ?? s.activo ?? true;
+
+          return {
+            ...s,
+            mostrar: mostrarObj,
+            activo: Boolean(estaActivo),
+            mostrar_dashboard: Boolean(mostrarObj.dashboard ?? s.mostrar_dashboard ?? true)
+          };
+        });
+
         if (this.filtroSocio) {
           const socioNom = this.filtroSocio.trim().toUpperCase();
           const socioFound = this.directorio.find(d => (d.nombre || '').trim().toUpperCase() === socioNom);
