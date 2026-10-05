@@ -1,0 +1,57 @@
+<!-- MODAL: AUDITAR & LIQUIDAR COMPROBANTE -->
+<div x-show="modalAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/80 backdrop-blur-md" x-cloak>
+  <div class="bg-[#080e26] border border-blue-900/80 rounded-2xl w-[95vw] max-w-2xl p-4 sm:p-5 space-y-3.5 shadow-2xl relative max-h-[90vh] overflow-y-auto" @click.away="modalAbierto = false">
+    <div class="flex items-center justify-between border-b border-blue-900/60 pb-2.5">
+      <span class="text-cyan-400 font-black text-sm sm:text-base">✏️ Auditar & Liquidar Comprobante</span>
+      <button type="button" @click="modalAbierto = false" class="text-slate-400 hover:text-white text-base font-bold p-1">✕</button>
+    </div>
+
+    <template x-if="itemEdicion">
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#030611] p-2.5 rounded-xl border border-blue-900/60">
+          <div>
+            <label class="block text-[8px] font-bold text-slate-400 uppercase mb-0.5">Banco</label>
+            <input type="text" x-model="itemEdicion.banco" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1.5 text-xs text-white font-bold outline-none uppercase">
+          </div>
+          <div>
+            <label class="block text-[8px] font-bold text-slate-400 uppercase mb-0.5">Nº Referencia</label>
+            <input type="text" x-model="itemEdicion.referencia" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1.5 text-xs text-cyan-300 font-mono font-bold outline-none">
+          </div>
+          <div>
+            <label class="block text-[8px] font-bold text-slate-400 uppercase mb-0.5">Titular Cuenta</label>
+            <input type="text" x-model="itemEdicion.titular" class="w-full bg-[#080e26] border border-blue-900/80 rounded-lg px-2 py-1.5 text-xs text-white font-bold outline-none uppercase">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-0.5">Socio 1 (Impacto)</label>
+            <select :value="itemEdicion.nombre_socio_1 || 'GENERAL'" @change="itemEdicion.nombre_socio_1 = $event.target.value" class="w-full bg-[#030611] border border-cyan-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
+              <option value="GENERAL">GENERAL</option>
+              <template x-for="s in directorio" :key="'ed-s1-'+s.nombre">
+                <option :value="s.nombre" x-text="s.nombre" :selected="s.nombre === itemEdicion.nombre_socio_1"></option>
+              </template>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-pink-400 uppercase mb-0.5">Socio 2 (Contraparte)</label>
+            <select :value="itemEdicion.nombre_socio_2 || 'GENERAL'" @change="itemEdicion.nombre_socio_2 = $event.target.value" class="w-full bg-[#030611] border border-pink-500/40 rounded-xl px-2 py-1.5 text-xs text-white font-bold outline-none">
+              <option value="GENERAL">GENERAL</option>
+              <template x-for="s in directorio" :key="'ed-s2-'+s.nombre">
+                <option :value="s.nombre" x-text="s.nombre" :selected="s.nombre === itemEdicion.nombre_socio_2"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-2 border-t border-blue-900/60 gap-2">
+          <button type="button" @click="releerIAModal()" class="px-3 py-2 bg-purple-950/80 border border-purple-500/50 text-purple-300 rounded-xl font-bold">🤖 Releer IA</button>
+          <div class="flex gap-1.5">
+            <button type="button" @click="modalAbierto = false" class="px-3.5 py-2 bg-blue-950 text-slate-300 rounded-xl font-bold border border-blue-900">Cancelar</button>
+            <button type="button" @click="guardarCambios()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl font-black shadow-lg">💾 Guardar & Congelar</button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
