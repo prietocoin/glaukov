@@ -36,10 +36,12 @@ async function guardarSocioConfig(payload) {
     moneda_base,
     saldo_inicial,
     mostrar,
-    monedas
+    monedas,
+    herencia
   } = payload;
 
   const nombreClean = String(nombre || '').trim().toUpperCase();
+  const herenciaBool = Boolean(herencia);
 
   // Objeto 'mostrar' por defecto si no viene en el payload
   const mostrarObj = typeof mostrar === 'object' && mostrar !== null
@@ -59,8 +61,9 @@ async function guardarSocioConfig(payload) {
       moneda_base = $3,
       saldo_inicial = $4,
       mostrar = $5::jsonb,
-      monedas = $6::jsonb
-    WHERE UPPER(TRIM(nombre)) = $7
+      monedas = $6::jsonb,
+      herencia = $7::boolean
+    WHERE UPPER(TRIM(nombre)) = $8
     RETURNING *;
   `;
 
@@ -71,6 +74,7 @@ async function guardarSocioConfig(payload) {
     parseFloat(saldo_inicial) || 0,
     mostrarJson,
     monedasJson,
+    herenciaBool,
     nombreClean
   ];
 
@@ -80,9 +84,9 @@ async function guardarSocioConfig(payload) {
   if (rows.length === 0) {
     const insertQuery = `
       INSERT INTO perfiles_glaukov (
-        id_grupo, nombre, rol, moneda_base, saldo_inicial, mostrar, monedas
+        id_grupo, nombre, rol, moneda_base, saldo_inicial, mostrar, monedas, herencia
       )
-      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::boolean)
       RETURNING *;
     `;
     const insertValues = [
@@ -92,7 +96,8 @@ async function guardarSocioConfig(payload) {
       (moneda_base || 'USDT').toUpperCase(),
       parseFloat(saldo_inicial) || 0,
       mostrarJson,
-      monedasJson
+      monedasJson,
+      herenciaBool
     ];
     const insertRes = await db.query(insertQuery, insertValues);
     return insertRes.rows[0];
