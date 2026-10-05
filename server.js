@@ -1,32 +1,41 @@
+/**
+ * @file server.js
+ * @description Punto de entrada principal y orquestador HTTP/Worker de Glaukov Engine.
+ * Monta los enrutadores de micro-módulos y arranca los consumidores de colas.
+ */
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-// 1. Inicializar Workers en Segundo Plano (BullMQ)
-require('./src/workers/tasas.worker');
+// 1. Inicialización de Workers en Segundo Plano (BullMQ)
+require('./src/workers/tasasWorker');
 require('./src/workers/liquidacion.worker');
 
-// 2. Cargar enrutador modular de Atenea
-const ateneaRoutes = require('./src/modules/atenea/routes/atenea.routes');
+// 2. Importación de Enrutadores Modulares
+const tasasRoutes = require('./src/modules/tasas/routes/tasasRoutes');
+const sociosRoutes = require('./src/modules/socios/routes/sociosRoutes');
+const comprobantesRoutes = require('./src/modules/comprobantes/routes/comprobantesRoutes');
+const reportesRoutes = require('./src/modules/reportes/routes/reportesRoutes');
+const adminRoutes = require('./src/modules/admin/routes/adminRoutes');
 
 const app = express();
 
 // Middlewares
 app.use(cors());
-
-// 🟢 Aumentar el límite a 50mb para recibir reportes e imágenes Base64 pesadas sin PayloadTooLargeError
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Servir archivos estáticos del Dashboard (public/index.html, logos, etc.)
+// Servir archivos estáticos del Dashboard (public/index.html, logos, componentes)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Montaje de APIs del módulo Atenea
-app.use('/api/v1/atenea', ateneaRoutes);
-
-// Compatibilidad con rutas directas (/api/comprobantes, /api/directorio, etc.)
-app.use('/api', ateneaRoutes);
+// 3. Montaje de Rutas por Dominio de Negocio
+app.use('/api/tasas', tasasRoutes);
+app.use('/api/socios', sociosRoutes);
+app.use('/api/comprobantes', comprobantesRoutes);
+app.use('/api/reportes', reportesRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Ruta de Salud / Health Check
 app.get('/health', (req, res) => {
