@@ -1,14 +1,27 @@
+<!-- ================================================================= -->
+<!-- ARCHIVO: CardHeader.html                                          -->
+<!-- RESPONSABILIDAD: Cabecera superior de la tarjeta (Monto/Banco)   -->
+<!-- LÍNEAS APROX: ~25 líneas                                         -->
+<!-- ================================================================= -->
+
 <div class="flex items-start justify-between gap-2 border-b border-blue-900/30 pb-2">
+  
+  <!-- LADO IZQUIERDO: Monto principal y moneda de origen -->
   <div class="flex items-baseline gap-1 min-w-0">
+    <!-- EVALUACIÓN DINÁMICA: Aplica Verde (Emerald) para montos positivos y Rojo (Rose) para negativos -->
     <span class="text-xl sm:text-2xl font-black tracking-tight truncate" 
           :class="parseFloat(item.monto || item.monto_local) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
           x-text="formatMonto(item.monto || item.monto_local)"></span>
+    
     <span class="text-xs font-black text-slate-300 whitespace-nowrap" 
           x-text="item.moneda || item.moneda_local || 'PEN'"></span>
   </div>
+
+  <!-- LADO DERECHO: Datos del titular extraídos por IA o ingresados manualmente -->
   <div class="flex flex-col items-end text-right text-[9px] md:text-[10px] font-mono leading-tight max-w-[130px] shrink-0">
     <span class="text-slate-200 font-bold uppercase truncate w-full" x-text="item.titular || 'TITULAR NO DEFINIDO'"></span>
     <span class="text-slate-400 uppercase truncate w-full" x-text="item.banco || 'BANCO'"></span>
     <span class="text-cyan-400 font-bold w-full truncate" x-text="'Ref: ' + (item.referencia || 'N/A')"></span>
   </div>
+
 </div>
