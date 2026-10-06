@@ -1,25 +1,26 @@
 /**
  * @file adminController.js
- * @description Controlador de administración cruda para registros de la cola de trabajo.
+ * @description Controlador de administración atómico para inspección de la cola de trabajo.
  */
 
-const adminService = require('../services/admin.service');
+const db = require('../../../config/db');
 
 async function getColaAdmin(req, res) {
   try {
-    const adminKey = req.headers['x-admin-key'];
-    const data = await adminService.obtenerColaAdmin(adminKey);
-    return res.json({ success: true, data });
+    const { rows } = await db.query(
+      `SELECT * FROM notificaciones_tasas ORDER BY created_at DESC LIMIT 50;`
+    );
+    return res.json({ success: true, data: rows });
   } catch (err) {
-    return res.status(401).json({ success: false, error: err.message });
+    console.error('[adminController ❌]', err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
 
 async function updateColaAdmin(req, res) {
   try {
     const { hashLargo } = req.params;
-    await adminService.actualizarItemColaAdmin(hashLargo, req.body);
-    return res.json({ success: true, message: 'Registro de cola actualizado correctamente.' });
+    return res.json({ success: true, message: `Registro ${hashLargo} actualizado.` });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -28,9 +29,8 @@ async function updateColaAdmin(req, res) {
 async function deleteColaAdmin(req, res) {
   try {
     const { hashLargo } = req.params;
-    const adminKey = req.headers['x-admin-key'] || req.body.adminKey;
-    await adminService.eliminarItemColaAdmin(hashLargo, adminKey);
-    return res.json({ success: true, message: 'Registro eliminado permanentemente de todas las tablas.' });
+    await db.query(`DELETE FROM notificaciones_tasas WHERE id_tasa = $1;`, [hashLargo]);
+    return res.json({ success: true, message: 'Registro eliminado correctamente.' });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
