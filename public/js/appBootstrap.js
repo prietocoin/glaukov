@@ -1,6 +1,6 @@
 /**
  * @file appBootstrap.js
- * @description Inicializador determinista con sincronización total de Alpine.js.
+ * @description Bootstrapper principal de Atenea V2.0.
  */
 
 import { LISTA_MONEDAS_ACTIVAS, obtenerInfoMonedasMaestra } from './constants/listaMonedasActivas.js';
@@ -18,76 +18,64 @@ import { obtenerComprobantes, prepararEdicionComprobante, guardarCambiosComproba
 import { solicitarRelecturaIA } from './services/comprobantesIaService.js';
 import { calcularMovimientoFiltradoTotal, calcularSociosPendientesConsolidado } from './services/consolidadoSaldosService.js';
 
-async function iniciarAplicacion() {
-  console.log('[Atenea 🚀] Descargando plantillas HTML...');
-  
-  // 1. Cargar e inyectar físicamente todo el HTML en la página
-  await cargarComponentes();
+function registrarApp() {
+  Alpine.data('app', () => ({
+    vistaActiva: 'dashboard',
+    vistaDashboardSubmenu: 'balance',
+    loteSeleccionadoInspector: '',
+    comprobantes: [],
+    directorio: [],
+    socios: [],
+    filtroSocio: '',
+    filtroFechaInicio: '',
+    filtroFechaFin: '',
+    listaMonedasActivas: LISTA_MONEDAS_ACTIVAS,
+    modoPruebaActivo: false,
+    loteActivo: '',
+    tasasProduccion: {},
+    borradorCapturado: {},
+    historialTasas: [],
+    socioConfigEdit: null,
+    modalConfigSocioAbierto: false,
+    modalAbierto: false,
+    itemEdicion: null,
 
-  // 2. Registrar el estado reactivo en Alpine
-  if (window.Alpine) {
-    Alpine.data('app', () => ({
-      vistaActiva: 'dashboard',
-      vistaDashboardSubmenu: 'balance',
-      loteSeleccionadoInspector: '',
-      comprobantes: [],
-      directorio: [],
-      socios: [],
-      filtroSocio: '',
-      filtroFechaInicio: '',
-      filtroFechaFin: '',
-      listaMonedasActivas: LISTA_MONEDAS_ACTIVAS,
-      modoPruebaActivo: false,
-      loteActivo: '',
-      tasasProduccion: {},
-      borradorCapturado: {},
-      historialTasas: [],
-      socioConfigEdit: null,
-      modalConfigSocioAbierto: false,
-      modalAbierto: false,
-      itemEdicion: null,
+    get infoMonedasMaestra() { return obtenerInfoMonedasMaestra(); },
 
-      get infoMonedasMaestra() { return obtenerInfoMonedasMaestra(); },
+    async init() {
+      console.log('[Atenea 🚀] Cargando componentes e inyectando vistas...');
+      await cargarComponentes();
+      await Promise.all([
+        this.cargarTasasMercado(),
+        this.cargarDirectorio(),
+        this.cargarComprobantes()
+      ]);
+    },
 
-      async init() {
-        console.log('[Atenea 🟢] Alpine hidratado correctamente.');
-        await Promise.all([
-          this.cargarTasasMercado(),
-          this.cargarDirectorio(),
-          this.cargarComprobantes()
-        ]);
-      },
-
-      async cargarDirectorio() { this.directorio = await obtenerDirectorioNormalizado() || []; },
-      async toggleEstadoSocio(socio) { await alternarEstadoSocioWA(socio); await this.cargarDirectorio(); },
-      async toggleHerenciaSocio(socio) { await alternarHerenciaSocio(socio); await this.cargarDirectorio(); },
-      async cargarTasasMercado() { const t = await obtenerTasasVigentes(); this.loteActivo = t?.id_tasa || ''; this.tasasProduccion = t?.tasas || {}; },
-      async conectarHooAPI() { const b = await capturarBorradorHoo(); if (b) this.borradorCapturado = b; },
-      async publicarTasaOficial() { const id = await publicarBorradorTasa(this.borradorCapturado, this.modoPruebaActivo); if (id) this.loteActivo = id; },
-      async reenviarTasaActual() { await reenviarLoteCompleto(this.loteActivo, this.modoPruebaActivo); },
-      async enviarTasaIndividual(socio, fPrueba = null) { await despacharTasaIndividual(this.loteActivo, socio, fPrueba, this.modoPruebaActivo); },
-      calcularTasaEnVivo(code, pct, esResta) { return calcularTasaEnVivo(this.tasasProduccion[code], pct, esResta); },
-      abrirConfigSocio(socio) { this.socioConfigEdit = prepararEdicionSocio(socio, this.infoMonedasMaestra); this.modalConfigSocioAbierto = true; },
-      async guardarConfigSocioModal() { await guardarConfiguracionSocio(this.socioConfigEdit); this.modalConfigSocioAbierto = false; await this.cargarDirectorio(); },
-      getTallaClass(socio) { return obtenerClaseTalla(socio); },
-      async cargarComprobantes() { this.comprobantes = await obtenerComprobantes({ socio: this.filtroSocio }) || []; },
-      abrirModal(item) { this.itemEdicion = prepararEdicionComprobante(item, this.loteActivo); this.modalAbierto = true; },
-      async guardarCambios() { if (await guardarCambiosComprobante(this.itemEdicion?.hash_largo, this.itemEdicion, this.loteActivo)) { this.modalAbierto = false; await this.cargarComprobantes(); } },
-      async releerIAModal() { if (await solicitarRelecturaIA(this.itemEdicion?.hash_largo)) { this.modalAbierto = false; await this.cargarComprobantes(); } },
-      async eliminarComprobante(hash) { if (await eliminarComprobantePorHash(hash)) { this.modalAbierto = false; await this.cargarComprobantes(); } },
-      get movimientoFiltradoTotal() { return calcularMovimientoFiltradoTotal(this.comprobantes, this.filtroSocio); },
-      get sociosPendientesConsolidado() { return calcularSociosPendientesConsolidado(this.directorio, this.comprobantes, { fechaInicio: this.filtroFechaInicio, fechaFin: this.filtroFechaFin }); }
-    }));
-
-    // 3. Forzar a Alpine a renderizar todo el árbol HTML recién inyectado
-    window.Alpine.initTree(document.body);
-  } else {
-    console.error('[Atenea ❌] Alpine.js no está disponible.');
-  }
+    async cargarDirectorio() { this.directorio = await obtenerDirectorioNormalizado() || []; },
+    async toggleEstadoSocio(socio) { await alternarEstadoSocioWA(socio); await this.cargarDirectorio(); },
+    async toggleHerenciaSocio(socio) { await alternarHerenciaSocio(socio); await this.cargarDirectorio(); },
+    async cargarTasasMercado() { const t = await obtenerTasasVigentes(); this.loteActivo = t?.id_tasa || ''; this.tasasProduccion = t?.tasas || {}; },
+    async conectarHooAPI() { const b = await capturarBorradorHoo(); if (b) this.borradorCapturado = b; },
+    async publicarTasaOficial() { const id = await publicarBorradorTasa(this.borradorCapturado, this.modoPruebaActivo); if (id) this.loteActivo = id; },
+    async reenviarTasaActual() { await reenviarLoteCompleto(this.loteActivo, this.modoPruebaActivo); },
+    async enviarTasaIndividual(socio, fPrueba = null) { await despacharTasaIndividual(this.loteActivo, socio, fPrueba, this.modoPruebaActivo); },
+    calcularTasaEnVivo(code, pct, esResta) { return calcularTasaEnVivo(this.tasasProduccion[code], pct, esResta); },
+    abrirConfigSocio(socio) { this.socioConfigEdit = prepararEdicionSocio(socio, this.infoMonedasMaestra); this.modalConfigSocioAbierto = true; },
+    async guardarConfigSocioModal() { await guardarConfiguracionSocio(this.socioConfigEdit); this.modalConfigSocioAbierto = false; await this.cargarDirectorio(); },
+    getTallaClass(socio) { return obtenerClaseTalla(socio); },
+    async cargarComprobantes() { this.comprobantes = await obtenerComprobantes({ socio: this.filtroSocio }) || []; },
+    abrirModal(item) { this.itemEdicion = prepararEdicionComprobante(item, this.loteActivo); this.modalAbierto = true; },
+    async guardarCambios() { if (await guardarCambiosComprobante(this.itemEdicion?.hash_largo, this.itemEdicion, this.loteActivo)) { this.modalAbierto = false; await this.cargarComprobantes(); } },
+    async releerIAModal() { if (await solicitarRelecturaIA(this.itemEdicion?.hash_largo)) { this.modalAbierto = false; await this.cargarComprobantes(); } },
+    async eliminarComprobante(hash) { if (await eliminarComprobantePorHash(hash)) { this.modalAbierto = false; await this.cargarComprobantes(); } },
+    get movimientoFiltradoTotal() { return calcularMovimientoFiltradoTotal(this.comprobantes, this.filtroSocio); },
+    get sociosPendientesConsolidado() { return calcularSociosPendientesConsolidado(this.directorio, this.comprobantes, { fechaInicio: this.filtroFechaInicio, fechaFin: this.filtroFechaFin }); }
+  }));
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', iniciarAplicacion);
+if (window.Alpine) {
+  registrarApp();
 } else {
-  iniciarAplicacion();
+  document.addEventListener('alpine:init', registrarApp);
 }
