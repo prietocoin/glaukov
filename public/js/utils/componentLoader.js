@@ -1,31 +1,36 @@
 /**
  * @file componentLoader.js
- * @description Inyector paralelo de plantillas con hidratación directa en Alpine v3.
+ * @description Inyector bloqueante pre-renderizado de componentes HTML.
  */
 
-export async function cargarComponentes() {
-  const nodos = Array.from(document.querySelectorAll('[x-include]'));
-  if (!nodos.length) return;
+async function esperarDOM() {
+  if (document.readyState === 'loading') {
+    await new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve));
+  }
+}
 
-  await Promise.all(nodos.map(async (el) => {
-    const url = el.getAttribute('x-include');
-    if (!url) return;
-    try {
-      const res = await fetch(url);
-      if (res.ok) {
-        el.innerHTML = await res.text();
+export async function cargarTodosLosComponentes() {
+  await esperarDOM();
+
+  let nodos = document.querySelectorAll('[x-include]');
+  while (nodos.length > 0) {
+    await Promise.all(
+      Array.from(nodos).map(async (el) => {
+        const url = el.getAttribute('x-include');
         el.removeAttribute('x-include');
-
-        // 🟢 Se elimina '.initialized' (inexistente en Alpine v3).
-        // Se fuerza la hidratación inmediata del nodo inyectado.
-        if (window.Alpine) {
-          window.Alpine.initTree(el);
+        if (!url) return;
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            el.innerHTML = await res.text();
+          } else {
+            console.error(`[componentLoader ❌] 404 en ${url}`);
+          }
+        } catch (err) {
+          console.error(`[componentLoader ❌] Error en ${url}:`, err.message);
         }
-      } else {
-        console.error(`[componentLoader ❌ 404] No existe: ${url}`);
-      }
-    } catch (err) {
-      console.error(`[componentLoader ❌ Error Red] ${url}:`, err.message);
-    }
-  }));
+      })
+    );
+    nodos = document.querySelectorAll('[x-include]');
+  }
 }
