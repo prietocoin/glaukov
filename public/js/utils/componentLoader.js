@@ -9,7 +9,7 @@ async function esperarDOM() {
   }
 }
 
-export async function cargarTodosLosComponentes() {
+export async function cargarComponentes() {
   await esperarDOM();
 
   let nodos = document.querySelectorAll('[x-include]');
