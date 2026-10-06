@@ -1,6 +1,6 @@
 /**
  * @file componentLoader.js
- * @description Inyector secuencial con trazabilidad para la directiva x-include.
+ * @description Inyector de HTML con re-hidratación automática para Alpine.js v3.
  */
 
 export async function cargarComponentes() {
@@ -15,7 +15,12 @@ export async function cargarComponentes() {
       if (res.ok) {
         el.innerHTML = await res.text();
         el.removeAttribute('x-include');
-        console.log(`[componentLoader ✅] Cargado: ${url}`);
+        console.log(`[componentLoader ✅] Cargado e inyectado: ${url}`);
+
+        // 🟢 Re-hidrata las directivas x-show / x-text de Alpine en el nodo inyectado
+        if (window.Alpine) {
+          window.Alpine.initTree(el);
+        }
       } else {
         console.error(`[componentLoader ❌ HTTP ${res.status}] Fallo en: ${url}`);
       }
