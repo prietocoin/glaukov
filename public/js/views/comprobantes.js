@@ -1,14 +1,13 @@
 // =================================================================
 // ARCHIVO: comprobantes.js (Ensamblador Principal)
-// RESPONSABILIDAD: Unifica sub-módulos y registra en Window para Alpine
+// UBICACIÓN: public/js/views/comprobantes.js
 // =================================================================
 
-// 1. IMPORTACIONES CON RUTAS ABSOLUTAS Y CACHE-BUSTER PARA EVITAR EL ERROR MIME 404
-import { comprobantesState } from '/js/views/comprobantes/comprobantesState.js?v=2.1';
-import { comprobantesCalculos } from '/js/views/comprobantes/comprobantesCalculos.js?v=2.1';
-import { comprobantesGetters } from '/js/views/comprobantes/comprobantesGetters.js?v=2.1';
-import { comprobantesAcciones } from '/js/views/comprobantes/comprobantesAcciones.js?v=2.1';
-import { comprobantesFormatters } from '/js/views/comprobantes/comprobantesFormatters.js?v=2.1';
+import { comprobantesState } from './comprobantes/comprobantesState.js';
+import { comprobantesCalculos } from './comprobantes/comprobantesCalculos.js';
+import { comprobantesGetters } from './comprobantes/comprobantesGetters.js';
+import { comprobantesAcciones } from './comprobantes/comprobantesAcciones.js';
+import { comprobantesFormatters } from './comprobantes/comprobantesFormatters.js';
 
 export function comprobantesView() {
   return {
@@ -20,13 +19,5 @@ export function comprobantesView() {
   };
 }
 
-// Registro explícito global y nativo en Alpine.js
-if (typeof window !== 'undefined') {
-  window.comprobantesView = comprobantesView;
-}
-
-document.addEventListener('alpine:init', () => {
-  if (typeof Alpine !== 'undefined') {
-    Alpine.data('comprobantesView', comprobantesView);
-  }
-});
+// Registro explícito en el objeto global
+window.comprobantesView = comprobantesView;
