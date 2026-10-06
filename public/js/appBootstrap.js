@@ -1,6 +1,6 @@
 /**
  * @file appBootstrap.js
- * @description Registro síncrono del estado reactivo de Alpine.js e integración de componentes.
+ * @description Secuencia de arranque determinista para Atenea V2.0.
  */
 
 import { LISTA_MONEDAS_ACTIVAS, obtenerInfoMonedasMaestra } from './constants/listaMonedasActivas.js';
@@ -18,9 +18,26 @@ import { obtenerComprobantes, prepararEdicionComprobante, guardarCambiosComproba
 import { solicitarRelecturaIA } from './services/comprobantesIaService.js';
 import { calcularMovimientoFiltradoTotal, calcularSociosPendientesConsolidado } from './services/consolidadoSaldosService.js';
 
-function registrarApp() {
-  // 🟢 REGISTRO SÍNCRONO INMEDIATO: Alpine ya reconoce "app" sin retardos de red
-  Alpine.data('app', () => ({
+function cargarAlpineCDN() {
+  return new Promise((resolve, reject) => {
+    if (window.Alpine) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js';
+    script.onload = () => resolve();
+    script.onerror = (err) => reject(err);
+    document.head.appendChild(script);
+  });
+}
+
+async function arrancar() {
+  console.log('[Atenea 1/3 🧩] Descargando componentes HTML...');
+  await cargarComponentes();
+
+  console.log('[Atenea 2/3 ⚡] Cargando motor Alpine.js...');
+  await cargarAlpineCDN();
+
+  console.log('[Atenea 3/3 🟢] Registrando estado y arrancando Alpine...');
+  window.Alpine.data('app', () => ({
     vistaActiva: 'dashboard',
     vistaDashboardSubmenu: 'balance',
     loteSeleccionadoInspector: '',
@@ -44,15 +61,6 @@ function registrarApp() {
     get infoMonedasMaestra() { return obtenerInfoMonedasMaestra(); },
 
     async init() {
-      // 1. Descarga e inyecta físicamente las plantillas HTML
-      await cargarComponentes();
-
-      // 2. Hidrata los elementos HTML recién inyectados dentro de este contexto
-      if (window.Alpine) {
-        window.Alpine.initTree(this.$el);
-      }
-
-      // 3. Consulta las APIs del servidor
       await Promise.all([
         this.cargarTasasMercado(),
         this.cargarDirectorio(),
@@ -80,10 +88,12 @@ function registrarApp() {
     get movimientoFiltradoTotal() { return calcularMovimientoFiltradoTotal(this.comprobantes, this.filtroSocio); },
     get sociosPendientesConsolidado() { return calcularSociosPendientesConsolidado(this.directorio, this.comprobantes, { fechaInicio: this.filtroFechaInicio, fechaFin: this.filtroFechaFin }); }
   }));
+
+  window.Alpine.start();
 }
 
-if (window.Alpine) {
-  registrarApp();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', arrancar);
 } else {
-  document.addEventListener('alpine:init', registrarApp);
+  arrancar();
 }
