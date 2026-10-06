@@ -5,9 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fundablock - Glaukov Engine Atenea V2.0</title>
 
+  <!-- PWA Y CONFIGURACIÓN TEMÁTICA -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#030611">
 
+  <!-- SCRIPTS PRINCIPALES Y ALPINE.JS -->
   <script src="/js/api.js?v=2.0"></script>
   <script type="module" src="/js/views/comprobantes.js?v=2.0"></script>
   <script type="module" src="/js/views/directorio.js?v=2.0"></script>
@@ -53,10 +55,10 @@
 
   <div class="flex flex-col md:flex-row min-h-screen">
     
-    <!-- BARRA LATERAL NAV PRINCIPAL -->
+    <!-- NAVEGACIÓN LATERAL PRINCIPAL -->
     <%- include('./components/layout/Sidebar.html') %>
 
-    <!-- CONTENIDO PRINCIPAL -->
+    <!-- ÁREA DE CONTENIDO DINÁMICO -->
     <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
       
       <!-- VISTA 0: DASHBOARD DEDICADO -->
@@ -65,9 +67,16 @@
         <%- include('./components/dashboard/InspeccionLotes.html') %>
       </div>
 
-      <!-- VISTA 1: COMPROBANTES -->
+      <!-- VISTA 1: AUDITORÍA DE COMPROBANTES (ESTRUCTURA COMPLETA) -->
       <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4">
-       <%- include('./components/comprobantes/ListaComprobantesCards.html') %>
+        <!-- 1. Encabezado principal, botones de acción y los 5 KPIs contables -->
+        <%- include('./components/comprobantes/HeaderKPIs.html') %>
+
+        <!-- 2. Barra de los 8 filtros de búsqueda y ordenamiento -->
+        <%- include('./components/comprobantes/BarraFiltrosAuditoria.html') %>
+
+        <!-- 3. Grilla interactiva con tarjetas de comprobantes -->
+        <%- include('./components/comprobantes/ListaComprobantesCards.html') %>
       </div>
 
       <!-- VISTA 2: CARTELERA DE TASAS -->
@@ -83,7 +92,7 @@
     </main>
   </div>
 
-  <!-- MODALES INDIVIDUALES -->
+  <!-- COMPONENTES MODALES FLOTANTES -->
   <%- include('./components/directorio/ModalConfigSocio.html') %>
   <%- include('./components/comprobantes/ModalEditarComprobante.html') %>
   <%- include('./components/comprobantes/ModalVisorImagen.html') %>
