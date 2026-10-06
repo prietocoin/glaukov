@@ -1,28 +1,28 @@
 /**
  * @file componentLoader.js
- * @description Inyector de HTML con re-hidratación explícita para Alpine.js.
+ * @description Inyector paralelo de componentes HTML con soporte Alpine.js.
  */
 
 export async function cargarComponentes() {
-  const nodos = document.querySelectorAll('[x-include]');
-  for (const el of nodos) {
+  const nodos = Array.from(document.querySelectorAll('[x-include]'));
+  if (!nodos.length) return;
+
+  await Promise.all(nodos.map(async (el) => {
     const url = el.getAttribute('x-include');
-    if (!url) continue;
+    if (!url) return;
     try {
       const res = await fetch(url);
       if (res.ok) {
         el.innerHTML = await res.text();
         el.removeAttribute('x-include');
-        
-        // 🟢 CLAVE: Obliga a Alpine a procesar las directivas (x-show, x-text) del HTML inyectado
-        if (window.Alpine) {
+        if (window.Alpine && window.Alpine.initialized) {
           window.Alpine.initTree(el);
         }
       } else {
-        console.warn(`[componentLoader ⚠️] No se pudo cargar: ${url}`);
+        console.error(`[componentLoader ❌ 404] No existe la plantilla: ${url}`);
       }
     } catch (err) {
-      console.error(`[componentLoader ❌] Error cargando ${url}:`, err);
+      console.error(`[componentLoader ❌ Error Network] Fallo al pedir ${url}:`, err.message);
     }
-  }
+  }));
 }
