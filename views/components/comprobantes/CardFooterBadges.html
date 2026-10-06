@@ -1,14 +1,15 @@
 <!-- ================================================================= -->
 <!-- ARCHIVO: CardFooterBadges.html                                    -->
 <!-- UBICACIÓN: views/components/comprobantes/                         -->
-<!-- RESPONSABILIDAD: Recibo R2, insignias x2 / ME2 y acciones        -->
+<!-- RESPONSABILIDAD: Recibo R2, insignias x2 / ME1 / ME2 y acciones   -->
+<!-- LÍNEAS APROX: ~45 líneas                                         -->
 <!-- ================================================================= -->
 
 <div class="flex items-stretch gap-2.5 h-44 sm:h-48">
   
   <!-- VISOR DE IMAGEN R2 -->
   <div class="w-28 shrink-0 bg-[#010309] border border-blue-900/60 rounded-xl overflow-hidden p-1 flex items-center justify-center relative group">
-    <button @click="verDetalleImagen(item)" class="w-full h-full flex items-center justify-center" title="Ampliar imagen">
+    <button @click="abrirModalEdicion(item)" class="w-full h-full flex items-center justify-center" title="Ampliar / Auditar recibo">
       <template x-if="item.url_r2 || item.url_imagen">
         <img :src="item.url_r2 || item.url_imagen" class="w-full h-full object-contain rounded-lg opacity-90 group-hover:opacity-100 transition-opacity" alt="Recibo">
       </template>
@@ -18,48 +19,47 @@
     </button>
   </div>
 
-  <!-- COLUMNA DE METADATOS Y BADGES -->
+  <!-- METADATOS, BADGES Y BOTONERA -->
   <div class="flex-1 min-w-0 flex flex-col justify-between gap-1 py-0.5">
     
     <!-- Hash Corto -->
     <span class="w-full text-center py-0.5 rounded bg-slate-800/90 text-slate-300 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700 truncate px-1 shadow" 
           title="Hash de verificación" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></span>
     
-    <!-- Naturaleza Operación + Badge x2 -->
+    <!-- Tipo de Operación usando claseInsignia() + Badge x2 -->
     <div class="flex gap-1 w-full">
       <span class="flex-1 text-center py-0.5 rounded text-[9px] font-bold border whitespace-nowrap" 
-            :class="(item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').startsWith('P') ? 'bg-amber-950 text-amber-300 border-amber-500/40' : ((item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').startsWith('A') ? 'bg-purple-950 text-purple-300 border-purple-500/40' : 'bg-cyan-950 text-cyan-300 border-cyan-500/40')" 
-            x-text="(item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0]"></span>
+            :class="claseInsignia((item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0])" 
+            x-text="(item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0]"></span>
       
-      <!-- Insignia x2 visible solo si existe Socio 2 -->
-      <span x-show="(item.nombre_socio_2 || item.socio_2) && (item.nombre_socio_2 || item.socio_2) !== 'GENERAL' && (item.nombre_socio_2 || item.socio_2) !== 'NO DEFINIDO'" 
+      <!-- Badge x2 visible si existe Socio 2 -->
+      <span x-show="(item.socio_2 || item.nombre_socio_2) && (item.socio_2 || item.nombre_socio_2) !== 'GENERAL' && (item.socio_2 || item.nombre_socio_2) !== 'NO DEFINIDO'" 
             class="flex-1 text-center py-0.5 rounded bg-amber-950 text-amber-300 text-[9px] font-bold border border-amber-500/40 whitespace-nowrap">x2</span>
     </div>
 
-    <!-- Lote & IA Status -->
+    <!-- Lote de Tasa asignado & Status IA -->
     <div class="flex gap-1 w-full">
       <span class="flex-1 text-center py-0.5 rounded bg-purple-950 text-purple-300 text-[8px] md:text-[9px] font-bold border border-purple-500/40 truncate px-0.5" 
-            x-text="item.lote_tasa_asignado || item.lote_tasa || loteActivo || 'T-ND'"></span>
+            x-text="item.id_tasa || item.lote_tasa_asignado || item.lote_tasa || 'T-ND'"></span>
       
       <span x-show="item.procesado_ia" class="flex-1 text-center py-0.5 rounded bg-emerald-950 text-emerald-300 text-[9px] font-bold border border-emerald-500/40 flex items-center justify-center whitespace-nowrap">✓ IA</span>
     </div>
 
-    <!-- ME1 / ME2 -->
+    <!-- ME1 / ME2 llamando directamente a los getters del controller -->
     <div class="flex flex-col gap-0.5 mt-auto">
       <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
-           x-text="'ME1:' + formatMonto(item.me1 !== undefined && item.me1 !== null ? item.me1 : (item.monto_1 || item.monto || 0))"></div>
+           x-text="'ME1:' + formatMonto(obtenerME1(item))"></div>
       
-      <!-- Fila ME2 visible solo si existe Socio 2 -->
-      <template x-if="(item.nombre_socio_2 || item.socio_2) && (item.nombre_socio_2 || item.socio_2) !== 'GENERAL' && (item.nombre_socio_2 || item.socio_2) !== 'NO DEFINIDO'">
+      <template x-if="(item.socio_2 || item.nombre_socio_2) && (item.socio_2 || item.nombre_socio_2) !== 'GENERAL' && (item.socio_2 || item.nombre_socio_2) !== 'NO DEFINIDO'">
         <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
-             x-text="'ME2:' + formatMonto(item.me2 !== undefined && item.me2 !== null ? item.me2 : (item.monto_2 || 0))"></div>
+             x-text="'ME2:' + formatMonto(obtenerME2(item))"></div>
       </template>
     </div>
 
-    <!-- BOTONERA ACCIONES -->
+    <!-- ACCIONES DE AUDITORÍA -->
     <div class="flex justify-around items-center pt-1 border-t border-blue-900/30">
-      <button @click="eliminarComprobante(item.hash_largo)" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors text-base active:scale-95" title="Eliminar">🗑</button>
-      <button @click="abrirModal(item)" class="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-base active:scale-95" title="Auditar">✏</button>
+      <button @click="eliminarComprobante(item.hash_largo)" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors text-base active:scale-95" title="Eliminar Comprobante">🗑</button>
+      <button @click="abrirModalEdicion(item)" class="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors text-base active:scale-95" title="Auditar / Editar">✏</button>
     </div>
 
   </div>
