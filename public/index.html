@@ -21,13 +21,22 @@
     input, select, textarea { font-size: 14px !important; }
   </style>
 
-  <!-- 🟢 1. Guardián Global: Evita ReferenceError en Alpine si formatters.js no ha cargado -->
+  <!-- 🟢 Guardián Global: Evita pantalla negra si appBootstrap tarda en cargar -->
   <script>
     window.formatMonto = window.formatMonto || function (val) {
       if (!val || isNaN(val)) return '0.00';
       return parseFloat(val).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
     window.truncarTasaOficial = window.truncarTasaOficial || function (val) { return val ? String(val) : '0'; };
+
+    // Fallback para x-data="app"
+    window.app = window.app || function() {
+      return {
+        vistaActiva: 'dashboard',
+        filtroSocio: '',
+        init() {}
+      };
+    };
   </script>
 
   <!-- Librerías, Component Loader & Micro-módulos JS -->
@@ -36,11 +45,12 @@
   <script type="module" src="/js/utils/componentLoader.js"></script>
   <script type="module" src="/js/appBootstrap.js?v=3.0"></script>
 
-  <!-- Alpine.js (Cargado con defer después de definir los scripts de apoyo) -->
+  <!-- Alpine.js -->
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
-<body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-black" x-data="app" x-cloak>
+<!-- 🟢 SIN x-cloak EN EL BODY -->
+<body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-black" x-data="app">
 
   <div class="flex flex-col md:flex-row min-h-screen">
     <!-- Sidebar Navegación -->
@@ -55,16 +65,16 @@
       </div>
 
       <!-- VISTA 1: COMPROBANTES -->
-      <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4">
+      <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4" x-cloak>
         <div x-include="/components/comprobantes/BarraFiltrosAuditoria.html"></div>
         <div x-include="/components/comprobantes/ListaComprobantesCards.html"></div>
       </div>
 
       <!-- VISTA 2: CARTELERA DE TASAS -->
-      <div x-show="vistaActiva === 'cartelera'" x-include="/components/tasas/VistaTasas.html"></div>
+      <div x-show="vistaActiva === 'cartelera'" x-include="/components/tasas/VistaTasas.html" x-cloak></div>
 
       <!-- VISTA 3: DIRECTORIO -->
-      <div x-show="vistaActiva === 'directorio'" x-include="/components/directorio/VistaDirectorio.html"></div>
+      <div x-show="vistaActiva === 'directorio'" x-include="/components/directorio/VistaDirectorio.html" x-cloak></div>
     </main>
   </div>
 
@@ -77,9 +87,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((err) => {
-          console.warn('Error PWA Service Worker:', err);
-        });
+        navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('Error PWA SW:', err));
       });
     }
   </script>
