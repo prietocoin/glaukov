@@ -71,3 +71,26 @@ export function registrarAppAlpine() {
 
 if (window.Alpine) { registrarAppAlpine(); }
 else { document.addEventListener('alpine:init', registrarAppAlpine); }
+
+// ... todo tu código previo de appBootstrap.js se mantiene igual ...
+
+export function registrarAppAlpine() {
+  Alpine.data('app', () => ({
+    // ... tu estado y funciones ...
+  }));
+}
+
+// 🟢 Inicialización forzada ante descargas asíncronas de módulos ES
+async function arrancar() {
+  registrarAppAlpine();
+  await cargarComponentes();
+  if (window.Alpine) {
+    window.Alpine.initTree(document.body);
+  }
+}
+
+if (window.Alpine) {
+  arrancar();
+} else {
+  document.addEventListener('alpine:init', arrancar);
+}
