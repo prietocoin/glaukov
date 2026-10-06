@@ -66,17 +66,12 @@
     <!-- ÁREA DE CONTENIDO DINÁMICO -->
     <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
       
-      <!-- VISTA 1: AUDITORÍA DE COMPROBANTES (VISTA PRINCIPAL) -->
-      <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4">
-        <!-- 1. Encabezado principal, botones de acción y KPIs contables -->
-        <%- include('./components/comprobantes/HeaderKPIs.html') %>
-
-        <!-- 2. Barra con los 8 filtros de búsqueda y ordenamiento -->
-        <%- include('./components/comprobantes/BarraFiltrosAuditoria.html') %>
-
-        <!-- 3. Grilla interactiva con tarjetas de comprobantes -->
-        <%- include('./components/comprobantes/ListaComprobantesCards.html') %>
-      </div>
+   <!-- VISTA 1: AUDITORÍA DE COMPROBANTES -->
+<div x-show="vistaActiva === 'comprobantes'" x-data="comprobantesView()" class="space-y-3 md:space-y-4">
+  <%- include('./components/comprobantes/HeaderKPIs.html') %>
+  <%- include('./components/comprobantes/BarraFiltrosAuditoria.html') %>
+  <%- include('./components/comprobantes/ListaComprobantesCards.html') %>
+</div>
 
       <!-- VISTA 2: CARTELERA DE TASAS -->
       <div x-show="vistaActiva === 'cartelera'" class="space-y-4">
