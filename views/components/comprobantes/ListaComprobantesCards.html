@@ -1,25 +1,25 @@
 <!-- ================================================================= -->
 <!-- ARCHIVO: ListaComprobantesCards.html                              -->
 <!-- UBICACIÓN: views/components/comprobantes/                         -->
-<!-- RESPONSABILIDAD: Grilla responsive e iteración de tarjetas        -->
-<!-- LÍNEAS APROX: ~25 líneas (excluyendo comentarios)                 -->
+<!-- RESPONSABILIDAD: Grilla iterativa usando comprobantesProcesados   -->
+<!-- LÍNEAS APROX: ~20 líneas                                         -->
 <!-- ================================================================= -->
 
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5">
   
-  <!-- BUCLE REACTIVO ALPINE.JS: Renderiza cada objeto 'item' recibido del API -->
-  <template x-for="item in comprobantes" :key="item.hash_largo">
+  <!-- BUCLE ALPINE.JS: Consume el getter ordenado comprobantesProcesadosYOrdenados -->
+  <template x-for="item in (comprobantesProcesadosYOrdenados || items || comprobantes)" :key="item.hash_largo || item.hash_corto">
     
-    <!-- Contenedor individual de la tarjeta con estilo Glaukov -->
+    <!-- Contenedor individual de tarjeta Glaukov -->
     <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-3 md:p-4 shadow-xl flex flex-col justify-between gap-2.5 transition-all relative">
       
-      <!-- SUB-COMPONENTE 1: Monto local, divisa, titular y datos bancarios -->
+      <!-- SUB-COMPONENTE 1: Cabecera (Monto local, Divisa, Titular, Banco) -->
       <%- include('./CardHeader.html') %>
 
-      <!-- SUB-COMPONENTE 2: Desglose de Socio 1, Socio 2, Tasas T1/T2 e indicador ↳ -->
+      <!-- SUB-COMPONENTE 2: Desglose de Socio 1, Socio 2, Tasas calculadas y herencia ↳ -->
       <%- include('./CardSociosDetalle.html') %>
 
-      <!-- SUB-COMPONENTE 3: Thumbnail de imagen R2, badges de IA/Lote y botonera de acciones -->
+      <!-- SUB-COMPONENTE 3: Thumbnail R2, Badges de tipo/IA/Lote y acciones -->
       <%- include('./CardFooterBadges.html') %>
 
     </div>
