@@ -58,13 +58,14 @@
       x-init="vistaActiva = 'comprobantes'" 
       x-cloak>
 
-  <div class="flex flex-col md:flex-row min-h-screen">
+  <!-- CONTENEDOR FIJO DE PANTALLA COMPLETA -->
+  <div class="flex flex-col md:flex-row h-screen overflow-hidden">
     
     <!-- NAVEGACIÓN LATERAL PRINCIPAL -->
     <%- include('./components/layout/Sidebar.html') %>
 
-    <!-- ÁREA DE CONTENIDO DINÁMICO -->
-    <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
+    <!-- ÁREA DE CONTENIDO DINÁMICO (CON SCROLL VERTICAL HABILITADO) -->
+    <main class="flex-1 p-3 md:p-6 overflow-y-auto overflow-x-hidden space-y-4 md:space-y-5">
       
       <!-- VISTA 1: AUDITORÍA DE COMPROBANTES -->
       <div x-show="vistaActiva === 'comprobantes'" x-data="comprobantesView()" class="space-y-3 md:space-y-4">
