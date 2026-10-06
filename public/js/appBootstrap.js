@@ -1,6 +1,6 @@
 /**
  * @file appBootstrap.js
- * @description Bootstrapper principal con renderizado determinista para Alpine.js.
+ * @description Registro síncrono del estado reactivo de Alpine.js.
  */
 
 import { LISTA_MONEDAS_ACTIVAS, obtenerInfoMonedasMaestra } from './constants/listaMonedasActivas.js';
@@ -18,9 +18,7 @@ import { obtenerComprobantes, prepararEdicionComprobante, guardarCambiosComproba
 import { solicitarRelecturaIA } from './services/comprobantesIaService.js';
 import { calcularMovimientoFiltradoTotal, calcularSociosPendientesConsolidado } from './services/consolidadoSaldosService.js';
 
-async function arrancar() {
-  await cargarComponentes();
-
+function registrarApp() {
   Alpine.data('app', () => ({
     vistaActiva: 'dashboard',
     vistaDashboardSubmenu: 'balance',
@@ -45,6 +43,13 @@ async function arrancar() {
     get infoMonedasMaestra() { return obtenerInfoMonedasMaestra(); },
 
     async init() {
+      // 1. Inyecta los componentes HTML dinámicos
+      await cargarComponentes();
+      
+      // 2. Hidrata los nodos inyectados
+      if (window.Alpine) Alpine.initTree(this.$el);
+
+      // 3. Carga los datos de la API
       await Promise.all([this.cargarTasasMercado(), this.cargarDirectorio(), this.cargarComprobantes()]);
     },
 
@@ -68,14 +73,11 @@ async function arrancar() {
     get movimientoFiltradoTotal() { return calcularMovimientoFiltradoTotal(this.comprobantes, this.filtroSocio); },
     get sociosPendientesConsolidado() { return calcularSociosPendientesConsolidado(this.directorio, this.comprobantes, { fechaInicio: this.filtroFechaInicio, fechaFin: this.filtroFechaFin }); }
   }));
-
-  if (window.Alpine) {
-    window.Alpine.initTree(document.body);
-  }
 }
 
+// Registro síncrono inmediato
 if (window.Alpine) {
-  arrancar();
+  registrarApp();
 } else {
-  document.addEventListener('alpine:init', arrancar);
+  document.addEventListener('alpine:init', registrarApp);
 }
