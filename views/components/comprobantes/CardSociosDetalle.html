@@ -1,40 +1,42 @@
 <!-- ================================================================= -->
 <!-- ARCHIVO: CardSociosDetalle.html                                   -->
-<!-- RESPONSABILIDAD: Muestra impacto de socios, tasas T1/T2 y herencia-->
+<!-- RESPONSABILIDAD: Desglose de Socio 1, Socio 2, Tasas T1/T2 y ↳   -->
 <!-- LÍNEAS APROX: ~35 líneas                                         -->
 <!-- ================================================================= -->
 
 <div class="bg-[#030611] rounded-xl border border-blue-900/50 p-2 space-y-1">
   
-  <!-- BLOQUE SOCIO 1 (Titular / Impacto Primario) -->
+  <!-- SOCIO 1 (Impacto Primario) -->
   <div class="grid grid-cols-12 items-center text-xs gap-1">
-    <!-- Si el socio hereda reglas de FUNDDA, se antepone el símbolo '↳' -->
+    <!-- Indicador de herencia de contrato ↳ -->
     <span class="col-span-4 font-black text-cyan-300 uppercase truncate text-[11px]" 
           x-text="(directorio.find(d => d.nombre === (item.nombre_socio_1 || item.socio_1))?.herencia ? '↳ ' : '') + (item.nombre_socio_1 || item.socio_1 || item.titular || 'GENERAL')"></span>
     
-    <!-- Tasa multiplicadora asignada al Socio 1 -->
+    <!-- Tasa 1 -->
     <div class="col-span-3 text-center">
       <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" 
             x-text="'T1: ' + (item.tasa_1 || '1.00')"></span>
     </div>
 
-    <!-- Cálculo final convertido a la moneda base del Socio 1 (ej: USDT) -->
+    <!-- Monto Socio 1 -->
     <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
           :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
           x-text="formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
   </div>
   
-  <!-- BLOQUE SOCIO 2 (Contraparte: Se renderiza únicamente si existe un Socio 2 asignado diferente a 'GENERAL') -->
+  <!-- SOCIO 2 (Contraparte: Render condicional) -->
   <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
     <div class="grid grid-cols-12 items-center text-xs gap-1 border-t border-blue-900/40 pt-1">
       <span class="col-span-4 font-black text-pink-300 uppercase truncate text-[11px]" 
             x-text="(directorio.find(d => d.nombre === (item.nombre_socio_2 || item.socio_2))?.herencia ? '↳ ' : '') + (item.nombre_socio_2 || item.socio_2)"></span>
       
+      <!-- Tasa 2 -->
       <div class="col-span-3 text-center">
         <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" 
               x-text="'T2: ' + (item.tasa_2 || '1.00')"></span>
       </div>
 
+      <!-- Monto Socio 2 -->
       <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
             :class="parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
             x-text="formatMonto(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
