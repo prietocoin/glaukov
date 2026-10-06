@@ -2,13 +2,13 @@
 <!-- ARCHIVO: ListaComprobantesCards.html                              -->
 <!-- UBICACIÓN: views/components/comprobantes/                         -->
 <!-- RESPONSABILIDAD: Grilla iterativa de tarjetas de comprobantes     -->
-<!-- LÍNEAS APROX: ~22 líneas                                         -->
+<!-- LÍNEAS APROX: ~20 líneas                                         -->
 <!-- ================================================================= -->
 
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5">
   
-  <!-- BUCLE ALPINE.JS: Consumo seguro con array vacío por defecto -->
-  <template x-for="item in (comprobantesProcesadosYOrdenados || [])" :key="item.hash_largo || item.hash_corto || Math.random()">
+  <!-- BUCLE ALPINE.JS: Llave estable usando index si falla el hash -->
+  <template x-for="(item, index) in comprobantesProcesadosYOrdenados" :key="item.hash_largo || item.hash_corto || index">
     
     <!-- Contenedor individual de tarjeta Glaukov -->
     <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-3 md:p-4 shadow-xl flex flex-col justify-between gap-2.5 transition-all relative">
