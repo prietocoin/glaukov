@@ -1,14 +1,14 @@
 <!-- ================================================================= -->
 <!-- ARCHIVO: ListaComprobantesCards.html                              -->
 <!-- UBICACIÓN: views/components/comprobantes/                         -->
-<!-- RESPONSABILIDAD: Grilla iterativa usando comprobantesProcesados   -->
-<!-- LÍNEAS APROX: ~20 líneas                                         -->
+<!-- RESPONSABILIDAD: Grilla iterativa de tarjetas de comprobantes     -->
+<!-- LÍNEAS APROX: ~22 líneas                                         -->
 <!-- ================================================================= -->
 
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5">
   
-  <!-- BUCLE ALPINE.JS: Consume el getter ordenado comprobantesProcesadosYOrdenados -->
-  <template x-for="item in (comprobantesProcesadosYOrdenados || items || comprobantes)" :key="item.hash_largo || item.hash_corto">
+  <!-- BUCLE ALPINE.JS: Consumo seguro con array vacío por defecto -->
+  <template x-for="item in (comprobantesProcesadosYOrdenados || [])" :key="item.hash_largo || item.hash_corto || Math.random()">
     
     <!-- Contenedor individual de tarjeta Glaukov -->
     <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-3 md:p-4 shadow-xl flex flex-col justify-between gap-2.5 transition-all relative">
