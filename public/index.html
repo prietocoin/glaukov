@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fundablock - Glaukov Engine Atenea V2.0</title>
 
-  <!-- PWA & Assets -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#030611">
   <link rel="icon" type="image/png" href="/logo-fundablock.png">
 
-  <!-- Tailwind CSS & Estilos Globales -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     [x-cloak] { display: none !important; }
@@ -21,21 +19,9 @@
     input, select, textarea { font-size: 14px !important; }
   </style>
 
-  <!-- Guardián global solo para formateadores numéricos -->
-  <script>
-    window.formatMonto = window.formatMonto || function (val) {
-      if (!val || isNaN(val)) return '0.00';
-      return parseFloat(val).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
-    window.truncarTasaOficial = window.truncarTasaOficial || function (val) { return val ? String(val) : '0'; };
-  </script>
-
-  <!-- Modulos de la Aplicación -->
   <script src="/js/utils/formatters.js"></script>
   <script src="/js/api.js?v=2.0"></script>
   <script type="module" src="/js/appBootstrap.js?v=3.0"></script>
-
-  <!-- Alpine.js con defer -->
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -65,12 +51,5 @@
   <div x-include="/components/reportes/ModalReporteEvolution.html"></div>
   <div x-include="/components/comprobantes/ModalVisorImagen.html"></div>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('PWA SW:', err));
-      });
-    }
-  </script>
 </body>
 </html>
