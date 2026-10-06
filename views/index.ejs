@@ -51,7 +51,12 @@
     }
   </style>
 </head>
-<body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-black" x-data="app" x-cloak>
+
+<!-- x-init FORZA A QUE LA VISTA INICIAL SEA SIEMPRE 'comprobantes' AL RECARGAR -->
+<body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-black" 
+      x-data="app" 
+      x-init="vistaActiva = 'comprobantes'" 
+      x-cloak>
 
   <div class="flex flex-col md:flex-row min-h-screen">
     
@@ -61,18 +66,12 @@
     <!-- ÁREA DE CONTENIDO DINÁMICO -->
     <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
       
-      <!-- VISTA 0: DASHBOARD DEDICADO -->
-      <div x-show="vistaActiva === 'dashboard'" class="space-y-4">
-        <%- include('./components/dashboard/BalancePendientes.html') %>
-        <%- include('./components/dashboard/InspeccionLotes.html') %>
-      </div>
-
-      <!-- VISTA 1: AUDITORÍA DE COMPROBANTES (ESTRUCTURA COMPLETA) -->
+      <!-- VISTA 1: AUDITORÍA DE COMPROBANTES (VISTA PRINCIPAL) -->
       <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4">
-        <!-- 1. Encabezado principal, botones de acción y los 5 KPIs contables -->
+        <!-- 1. Encabezado principal, botones de acción y KPIs contables -->
         <%- include('./components/comprobantes/HeaderKPIs.html') %>
 
-        <!-- 2. Barra de los 8 filtros de búsqueda y ordenamiento -->
+        <!-- 2. Barra con los 8 filtros de búsqueda y ordenamiento -->
         <%- include('./components/comprobantes/BarraFiltrosAuditoria.html') %>
 
         <!-- 3. Grilla interactiva con tarjetas de comprobantes -->
@@ -87,6 +86,12 @@
       <!-- VISTA 3: DIRECTORIO DE SOCIOS -->
       <div x-show="vistaActiva === 'directorio'" class="space-y-4">
         <%- include('./components/directorio/VistaDirectorio.html') %>
+      </div>
+
+      <!-- VISTA 4: DASHBOARD (MOVIDO AL FINAL) -->
+      <div x-show="vistaActiva === 'dashboard'" class="space-y-4">
+        <%- include('./components/dashboard/BalancePendientes.html') %>
+        <%- include('./components/dashboard/InspeccionLotes.html') %>
       </div>
 
     </main>
