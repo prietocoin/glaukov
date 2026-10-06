@@ -1,61 +1,57 @@
 // =================================================================
 // ARCHIVO: comprobantesGetters.js
-// RESPONSABILIDAD: Propiedades computadas y ordenamiento de grilla
+// UBICACIÓN: public/js/views/comprobantes/comprobantesGetters.js
+// RESPONSABILIDAD: Filtrado y ordenamiento seguro de comprobantes
 // =================================================================
 
 export const comprobantesGetters = {
   get comprobantesProcesadosYOrdenados() {
-    if (!this.items || !this.items.length) return [];
-    let lista = [...this.items];
+    // 1. Obtener la lista principal de ítems del estado de forma segura
+    let list = Array.isArray(this.items) ? [...this.items] : [];
+    if (!list.length) return [];
 
-    return lista.sort((a, b) => {
-      const tsA = parseInt(a.timestamp || a.timestamp_comprobante) || 0;
-      const tsB = parseInt(b.timestamp || b.timestamp_comprobante) || 0;
-      const montoA = parseFloat(this.obtenerMontoSocioCalculado(a)) || 0;
-      const montoB = parseFloat(this.obtenerMontoSocioCalculado(b)) || 0;
-
-      switch (this.filtroOrden) {
-        case 'fecha_asc': return tsA - tsB;
-        case 'fecha_desc': return tsB - tsA;
-        case 'monto_desc': return montoB - montoA;
-        case 'monto_asc': return montoA - montoB;
-        default: return tsB - tsA;
-      }
-    });
-  },
-
-  get totalMovimientoFiltrado() {
-    if (!this.items || !this.items.length) return 0;
-    return this.items.reduce((acc, c) => acc + (parseFloat(this.obtenerMontoSocioCalculado(c)) || 0), 0);
-  },
-
-  get nuevoSaldoTotalCalculado() {
-    const saldoAnt = parseFloat(this.saldoAnteriorReporte) || 0;
-    return saldoAnt + this.totalMovimientoFiltrado;
-  },
-
-  get monedaSocioDominante() {
-    if (!this.filtroSocio) return 'USDT';
-    const socioNorm = this.filtroSocio.trim().toUpperCase();
-    const reg = (this.directorio || []).find(d => d.nombre && d.nombre.trim().toUpperCase() === socioNorm);
-    if (reg) {
-      const m = (reg.moneda_base || reg.moneda_socio || 'USDT').toUpperCase();
-      return m === 'USD' ? 'USDT' : m;
+    // 2. Filtro por Rol (Ignora si es vacío o 'TODOS')
+    if (this.filtroRol && this.filtroRol !== 'TODOS' && this.filtroRol !== '') {
+      list = list.filter(i => (i.rol || '').toUpperCase() === this.filtroRol.toUpperCase());
     }
-    return 'USDT';
-  },
 
-  get jidSocioActual() {
-    if (!this.filtroSocio) return '';
-    const socioNorm = this.filtroSocio.trim().toUpperCase();
-    const reg = (this.directorio || []).find(d => d.nombre && d.nombre.trim().toUpperCase() === socioNorm);
-    return reg ? (reg.id_grupo || reg.whatsapp || '') : '';
-  },
+    // 3. Filtro por Socio / Entidad (Ignora si es vacío o 'TODOS')
+    if (this.filtroSocio && this.filtroSocio !== 'TODOS' && this.filtroSocio !== '') {
+      list = list.filter(i => {
+        const nombre = i.socio_nombre || i.socio || i.entidad || '';
+        return nombre.toLowerCase().includes(this.filtroSocio.toLowerCase());
+      });
+    }
 
-  obtenerEtiquetaHash(c) {
-    if (c.etiqueta_hash) return c.etiqueta_hash;
-    const tipo = c.tipo_op_socio || c.tipo_op || 'D';
-    const hash = c.hash_corto || 'OP';
-    return `[${tipo}-${hash}]`;
+    // 4. Filtro por Rango de Fechas
+    if (this.filtroFechaInicio) {
+      list = list.filter(i => i.fecha && i.fecha >= this.filtroFechaInicio);
+    }
+    if (this.filtroFechaFin) {
+      list = list.filter(i => i.fecha && i.fecha <= this.filtroFechaFin);
+    }
+
+    // 5. Búsqueda por Texto (Hash, Titular o Banco)
+    if (this.filtroHash && typeof this.filtroHash === 'string' && this.filtroHash.trim() !== '') {
+      const q = this.filtroHash.trim().toLowerCase();
+      list = list.filter(i => 
+        (i.hash_largo || '').toLowerCase().includes(q) ||
+        (i.hash_corto || '').toLowerCase().includes(q) ||
+        (i.titular || '').toLowerCase().includes(q) ||
+        (i.banco || '').toLowerCase().includes(q)
+      );
+    }
+
+    // 6. Ordenamiento
+    const orden = this.filtroOrden || 'fecha_desc';
+    list.sort((a, b) => {
+      if (orden === 'fecha_desc') return new Date(b.fecha || 0) - new Date(a.fecha || 0);
+      if (orden === 'fecha_asc') return new Date(a.fecha || 0) - new Date(b.fecha || 0);
+      if (orden === 'monto_desc') return (Number(b.monto_usdt) || 0) - (Number(a.monto_usdt) || 0);
+      if (orden === 'monto_asc') return (Number(a.monto_usdt) || 0) - (Number(b.monto_usdt) || 0);
+      return 0;
+    });
+
+    return list;
   }
 };
