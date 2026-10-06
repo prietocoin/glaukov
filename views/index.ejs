@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fundablock - Glaukov Engine Atenea V2.0</title>
 
-  <!-- PWA & Assets -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#030611">
   <link rel="icon" type="image/png" href="/logo-fundablock.png">
 
-  <!-- Estilos Globales & Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     [x-cloak] { display: none !important; }
@@ -21,54 +19,42 @@
     input, select, textarea { font-size: 14px !important; }
   </style>
 
-  <!-- Formateadores Globales -->
   <script src="/js/utils/formatters.js"></script>
   <script src="/js/api.js?v=2.0"></script>
-
-  <!-- Modulos de Inicialización -->
   <script type="module" src="/js/appBootstrap.js?v=6.0"></script>
-
-  <!-- Alpine.js (Arranque estándar) -->
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-black" x-data="app">
 
   <div class="flex flex-col md:flex-row min-h-screen">
-    <!-- Sidebar Navegación -->
-    <%- include('components/layout/Sidebar') %>
+    <%- include('./components/layout/Sidebar.html') %>
 
-    <!-- Área Principal de Vistas -->
     <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
-      <!-- VISTA 0: DASHBOARD -->
       <div x-show="vistaActiva === 'dashboard'" class="space-y-4">
-        <%- include('components/dashboard/BalancePendientes') %>
-        <%- include('components/dashboard/InspeccionLotes') %>
+        <%- include('./components/dashboard/BalancePendientes.html') %>
+        <%- include('./components/dashboard/InspeccionLotes.html') %>
       </div>
 
-      <!-- VISTA 1: COMPROBANTES -->
       <div x-show="vistaActiva === 'comprobantes'" class="space-y-3 md:space-y-4" x-cloak>
-        <%- include('components/comprobantes/BarraFiltrosAuditoria') %>
-        <%- include('components/comprobantes/ListaComprobantesCards') %>
+        <%- include('./components/comprobantes/BarraFiltrosAuditoria.html') %>
+        <%- include('./components/comprobantes/ListaComprobantesCards.html') %>
       </div>
 
-      <!-- VISTA 2: CARTELERA DE TASAS -->
       <div x-show="vistaActiva === 'cartelera'" class="space-y-4" x-cloak>
-        <%- include('components/tasas/VistaTasas') %>
+        <%- include('./components/tasas/VistaTasas.html') %>
       </div>
 
-      <!-- VISTA 3: DIRECTORIO -->
       <div x-show="vistaActiva === 'directorio'" class="space-y-4" x-cloak>
-        <%- include('components/directorio/VistaDirectorio') %>
+        <%- include('./components/directorio/VistaDirectorio.html') %>
       </div>
     </main>
   </div>
 
-  <!-- Modales -->
-  <%- include('components/directorio/ModalConfigSocio') %>
-  <%- include('components/comprobantes/ModalEditarComprobante') %>
-  <%- include('components/reportes/ModalReporteEvolution') %>
-  <%- include('components/comprobantes/ModalVisorImagen') %>
+  <%- include('./components/directorio/ModalConfigSocio.html') %>
+  <%- include('./components/comprobantes/ModalEditarComprobante.html') %>
+  <%- include('./components/reportes/ModalReporteEvolution.html') %>
+  <%- include('./components/comprobantes/ModalVisorImagen.html') %>
 
 </body>
 </html>

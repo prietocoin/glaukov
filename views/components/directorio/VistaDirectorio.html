@@ -1,0 +1,37 @@
+<div class="bg-[#0b132b] border border-slate-800 rounded-lg p-4 space-y-4">
+  <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+    <h2 class="text-base font-semibold text-white">📇 Directorio de Socios</h2>
+    <button @click="cargarDirectorio()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded">Refrescar</button>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-xs">
+      <thead class="bg-slate-900/80 text-slate-400 font-mono">
+        <tr>
+          <th class="p-2">Socio / Nombre</th>
+          <th class="p-2">Estado WA</th>
+          <th class="p-2">Acción</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800/50">
+        <template x-for="socio in directorio" :key="socio.id || socio.nombre">
+          <tr class="hover:bg-slate-800/30">
+            <td class="p-2 text-white font-medium" x-text="socio.nombre"></td>
+            <td class="p-2">
+              <span class="px-2 py-0.5 rounded text-[10px]" :class="socio.activo ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'" x-text="socio.activo ? 'ACTIVO' : 'INACTIVO'"></span>
+            </td>
+            <td class="p-2 flex gap-2">
+              <button @click="abrirConfigSocio(socio)" class="px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded hover:bg-cyan-500/30">Configurar</button>
+              <button @click="toggleEstadoSocio(socio)" class="px-2 py-1 bg-slate-800 text-slate-300 rounded hover:bg-slate-700">Estado</button>
+            </td>
+          </tr>
+        </template>
+        <template x-if="!directorio || directorio.length === 0">
+          <tr>
+            <td colspan="3" class="p-4 text-center text-slate-500">Cargando directorio de socios...</td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>

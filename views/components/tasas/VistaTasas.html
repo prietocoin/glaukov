@@ -1,0 +1,19 @@
+<div class="bg-[#0b132b] border border-slate-800 rounded-lg p-4 space-y-4">
+  <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+    <h2 class="text-base font-semibold text-white">📈 Cartelera y Operativa de Tasas</h2>
+    <button @click="conectarHooAPI()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-medium">
+      Capturar Borrador Hoo
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="bg-slate-900/60 p-4 rounded border border-slate-800 space-y-3">
+      <h3 class="text-sm font-medium text-cyan-400">Acciones Lote Activo</h3>
+      <p class="text-xs text-slate-400" x-text="`ID Lote: ${loteActivo || 'Sin lote'}`"></p>
+      <div class="flex flex-wrap gap-2 pt-2">
+        <button @click="publicarTasaOficial()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded">Publicar Oficial</button>
+        <button @click="reenviarTasaActual()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded">Reenviar Lote</button>
+      </div>
+    </div>
+  </div>
+</div>
