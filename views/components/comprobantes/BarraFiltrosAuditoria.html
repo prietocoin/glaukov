@@ -1,7 +1,7 @@
 <!-- ================================================================= -->
 <!-- ARCHIVO: BarraFiltrosAuditoria.html                               -->
 <!-- UBICACIÓN: views/components/comprobantes/                         -->
-<!-- RESPONSABILIDAD: Los 8 Filtros completos de auditoría contable    -->
+<!-- RESPONSABILIDAD: Los 8 Filtros sincronizados con comprobantesState -->
 <!-- ================================================================= -->
 
 <div x-data="{ filtrosAbiertos: false }" class="bg-[#060c24] rounded-2xl border border-blue-900/50 shadow-xl overflow-hidden">
@@ -29,10 +29,10 @@
     <!-- 2. SOCIO / ENTIDAD -->
     <div>
       <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">2. SOCIO / ENTIDAD</label>
-      <select x-model="filtroSocio" @change="actualizarSocioSeleccionado()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+      <select x-model="filtroSocio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
         <option value="">Todos los Socios</option>
-        <template x-for="s in directorio" :key="'filtro-socio-' + s.nombre">
-          <option :value="s.nombre" x-text="s.nombre"></option>
+        <template x-for="s in directorio" :key="'filtro-socio-' + (s.nombre || s)">
+          <option :value="s.nombre || s" x-text="s.nombre || s"></option>
         </template>
       </select>
     </div>
@@ -54,7 +54,7 @@
       <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">5. DESDE HASH</label>
       <select x-model="filtroDesdeHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
         <option value="">TODOS</option>
-        <template x-for="item in comprobantes" :key="'desde'+item.hash_largo">
+        <template x-for="item in items" :key="'desde-'+(item.hash_largo || item.hash_corto)">
           <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
         </template>
       </select>
@@ -65,7 +65,7 @@
       <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">6. HASTA HASH</label>
       <select x-model="filtroHastaHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
         <option value="">TODOS</option>
-        <template x-for="item in comprobantes" :key="'hasta'+item.hash_largo">
+        <template x-for="item in items" :key="'hasta-'+(item.hash_largo || item.hash_corto)">
           <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
         </template>
       </select>
@@ -74,7 +74,7 @@
     <!-- 7. ORDENAR -->
     <div>
       <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">7. ORDENAR</label>
-      <select x-model="ordenarPor" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+      <select x-model="filtroOrden" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
         <option value="fecha_desc">Recientes primero</option>
         <option value="fecha_asc">Antiguos primero</option>
         <option value="monto_desc">Monto: Mayor a menor</option>
@@ -85,7 +85,7 @@
     <!-- 8. BUSCAR HASH -->
     <div class="col-span-2 md:col-span-1">
       <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">BUSCAR HASH</label>
-      <input type="text" x-model="filtroHashBusqueda" @keyup.enter="cargarComprobantes()" placeholder="Buscar..." class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+      <input type="text" x-model="filtroHash" @keyup.enter="cargarComprobantes()" placeholder="Buscar..." class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
     </div>
 
   </div>
