@@ -84,10 +84,10 @@
       </div>
 
       <!-- VISTA 4: DASHBOARD (MOVIDO AL FINAL) -->
-      <div x-show="vistaActiva === 'dashboard'" class="space-y-4">
-        <%- include('./components/dashboard/BalancePendientes.html') %>
-        <%- include('./components/dashboard/InspeccionLotes.html') %>
-      </div>
+      <div x-show="vistaActiva === 'dashboard'" x-data="dashboardView()" class="space-y-4">
+  <%- include('./components/dashboard/BalancePendientes.html') %>
+  <%- include('./components/dashboard/InspeccionLotes.html') %>
+</div>
 
     </main>
   </div>
