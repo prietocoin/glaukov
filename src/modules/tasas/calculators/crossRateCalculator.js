@@ -1,11 +1,10 @@
 /**
  * @file crossRateCalculator.js
- * @description Lógica aritmética pura para el cálculo de tasas cruzadas y tendencias.
- * Sin llamadas a base de datos ni peticiones HTTP.
+ * @description Lógica aritmética pura para el cálculo de tasas cruzadas basándose 100% en porcentajes (%).
  */
 
 const { truncarTasaOficial } = require('../../../utils/formatters');
-const { BANDERAS_MAP, MAPA_MONEDAS, FACTORES_RESPALDO } = require('../services/mapper.service');
+const { BANDERAS_MAP, MAPA_MONEDAS } = require('../constants/mapperConstants');
 
 function determinarTendencia(actual, anterior) {
   const a = parseFloat(actual.toFixed(4));
@@ -24,29 +23,32 @@ function obtenerTasaBase(mapaTasas, codigoMoneda) {
 }
 
 /**
- * Calcula la tarjeta de tasa comercial para una moneda de un socio.
+ * Aplica los porcentajes (%) de depósito y pago sobre la tasa cruzada base.
  */
 function calcularTarjetaPais(codeP, configPais, tasasActual, tasasAnterior, monedaProcesada) {
   const nombreP = MAPA_MONEDAS[codeP] || Object.keys(MAPA_MONEDAS).find(k => MAPA_MONEDAS[k] === codeP) || codeP;
-  const pctD = configPais.porcentaje?.deposito ?? null;
-  const pctP = configPais.porcentaje?.pago ?? null;
+  
+  // Lectura directa de porcentajes (%) desde la UI
+  const pctD = parseFloat(configPais.porcentaje?.deposito) || 0;
+  const pctP = parseFloat(configPais.porcentaje?.pago) || 0;
 
-  const factorD = pctD !== null && !isNaN(pctD) ? 1 + (pctD / 100) : (FACTORES_RESPALDO[codeP]?.D ?? 1.0);
-  const factorP = pctP !== null && !isNaN(pctP) ? 1 - (pctP / 100) : (FACTORES_RESPALDO[codeP]?.P ?? 0.95);
+  // Conversión a multiplicadores comerciales
+  const multD = 1 + (pctD / 100);
+  const multP = 1 - (pctP / 100);
 
   const crossBaseActual = obtenerTasaBase(tasasActual, codeP) / obtenerTasaBase(tasasActual, monedaProcesada);
   const crossBaseAnt = obtenerTasaBase(tasasAnterior, codeP) / obtenerTasaBase(tasasAnterior, monedaProcesada);
 
-  const numCompraActual = crossBaseActual * factorD;
-  const numVentaActual = crossBaseActual * factorP;
+  const numCompraActual = crossBaseActual * multD;
+  const numVentaActual = crossBaseActual * multP;
 
   return {
     bandera: BANDERAS_MAP[codeP] || '🌐',
     nombre_pais: `${nombreP} (${codeP})`,
-    compra: factorD > 0 ? truncarTasaOficial(numCompraActual) : '-',
-    venta: factorP > 0 ? truncarTasaOficial(numVentaActual) : '-',
-    trend_compra: factorD > 0 ? determinarTendencia(numCompraActual, crossBaseAnt * factorD) : 'stable',
-    trend_venta: factorP > 0 ? determinarTendencia(numVentaActual, crossBaseAnt * factorP) : 'stable',
+    compra: multD > 0 ? truncarTasaOficial(numCompraActual) : '-',
+    venta: multP > 0 ? truncarTasaOficial(numVentaActual) : '-',
+    trend_compra: multD > 0 ? determinarTendencia(numCompraActual, crossBaseAnt * multD) : 'stable',
+    trend_venta: multP > 0 ? determinarTendencia(numVentaActual, crossBaseAnt * multP) : 'stable',
     orden: configPais.orden || 99
   };
 }
