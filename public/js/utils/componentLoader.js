@@ -1,17 +1,9 @@
 /**
  * @file componentLoader.js
- * @description Inyector bloqueante pre-renderizado de componentes HTML.
+ * @description Descarga e inyección atómica de HTML sin bloqueos de tiempo.
  */
 
-async function esperarDOM() {
-  if (document.readyState === 'loading') {
-    await new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve));
-  }
-}
-
 export async function cargarComponentes() {
-  await esperarDOM();
-
   let nodos = document.querySelectorAll('[x-include]');
   while (nodos.length > 0) {
     await Promise.all(
@@ -27,7 +19,7 @@ export async function cargarComponentes() {
             console.error(`[componentLoader ❌] 404 en ${url}`);
           }
         } catch (err) {
-          console.error(`[componentLoader ❌] Error en ${url}:`, err.message);
+          console.error(`[componentLoader ❌] Error al cargar ${url}:`, err.message);
         }
       })
     );
