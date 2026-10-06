@@ -1,6 +1,6 @@
 /**
  * @file sociosRoutes.js
- * @description Endpoints REST para el dominio de Socios y Directorio.
+ * @description Endpoints REST para socios y directorio.
  */
 
 const express = require('express');
@@ -10,6 +10,7 @@ const {
   actualizarEstadoSocioController
 } = require('../controllers/sociosController');
 
+router.get('/', obtenerDirectorioController);
 router.get('/directorio', obtenerDirectorioController);
 router.patch('/estado', actualizarEstadoSocioController);
 
