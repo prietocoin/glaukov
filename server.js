@@ -38,8 +38,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 3. Montaje de Rutas
+// Montaje con compatibilidad de rutas
 app.use('/api/tasas', tasasRoutes);
 app.use('/api/socios', sociosRoutes);
+app.use('/api/directorio', sociosRoutes); // 👈 Alias directo para /api/directorio
 app.use('/api/comprobantes', comprobantesRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/admin', adminRoutes);
