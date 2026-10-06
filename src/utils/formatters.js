@@ -1,90 +1,55 @@
 /**
- * Regla exclusiva de truncado estricto para Tasas
+ * @file formatters.js
+ * @description Utilidades de cálculo de precisión para Tasas, Montos y WhatsApp.
  */
+
 function aplicarReglaPrecisionTasa(val) {
-  if (val === null || val === undefined || isNaN(val) || val === 0) return 0;
-  const num = parseFloat(val);
-  if (num === 0) return 0;
+  if (!val || isNaN(val)) return 0;
+  const num = Math.abs(parseFloat(val));
+  const vRound = Math.round(num * 1e8) / 1e8;
+  if (vRound === 0) return 0;
 
-  const signo = num < 0 ? -1 : 1;
-  const v = Math.abs(num);
-  const vRound = Math.round(v * 1e8) / 1e8;
+  const signo = parseFloat(val) < 0 ? -1 : 1;
+  if (vRound > 99.99) return signo * Math.trunc(vRound);
+  if (vRound >= 10.0) return signo * (Math.trunc((vRound + 1e-7) * 100) / 100);
 
-  let res = 0;
-  if (vRound > 99.99) {
-    res = Math.trunc(vRound);
-  } else if (vRound >= 10.0) {
-    res = Math.trunc((vRound + 0.0000001) * 100) / 100;
-  } else {
-    const magnitud = Math.floor(Math.log10(vRound));
-    const factor = Math.pow(10, 2 - magnitud);
-    res = Math.trunc((vRound + 0.0000001) * factor) / factor;
-  }
-
-  return signo * res;
+  const factor = Math.pow(10, 2 - Math.floor(Math.log10(vRound)));
+  return signo * (Math.trunc((vRound + 1e-7) * factor) / factor);
 }
 
-/**
- * Regla exclusiva para Montos (Conserva exactamente 2 decimales)
- */
 function aplicarPrecisionMonto(val) {
-  if (val === null || val === undefined || isNaN(val) || val === 0) return 0;
+  if (!val || isNaN(val)) return 0;
   const num = parseFloat(val);
-  if (num === 0) return 0;
-
   const signo = num < 0 ? -1 : 1;
-  const v = Math.abs(num);
-  const vRound = Math.round(v * 1e8) / 1e8;
-
-  return signo * (Math.trunc((vRound + 0.0000001) * 100) / 100);
+  const vRound = Math.round(Math.abs(num) * 1e8) / 1e8;
+  return signo * (Math.trunc((vRound + 1e-7) * 100) / 100);
 }
 
-/**
- * Convierte un valor de tasa a su representación en string truncada
- * (Sin separadores de millares, exclusivamente números planos)
- */
+// 🟢 Alias directo formateado para Alpine.js / Frontend
+function formatMonto(val) {
+  const num = aplicarPrecisionMonto(val);
+  return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function truncarTasaOficial(val) {
   const num = aplicarReglaPrecisionTasa(val);
-  if (num === 0) return "0";
-  return num.toString();
+  return num === 0 ? '0' : num.toString();
 }
 
-/**
- * Obtener Fecha y Hora formateadas en zona horaria de Venezuela (GMT-4)
- */
-function obtenerFechaHoraVE() {
-  const ahora = new Date();
-  const opcionesFecha = { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' };
-  const opcionesHora = { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-
-  const fechaStr = ahora.toLocaleDateString('es-VE', opcionesFecha);
-  const horaStr = ahora.toLocaleTimeString('es-VE', opcionesHora);
-
-  return { fechaStr, horaStr, timestamp: Math.floor(ahora.getTime() / 1000) };
-}
-
-/**
- * Normaliza números de teléfono o IDs a formato WhatsApp Remote JID
- */
 function extractJid(rawInput) {
   if (!rawInput) return null;
   const str = String(rawInput).trim();
-  if (!str) return null;
-
-  if (str.includes('@g.us') || str.includes('@s.whatsapp.net')) {
-    return str;
-  }
-
+  if (str.includes('@g.us') || str.includes('@s.whatsapp.net')) return str;
   const limpio = str.replace(/\D/g, '');
-  if (!limpio) return null;
-
-  return `${limpio}@s.whatsapp.net`;
+  return limpio ? `${limpio}@s.whatsapp.net` : null;
 }
 
-module.exports = {
-  aplicarReglaPrecisionTasa,
-  aplicarPrecisionMonto,
-  truncarTasaOficial,
-  obtenerFechaHoraVE,
-  extractJid
-};
+// Compatibilidad dual: Browser (window) + Backend (Node.js)
+const exp = { aplicarReglaPrecisionTasa, aplicarPrecisionMonto, formatMonto, truncarTasaOficial, extractJid };
+
+if (typeof window !== 'undefined') {
+  Object.assign(window, exp);
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = exp;
+}
