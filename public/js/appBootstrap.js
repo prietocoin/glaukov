@@ -1,11 +1,10 @@
 /**
  * @file appBootstrap.js
- * @description Secuencia de arranque determinista para Atenea V2.0.
+ * @description Bootstrapper estándar de Alpine.js para servidor EJS.
  */
 
 import { LISTA_MONEDAS_ACTIVAS, obtenerInfoMonedasMaestra } from './constants/listaMonedasActivas.js';
 import { calcularTasaEnVivo, obtenerClaseTalla } from './utils/calculoTasaEnVivo.js';
-import { cargarComponentes } from './utils/componentLoader.js';
 import { obtenerDirectorioNormalizado } from './services/directorioService.js';
 import { alternarEstadoSocioWA } from './services/socioEstadoService.js';
 import { alternarHerenciaSocio } from './services/socioHerenciaService.js';
@@ -18,26 +17,8 @@ import { obtenerComprobantes, prepararEdicionComprobante, guardarCambiosComproba
 import { solicitarRelecturaIA } from './services/comprobantesIaService.js';
 import { calcularMovimientoFiltradoTotal, calcularSociosPendientesConsolidado } from './services/consolidadoSaldosService.js';
 
-function cargarAlpineCDN() {
-  return new Promise((resolve, reject) => {
-    if (window.Alpine) return resolve();
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js';
-    script.onload = () => resolve();
-    script.onerror = (err) => reject(err);
-    document.head.appendChild(script);
-  });
-}
-
-async function arrancar() {
-  console.log('[Atenea 1/3 🧩] Descargando componentes HTML...');
-  await cargarComponentes();
-
-  console.log('[Atenea 2/3 ⚡] Cargando motor Alpine.js...');
-  await cargarAlpineCDN();
-
-  console.log('[Atenea 3/3 🟢] Registrando estado y arrancando Alpine...');
-  window.Alpine.data('app', () => ({
+function registrarApp() {
+  Alpine.data('app', () => ({
     vistaActiva: 'dashboard',
     vistaDashboardSubmenu: 'balance',
     loteSeleccionadoInspector: '',
@@ -88,12 +69,10 @@ async function arrancar() {
     get movimientoFiltradoTotal() { return calcularMovimientoFiltradoTotal(this.comprobantes, this.filtroSocio); },
     get sociosPendientesConsolidado() { return calcularSociosPendientesConsolidado(this.directorio, this.comprobantes, { fechaInicio: this.filtroFechaInicio, fechaFin: this.filtroFechaFin }); }
   }));
-
-  window.Alpine.start();
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', arrancar);
+if (window.Alpine) {
+  registrarApp();
 } else {
-  arrancar();
+  document.addEventListener('alpine:init', registrarApp);
 }
