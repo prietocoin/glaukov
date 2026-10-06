@@ -9,10 +9,11 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#030611">
 
-  <!-- SCRIPTS PRINCIPALES Y ALPINE.JS -->
+  <!-- SCRIPTS PRINCIPALES Y MÓDULOS DE VISTA -->
   <script src="/js/api.js?v=2.0"></script>
-<script type="module" src="/js/views/comprobantes.js"></script>
+  <script type="module" src="/js/views/comprobantes.js"></script>
   <script type="module" src="/js/views/directorio.js?v=2.0"></script>
+  <script type="module" src="/js/views/dashboard.js"></script>
   <script src="/js/app.js?v=2.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -52,7 +53,6 @@
   </style>
 </head>
 
-<!-- x-init FORZA A QUE LA VISTA INICIAL SEA SIEMPRE 'comprobantes' AL RECARGAR -->
 <body class="bg-[#030611] text-slate-100 font-sans antialiased min-h-screen selection:bg-cyan-500 selection:text-black" 
       x-data="app" 
       x-init="vistaActiva = 'comprobantes'" 
@@ -66,12 +66,12 @@
     <!-- ÁREA DE CONTENIDO DINÁMICO -->
     <main class="flex-1 p-3 md:p-6 overflow-x-hidden space-y-4 md:space-y-5">
       
-   <!-- VISTA 1: AUDITORÍA DE COMPROBANTES -->
-<div x-show="vistaActiva === 'comprobantes'" x-data="comprobantesView()" class="space-y-3 md:space-y-4">
-  <%- include('./components/comprobantes/HeaderKPIs.html') %>
-  <%- include('./components/comprobantes/BarraFiltrosAuditoria.html') %>
-  <%- include('./components/comprobantes/ListaComprobantesCards.html') %>
-</div>
+      <!-- VISTA 1: AUDITORÍA DE COMPROBANTES -->
+      <div x-show="vistaActiva === 'comprobantes'" x-data="comprobantesView()" class="space-y-3 md:space-y-4">
+        <%- include('./components/comprobantes/HeaderKPIs.html') %>
+        <%- include('./components/comprobantes/BarraFiltrosAuditoria.html') %>
+        <%- include('./components/comprobantes/ListaComprobantesCards.html') %>
+      </div>
 
       <!-- VISTA 2: CARTELERA DE TASAS -->
       <div x-show="vistaActiva === 'cartelera'" class="space-y-4">
@@ -83,11 +83,11 @@
         <%- include('./components/directorio/VistaDirectorio.html') %>
       </div>
 
-      <!-- VISTA 4: DASHBOARD (MOVIDO AL FINAL) -->
+      <!-- VISTA 4: DASHBOARD -->
       <div x-show="vistaActiva === 'dashboard'" x-data="dashboardView()" class="space-y-4">
-  <%- include('./components/dashboard/BalancePendientes.html') %>
-  <%- include('./components/dashboard/InspeccionLotes.html') %>
-</div>
+        <%- include('./components/dashboard/BalancePendientes.html') %>
+        <%- include('./components/dashboard/InspeccionLotes.html') %>
+      </div>
 
     </main>
   </div>
@@ -98,14 +98,14 @@
   <%- include('./components/comprobantes/ModalVisorImagen.html') %>
   <%- include('./components/reportes/ModalReporteEvolution.html') %>
 
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.warn('Error al registrar Service Worker PWA:', err);
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('Error al registrar Service Worker PWA:', err);
+        });
       });
-    });
-  }
-</script>
+    }
+  </script>
 </body>
 </html>
