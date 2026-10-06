@@ -1,6 +1,6 @@
 /**
  * @file appBootstrap.js
- * @description Punto de entrada de Alpine.js e integración de micro-servicios.
+ * @description Punto de entrada atómico para Alpine.js.
  */
 
 import { LISTA_MONEDAS_ACTIVAS, obtenerInfoMonedasMaestra } from './constants/listaMonedasActivas.js';
@@ -18,7 +18,7 @@ import { obtenerComprobantes, prepararEdicionComprobante, guardarCambiosComproba
 import { solicitarRelecturaIA } from './services/comprobantesIaService.js';
 import { calcularMovimientoFiltradoTotal, calcularSociosPendientesConsolidado } from './services/consolidadoSaldosService.js';
 
-export function registrarAppAlpine() {
+function inicializarApp() {
   Alpine.data('app', () => ({
     vistaActiva: 'dashboard',
     vistaDashboardSubmenu: 'balance',
@@ -69,28 +69,8 @@ export function registrarAppAlpine() {
   }));
 }
 
-if (window.Alpine) { registrarAppAlpine(); }
-else { document.addEventListener('alpine:init', registrarAppAlpine); }
-
-// ... todo tu código previo de appBootstrap.js se mantiene igual ...
-
-export function registrarAppAlpine() {
-  Alpine.data('app', () => ({
-    // ... tu estado y funciones ...
-  }));
-}
-
-// 🟢 Inicialización forzada ante descargas asíncronas de módulos ES
-async function arrancar() {
-  registrarAppAlpine();
-  await cargarComponentes();
-  if (window.Alpine) {
-    window.Alpine.initTree(document.body);
-  }
-}
-
 if (window.Alpine) {
-  arrancar();
+  inicializarApp();
 } else {
-  document.addEventListener('alpine:init', arrancar);
+  document.addEventListener('alpine:init', inicializarApp);
 }
