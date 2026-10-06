@@ -1,6 +1,6 @@
 /**
  * @file componentLoader.js
- * @description Inyector atómico de plantillas HTML para la directiva x-include.
+ * @description Inyector de HTML con re-hidratación explícita para Alpine.js.
  */
 
 export async function cargarComponentes() {
@@ -13,18 +13,16 @@ export async function cargarComponentes() {
       if (res.ok) {
         el.innerHTML = await res.text();
         el.removeAttribute('x-include');
+        
+        // 🟢 CLAVE: Obliga a Alpine a procesar las directivas (x-show, x-text) del HTML inyectado
+        if (window.Alpine) {
+          window.Alpine.initTree(el);
+        }
       } else {
         console.warn(`[componentLoader ⚠️] No se pudo cargar: ${url}`);
       }
     } catch (err) {
-      console.error(`[componentLoader ❌] Error en ${url}:`, err.message);
+      console.error(`[componentLoader ❌] Error cargando ${url}:`, err);
     }
   }
-}
-
-// Carga automática en DOMContentLoaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', cargarComponentes);
-} else {
-  cargarComponentes();
 }
