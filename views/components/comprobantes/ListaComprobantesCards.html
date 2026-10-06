@@ -1,24 +1,25 @@
 <!-- ================================================================= -->
 <!-- ARCHIVO: ListaComprobantesCards.html                              -->
-<!-- RESPONSABILIDAD: Contenedor principal de la grilla de comprobantes-->
-<!-- LÍNEAS APROX: ~25 líneas                                         -->
+<!-- UBICACIÓN: views/components/comprobantes/                         -->
+<!-- RESPONSABILIDAD: Grilla responsive e iteración de tarjetas        -->
+<!-- LÍNEAS APROX: ~25 líneas (excluyendo comentarios)                 -->
 <!-- ================================================================= -->
 
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5">
   
-  <!-- BUCLE REACTIVO ALPINE.JS: Renderiza dinámicamente cada objeto 'item' recibido desde el API -->
+  <!-- BUCLE REACTIVO ALPINE.JS: Renderiza cada objeto 'item' recibido del API -->
   <template x-for="item in comprobantes" :key="item.hash_largo">
     
-    <!-- Tarjeta individual con bordes y sombras dinámicas de la paleta Glaukov -->
+    <!-- Contenedor individual de la tarjeta con estilo Glaukov -->
     <div class="bg-[#060c24] border border-[#16224f] hover:border-cyan-500/40 rounded-2xl p-3 md:p-4 shadow-xl flex flex-col justify-between gap-2.5 transition-all relative">
       
-      <!-- SUB-COMPONENTE 1: Cabecera con monto, divisa local, titular y banco -->
+      <!-- SUB-COMPONENTE 1: Monto local, divisa, titular y datos bancarios -->
       <%- include('./CardHeader.html') %>
 
-      <!-- SUB-COMPONENTE 2: Desglose de socios (Socio 1/2), tasas aplicadas y herencia -->
+      <!-- SUB-COMPONENTE 2: Desglose de Socio 1, Socio 2, Tasas T1/T2 e indicador ↳ -->
       <%- include('./CardSociosDetalle.html') %>
 
-      <!-- SUB-COMPONENTE 3: Thumbnail R2 del recibo, insignias de estado (IA, Lote) y botonera -->
+      <!-- SUB-COMPONENTE 3: Thumbnail de imagen R2, badges de IA/Lote y botonera de acciones -->
       <%- include('./CardFooterBadges.html') %>
 
     </div>
