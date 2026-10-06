@@ -12,8 +12,6 @@ import { comprobantesFormatters } from '/js/views/comprobantes/comprobantesForma
 
 export function comprobantesView() {
   return {
-    // 2. EXPANSIÓN MODULAR (Spread Operator)
-    // Alpine unificará esto en un solo componente reactivo transparente
     ...comprobantesState,
     ...comprobantesCalculos,
     ...comprobantesGetters,
@@ -22,7 +20,13 @@ export function comprobantesView() {
   };
 }
 
-// 3. REGISTRO GLOBAL AUTOMÁTICO PARA ALPINE.JS
+// Registro explícito global y nativo en Alpine.js
 if (typeof window !== 'undefined') {
   window.comprobantesView = comprobantesView;
 }
+
+document.addEventListener('alpine:init', () => {
+  if (typeof Alpine !== 'undefined') {
+    Alpine.data('comprobantesView', comprobantesView);
+  }
+});
