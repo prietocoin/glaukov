@@ -1,6 +1,6 @@
 /**
  * @file appBootstrap.js
- * @description Bootstrapper principal de Atenea V2.0.
+ * @description Registro síncrono del estado reactivo de Alpine.js e integración de componentes.
  */
 
 import { LISTA_MONEDAS_ACTIVAS, obtenerInfoMonedasMaestra } from './constants/listaMonedasActivas.js';
@@ -19,6 +19,7 @@ import { solicitarRelecturaIA } from './services/comprobantesIaService.js';
 import { calcularMovimientoFiltradoTotal, calcularSociosPendientesConsolidado } from './services/consolidadoSaldosService.js';
 
 function registrarApp() {
+  // 🟢 REGISTRO SÍNCRONO INMEDIATO: Alpine ya reconoce "app" sin retardos de red
   Alpine.data('app', () => ({
     vistaActiva: 'dashboard',
     vistaDashboardSubmenu: 'balance',
@@ -43,8 +44,15 @@ function registrarApp() {
     get infoMonedasMaestra() { return obtenerInfoMonedasMaestra(); },
 
     async init() {
-      console.log('[Atenea 🚀] Cargando componentes e inyectando vistas...');
+      // 1. Descarga e inyecta físicamente las plantillas HTML
       await cargarComponentes();
+
+      // 2. Hidrata los elementos HTML recién inyectados dentro de este contexto
+      if (window.Alpine) {
+        window.Alpine.initTree(this.$el);
+      }
+
+      // 3. Consulta las APIs del servidor
       await Promise.all([
         this.cargarTasasMercado(),
         this.cargarDirectorio(),
