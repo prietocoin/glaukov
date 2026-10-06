@@ -1,6 +1,6 @@
 /**
  * @file server.js
- * @description Entrypoint con importaciones seguras de workers.
+ * @description Entrypoint con SSR (EJS) y enrutamiento modular.
  */
 
 require('dotenv').config();
@@ -8,7 +8,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-// 1. Carga segura de Workers (evita que un fallo en worker tumbe todo el servidor)
+// 1. Carga segura de Workers
 try {
   require('./src/workers/tasas.worker');
   console.log('[Workers ⚙️] tasas.worker iniciado.');
@@ -32,16 +32,19 @@ const adminRoutes = require('./src/modules/admin/routes/adminRoutes');
 
 const app = express();
 
+// 🟢 CONFIGURACIÓN EJS
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 3. Montaje de Rutas
-// Montaje con compatibilidad de rutas
+// 3. Montaje de Rutas API
 app.use('/api/tasas', tasasRoutes);
 app.use('/api/socios', sociosRoutes);
-app.use('/api/directorio', sociosRoutes); // 👈 Alias directo para /api/directorio
+app.use('/api/directorio', sociosRoutes);
 app.use('/api/comprobantes', comprobantesRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/admin', adminRoutes);
@@ -50,8 +53,9 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', service: 'Glaukov Engine', timestamp: new Date() });
 });
 
+// 🟢 RENDERIZADO DESDE EL SERVIDOR (EJS)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'));
+  res.render('index');
 });
 
 const PORT = process.env.PORT || 3001;
