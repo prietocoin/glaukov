@@ -5,7 +5,7 @@
 
 import { LISTA_MONEDAS_ACTIVAS, obtenerInfoMonedasMaestra } from './constants/listaMonedasActivas.js';
 import { calcularTasaEnVivo, obtenerClaseTalla } from './utils/calculoTasaEnVivo.js';
-import { cargarTodosLosComponentes } from './utils/componentLoader.js';
+import { cargarComponentes } from './utils/componentLoader.js';
 import { obtenerDirectorioNormalizado } from './services/directorioService.js';
 import { alternarEstadoSocioWA } from './services/socioEstadoService.js';
 import { alternarHerenciaSocio } from './services/socioHerenciaService.js';
@@ -19,10 +19,8 @@ import { solicitarRelecturaIA } from './services/comprobantesIaService.js';
 import { calcularMovimientoFiltradoTotal, calcularSociosPendientesConsolidado } from './services/consolidadoSaldosService.js';
 
 async function arrancar() {
-  // 1. Descarga e inyecta TODOS los componentes HTML antes de tocar Alpine
-  await cargarTodosLosComponentes();
+  await cargarComponentes();
 
-  // 2. Registra el estado reactivo
   Alpine.data('app', () => ({
     vistaActiva: 'dashboard',
     vistaDashboardSubmenu: 'balance',
@@ -71,7 +69,6 @@ async function arrancar() {
     get sociosPendientesConsolidado() { return calcularSociosPendientesConsolidado(this.directorio, this.comprobantes, { fechaInicio: this.filtroFechaInicio, fechaFin: this.filtroFechaFin }); }
   }));
 
-  // 3. Renderiza el DOM completo
   if (window.Alpine) {
     window.Alpine.initTree(document.body);
   }
