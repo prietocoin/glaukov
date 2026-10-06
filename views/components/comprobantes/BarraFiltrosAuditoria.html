@@ -1,11 +1,92 @@
-<div class="bg-[#0b132b] border border-slate-800 rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
-  <div class="flex items-center gap-2 flex-1 min-w-[200px]">
-    <span class="text-xs text-slate-400">Filtrar socio:</span>
-    <input type="text" x-model="filtroSocio" @input.debounce.300ms="cargarComprobantes()" placeholder="Ej: Socio 01..." class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white w-full focus:outline-none focus:border-cyan-500">
-  </div>
-  <div class="flex items-center gap-2">
-    <button @click="cargarComprobantes()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded flex items-center gap-1">
-      🔄 Actualizar
-    </button>
+<!-- ================================================================= -->
+<!-- ARCHIVO: BarraFiltrosAuditoria.html                               -->
+<!-- UBICACIÓN: views/components/comprobantes/                         -->
+<!-- RESPONSABILIDAD: Los 8 Filtros completos de auditoría contable    -->
+<!-- ================================================================= -->
+
+<div x-data="{ filtrosAbiertos: false }" class="bg-[#060c24] rounded-2xl border border-blue-900/50 shadow-xl overflow-hidden">
+  
+  <!-- Desplegable para pantallas móviles -->
+  <button @click="filtrosAbiertos = !filtrosAbiertos" class="w-full md:hidden flex items-center justify-between p-3 bg-[#080e26] text-xs font-bold text-cyan-300">
+    <span class="flex items-center gap-2">🔍 Filtros de Auditoría <span x-text="filtrosAbiertos ? '(Toca para ocultar)' : '(Toca para desplegar)'" class="text-[10px] text-slate-400 font-normal"></span></span>
+    <span x-text="filtrosAbiertos ? '▲' : '▼'"></span>
+  </button>
+
+  <!-- Grilla de los 8 Filtros de Producción -->
+  <div :class="filtrosAbiertos ? 'block' : 'hidden md:grid'" class="p-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2.5 items-end">
+    
+    <!-- 1. ROL -->
+    <div>
+      <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">1. ROL</label>
+      <select x-model="filtroRol" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+        <option value="">Todos los Roles</option>
+        <option value="SOCIO">SOCIOS</option>
+        <option value="MATRIZ_GENERAL">MATRIZ_GENERAL</option>
+        <option value="MATRIZ_1">MATRIZ_1</option>
+      </select>
+    </div>
+
+    <!-- 2. SOCIO / ENTIDAD -->
+    <div>
+      <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">2. SOCIO / ENTIDAD</label>
+      <select x-model="filtroSocio" @change="actualizarSocioSeleccionado()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+        <option value="">Todos los Socios</option>
+        <template x-for="s in directorio" :key="'filtro-socio-' + s.nombre">
+          <option :value="s.nombre" x-text="s.nombre"></option>
+        </template>
+      </select>
+    </div>
+
+    <!-- 3. FECHA INICIO -->
+    <div>
+      <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">3. FECHA INICIO</label>
+      <input type="date" x-model="filtroFechaInicio" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+    </div>
+
+    <!-- 4. FECHA FIN -->
+    <div>
+      <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">4. FECHA FIN</label>
+      <input type="date" x-model="filtroFechaFin" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+    </div>
+
+    <!-- 5. DESDE HASH -->
+    <div>
+      <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">5. DESDE HASH</label>
+      <select x-model="filtroDesdeHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
+        <option value="">TODOS</option>
+        <template x-for="item in comprobantes" :key="'desde'+item.hash_largo">
+          <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
+        </template>
+      </select>
+    </div>
+
+    <!-- 6. HASTA HASH -->
+    <div>
+      <label class="block text-[9px] font-bold text-amber-400 uppercase mb-1">6. HASTA HASH</label>
+      <select x-model="filtroHastaHash" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-amber-200 outline-none focus:border-amber-400">
+        <option value="">TODOS</option>
+        <template x-for="item in comprobantes" :key="'hasta'+item.hash_largo">
+          <option :value="item.hash_largo" x-text="item.hash_corto || (item.hash_largo ? item.hash_largo.substring(0,8) : 'HASH')"></option>
+        </template>
+      </select>
+    </div>
+
+    <!-- 7. ORDENAR -->
+    <div>
+      <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">7. ORDENAR</label>
+      <select x-model="ordenarPor" @change="cargarComprobantes()" class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+        <option value="fecha_desc">Recientes primero</option>
+        <option value="fecha_asc">Antiguos primero</option>
+        <option value="monto_desc">Monto: Mayor a menor</option>
+        <option value="monto_asc">Monto: Menor a mayor</option>
+      </select>
+    </div>
+
+    <!-- 8. BUSCAR HASH -->
+    <div class="col-span-2 md:col-span-1">
+      <label class="block text-[9px] font-bold text-cyan-400 uppercase mb-1">BUSCAR HASH</label>
+      <input type="text" x-model="filtroHashBusqueda" @keyup.enter="cargarComprobantes()" placeholder="Buscar..." class="w-full bg-[#030611] border border-blue-900/60 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
+    </div>
+
   </div>
 </div>
