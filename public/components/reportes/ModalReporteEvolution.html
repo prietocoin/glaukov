@@ -1,7 +1,7 @@
 <!-- MODAL: GENERADOR DE REPORTE/ESTADO DE CUENTA EN IMAGEN -->
-<div x-data="{ modalReporteAbierto: false, generandoImagen: false, paginaActual: 1 }"
+<div x-data="{ modalReporteAbierto: false, generandoImagen: false, paginaActual: 1, filtroSocio: '' }"
      x-show="modalReporteAbierto"
-     @abrir-reporte.window="modalReporteAbierto = true; paginaActual = 1;"
+     @abrir-reporte.window="modalReporteAbierto = true; paginaActual = 1; if ($event.detail?.socio) filtroSocio = $event.detail.socio;"
      class="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-3 md:p-6 bg-black/85 backdrop-blur-md"
      x-cloak>
   <div class="bg-[#060c24] border border-blue-900/80 rounded-2xl w-full max-w-4xl flex flex-col shadow-2xl relative overflow-hidden" @click.away="modalReporteAbierto = false">
@@ -23,6 +23,7 @@
             <h1 class="text-lg font-black uppercase text-slate-900">REPORTE DE ESTADO DE CUENTA</h1>
             <span class="text-xs font-black text-emerald-600 font-mono">FUNDABLOCK GLAUKOV ENGINE</span>
           </div>
+          <!-- 🟢 Lectura segura que no romperá Alpine -->
           <p class="text-xs text-slate-500 font-bold mb-4" x-text="'Socio Auditado: ' + (filtroSocio || 'TODOS')"></p>
         </div>
         <div class="border-t-2 border-slate-900 pt-2 text-[10px] text-slate-500 flex justify-between font-mono">
