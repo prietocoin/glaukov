@@ -3,14 +3,17 @@
 // RESPONSABILIDAD: Unifica sub-módulos y registra en Window para Alpine
 // =================================================================
 
-import { comprobantesState } from './comprobantes/comprobantesState.js';
-import { comprobantesCalculos } from './comprobantes/comprobantesCalculos.js';
-import { comprobantesGetters } from './comprobantes/comprobantesGetters.js';
-import { comprobantesAcciones } from './comprobantes/comprobantesAcciones.js';
-import { comprobantesFormatters } from './comprobantes/comprobantesFormatters.js';
+// 1. IMPORTACIONES CON RUTAS ABSOLUTAS Y CACHE-BUSTER PARA EVITAR EL ERROR MIME 404
+import { comprobantesState } from '/js/views/comprobantes/comprobantesState.js?v=2.1';
+import { comprobantesCalculos } from '/js/views/comprobantes/comprobantesCalculos.js?v=2.1';
+import { comprobantesGetters } from '/js/views/comprobantes/comprobantesGetters.js?v=2.1';
+import { comprobantesAcciones } from '/js/views/comprobantes/comprobantesAcciones.js?v=2.1';
+import { comprobantesFormatters } from '/js/views/comprobantes/comprobantesFormatters.js?v=2.1';
 
 export function comprobantesView() {
   return {
+    // 2. EXPANSIÓN MODULAR (Spread Operator)
+    // Alpine unificará esto en un solo componente reactivo transparente
     ...comprobantesState,
     ...comprobantesCalculos,
     ...comprobantesGetters,
@@ -19,7 +22,7 @@ export function comprobantesView() {
   };
 }
 
-// Registro global automático para Alpine.js
+// 3. REGISTRO GLOBAL AUTOMÁTICO PARA ALPINE.JS
 if (typeof window !== 'undefined') {
   window.comprobantesView = comprobantesView;
 }
