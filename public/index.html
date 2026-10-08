@@ -416,8 +416,8 @@
                     <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T1: ' + (item.tasa_1 || '1.00')"></span>
                   </div>
                   <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
-                        :class="obtenerME1(item) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
-                        x-text="formatMonto(obtenerME1(item)) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
+                        :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
+                        x-text="formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
                 </div>
                 
                 <!-- 🟢 SOCIO 2 CON INDICADOR DE HERENCIA ↳ -->
@@ -429,8 +429,8 @@
                       <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T2: ' + (item.tasa_2 || '1.00')"></span>
                     </div>
                     <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
-                          :class="obtenerME2(item) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
-                          x-text="formatMonto(obtenerME2(item)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
+                          :class="parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
+                          x-text="formatMonto(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
                   </div>
                 </template>
               </div>
@@ -468,12 +468,13 @@
                     <span x-show="item.procesado_ia" class="flex-1 text-center py-0.5 rounded bg-emerald-950 text-emerald-300 text-[9px] font-bold border border-emerald-500/40 flex items-center justify-center whitespace-nowrap">✓ IA</span>
                   </div>
 
+                  <!-- 🟢 RESTAURACIÓN DE LAS CAJAS ME1 Y ME2 DE LAS TARJETAS -->
                   <div class="flex flex-col gap-0.5 mt-auto">
                     <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
-                         x-text="'ME1:' + formatMonto(obtenerME1(item))"></div>
+                         x-text="'ME1:' + formatMonto(item.me1 || item.m1_socio || item.monto_1 || item.monto || 0)"></div>
                     <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
                       <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
-                           x-text="'ME2:' + formatMonto(obtenerME2(item))"></div>
+                           x-text="'ME2:' + formatMonto(item.me2 || item.m2_socio || item.monto_2 || 0)"></div>
                     </template>
                   </div>
 
@@ -939,26 +940,28 @@
               </div>
             </div>
 
-            <!-- 🟢 CASILLAS PARA EDITAR MONTO_1 Y MONTO_2 -->
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-blue-900/40 mt-2">
-  <div>
-    <label class="block text-[8px] font-bold text-cyan-300 uppercase mb-0.5">Monto Socio 1 (monto_1)</label>
-    <input type="text" 
-           x-model="itemEdicion.monto_1" 
-           placeholder="Ej: 106.61" 
-           class="w-full bg-[#030611] border border-cyan-500/50 rounded-xl px-2 py-1.5 text-xs text-cyan-300 font-bold font-mono outline-none focus:border-amber-400">
-  </div>
+            <!-- 🟢 INPUTS EDITABLES PARA MONTO_1 Y MONTO_2 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-blue-900/40 mt-2">
+              <div>
+                <label class="block text-[8px] font-bold text-cyan-300 uppercase mb-0.5">Monto Socio 1 (monto_1)</label>
+                <input type="text" 
+                       x-model="itemEdicion.monto_1" 
+                       placeholder="Ej: 106.61" 
+                       class="w-full bg-[#030611] border border-cyan-500/50 rounded-xl px-2 py-1.5 text-xs text-cyan-300 font-bold font-mono outline-none focus:border-amber-400">
+              </div>
 
-  <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL'">
-    <div>
-      <label class="block text-[8px] font-bold text-pink-300 uppercase mb-0.5">Monto Socio 2 (monto_2)</label>
-      <input type="text" 
-             x-model="itemEdicion.monto_2" 
-             placeholder="Ej: -106.61" 
-             class="w-full bg-[#030611] border border-pink-500/50 rounded-xl px-2 py-1.5 text-xs text-pink-300 font-bold font-mono outline-none focus:border-amber-400">
-    </div>
-  </template>
-</div>
+              <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL'">
+                <div>
+                  <label class="block text-[8px] font-bold text-pink-300 uppercase mb-0.5">Monto Socio 2 (monto_2)</label>
+                  <input type="text" 
+                         x-model="itemEdicion.monto_2" 
+                         placeholder="Ej: -106.61" 
+                         class="w-full bg-[#030611] border border-pink-500/50 rounded-xl px-2 py-1.5 text-xs text-pink-300 font-bold font-mono outline-none focus:border-amber-400">
+                </div>
+              </template>
+            </div>
+          </div>
+
           <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center pt-2 border-t border-blue-900/60 gap-2">
             <div class="flex gap-1.5">
               <button type="button" @click="eliminarComprobante(itemEdicion.hash_largo)" class="flex-1 sm:flex-none px-3 py-2 bg-rose-950/80 border border-rose-500/40 text-rose-300 rounded-xl font-bold active:scale-95 transition-all text-center">🗑 Eliminar</button>
