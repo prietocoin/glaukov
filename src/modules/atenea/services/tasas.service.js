@@ -27,18 +27,21 @@ function normalizarMapTasas(tasasObj) {
  * Garantiza que si la moneda base es PEN, busque PEN, SOL, PERU, etc.
  */
 function getTasaBaseMercado(mapa, code) {
-  const c = (code || '').toUpperCase().trim();
-  
+  if (!code) return 1.0;
+  const c = String(code).toUpperCase().trim();
+
+  // 1. Si la moneda es dolarizada, su tasa base siempre es 1.0
   if (['USD', 'USDT', 'PYUSD', 'ECU', 'PAN'].includes(c)) {
     return 1.0;
   }
 
-  // 1. Búsqueda directa en el mapa
-  if (mapa[c] !== undefined && parseFloat(mapa[c]) > 0) {
-    return parseFloat(mapa[c]);
+  // 2. Búsqueda directa en el mapa normalizado
+  if (mapa && mapa[c] !== undefined) {
+    const val = parseFloat(mapa[c]);
+    if (!isNaN(val) && val > 0) return val;
   }
 
-  // 2. Búsqueda por alias alternativos en el objeto de tasas
+  // 3. Búsqueda por alias alternativos si la clave directa no existe
   const aliasMap = {
     'PEN': ['SOL', 'PERU', 'PER', 'PEN_USD'],
     'VES': ['BOLIVAR', 'BS', 'VEF', 'VES_USD'],
@@ -50,8 +53,9 @@ function getTasaBaseMercado(mapa, code) {
 
   if (aliasMap[c]) {
     for (const alt of aliasMap[c]) {
-      if (mapa[alt] !== undefined && parseFloat(mapa[alt]) > 0) {
-        return parseFloat(mapa[alt]);
+      if (mapa && mapa[alt] !== undefined) {
+        const valAlt = parseFloat(mapa[alt]);
+        if (!isNaN(valAlt) && valAlt > 0) return valAlt;
       }
     }
   }
@@ -172,7 +176,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
       const tasaBaseDestino = getTasaBaseMercado(tasasMercado, codeP);
       const tasaBaseSocio   = getTasaBaseMercado(tasasMercado, monedaProcesada);
 
-      // Si la moneda del socio es PEN (ej: 3.75) y Argentina es 1580: crossBaseActual = 1580 / 3.75 = 421.33
+      // Si la moneda del socio es PEN (3.44) y Argentina es 1599: crossBaseActual = 1599 / 3.44 = 464.82
       const crossBaseActual = (monedaProcesada !== 'USDT' && tasaBaseSocio > 0) 
         ? (tasaBaseDestino / tasaBaseSocio) 
         : tasaBaseDestino;
