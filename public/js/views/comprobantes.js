@@ -89,13 +89,13 @@ export function comprobantesView() {
       if (!c) return 0;
       
       if (c.monto_1 !== undefined && c.monto_1 !== null && c.monto_1 !== '') {
-        return Math.abs(parseFloat(c.monto_1) || 0);
+        return parseFloat(c.monto_1) || 0;
       }
       if (c.m1_socio !== undefined && c.m1_socio !== null && c.m1_socio !== '') {
-        return Math.abs(parseFloat(c.m1_socio) || 0);
+        return parseFloat(c.m1_socio) || 0;
       }
       if (c.me1 !== undefined && c.me1 !== null && c.me1 !== '') {
-        return Math.abs(parseFloat(c.me1) || 0);
+        return parseFloat(c.me1) || 0;
       }
 
       const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
@@ -109,7 +109,7 @@ export function comprobantesView() {
         equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
       }
 
-      return parseFloat(Math.abs(equivalente).toFixed(2));
+      return parseFloat(equivalente.toFixed(2));
     },
 
     // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2)
@@ -117,13 +117,13 @@ export function comprobantesView() {
       if (!c) return 0;
 
       if (c.monto_2 !== undefined && c.monto_2 !== null && c.monto_2 !== '') {
-        return Math.abs(parseFloat(c.monto_2) || 0);
+        return parseFloat(c.monto_2) || 0;
       }
       if (c.m2_socio !== undefined && c.m2_socio !== null && c.m2_socio !== '') {
-        return Math.abs(parseFloat(c.m2_socio) || 0);
+        return parseFloat(c.m2_socio) || 0;
       }
       if (c.me2 !== undefined && c.me2 !== null && c.me2 !== '') {
-        return Math.abs(parseFloat(c.me2) || 0);
+        return parseFloat(c.me2) || 0;
       }
 
       const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
@@ -137,7 +137,7 @@ export function comprobantesView() {
         equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
       }
 
-      return parseFloat(Math.abs(equivalente).toFixed(2));
+      return parseFloat(equivalente.toFixed(2));
     },
 
     obtenerMontoSocioCalculado(c) {
@@ -155,7 +155,7 @@ export function comprobantesView() {
           return this.obtenerME1(c);
         }
         if (c.monto_socio_final !== undefined && c.monto_socio_final !== null) {
-          return Math.abs(parseFloat(c.monto_socio_final) || 0);
+          return parseFloat(c.monto_socio_final) || 0;
         }
       }
 
@@ -229,22 +229,44 @@ export function comprobantesView() {
       }
 
       const loteSeleccionado = item.id_tasa || item.lote_tasa || item.lote_tasa_asignado || 'T052';
+      const naturaleza = item.tipo_manual || item.tipo_op || item.tipo_op_1 || 'D';
 
-      // 🟢 Carga explícita de monto_1 y monto_2
-      const valMonto1 = item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio ?? item.monto ?? 0);
-      const valMonto2 = item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio ?? 0);
+      const montoBase = Math.abs(parseFloat(item.monto || item.monto_local || 0));
+
+      let m1 = item.monto_1 !== undefined && item.monto_1 !== null ? parseFloat(item.monto_1) : (parseFloat(item.m1_socio) || montoBase);
+      let m2 = item.monto_2 !== undefined && item.monto_2 !== null ? parseFloat(item.monto_2) : (parseFloat(item.m2_socio) || montoBase);
+
+      // 🟢 REGLA DE ABONO (A): Socio 1 (+) y Socio 2 (-)
+      if (naturaleza === 'A') {
+        m1 = Math.abs(m1);
+        m2 = -Math.abs(m2);
+      }
 
       this.itemEdicion = {
         ...item,
         id_tasa: loteSeleccionado,
         lote_tasa: loteSeleccionado,
         lote_tasa_asignado: loteSeleccionado,
-        tipo_manual: item.tipo_op || item.tipo_op_1 || 'D',
+        tipo_manual: naturaleza,
         fecha_hora_input: dateInput,
-        monto_1: parseFloat(valMonto1) || 0,
-        monto_2: parseFloat(valMonto2) || 0
+        monto_1: m1,
+        monto_2: m2
       };
       this.modalEdicionAbierto = true;
+    },
+
+    // 🟢 RE-CALCULA SIGNOS AUTOMÁTICAMENTE AL CAMBIAR DE NATURALEZA
+    actualizarSignosPorNaturaleza() {
+      if (!this.itemEdicion) return;
+
+      const nat = this.itemEdicion.tipo_manual;
+      let val1 = Math.abs(parseFloat(this.itemEdicion.monto_1) || 0);
+      let val2 = Math.abs(parseFloat(this.itemEdicion.monto_2) || 0);
+
+      if (nat === 'A') {
+        this.itemEdicion.monto_1 = val1;   // (+) Socio 1 suma
+        this.itemEdicion.monto_2 = -val2;  // (-) Socio 2 resta
+      }
     },
 
     async guardarEdicionComprobante() {
@@ -255,7 +277,6 @@ export function comprobantesView() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
-        // 🟢 Incluye monto_1 y monto_2 en el payload
         const payload = {
           ...this.itemEdicion,
           id_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
@@ -311,10 +332,11 @@ export function comprobantesView() {
     // --- FORMATEADORES VISUALES ---
     formatMonto(val) {
       if (val === null || val === undefined || isNaN(val) || val === '') return '0.00';
-      const num = Math.abs(parseFloat(val));
+      const num = parseFloat(val);
       if (num === 0) return '0.00';
-      const parts = num.toFixed(2).split('.');
-      return `${Number(parts[0]).toLocaleString('en-US')}.${parts[1]}`;
+      const parts = Math.abs(num).toFixed(2).split('.');
+      const formatted = `${Number(parts[0]).toLocaleString('en-US')}.${parts[1]}`;
+      return num < 0 ? `-${formatted}` : formatted;
     },
 
     formatTasa(val) {
