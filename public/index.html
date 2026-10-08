@@ -428,9 +428,10 @@
                     <div class="col-span-3 text-center">
                       <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T2: ' + (item.tasa_2 || '1.00')"></span>
                     </div>
-                    <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
-                          :class="parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
-                          x-text="formatMonto(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
+                  <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
+      :class="parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
+      x-text="formatMonto(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) + ' ' + (item.moneda_socio_2 || 'USDT')">
+</span>
                   </div>
                 </template>
               </div>
@@ -1010,17 +1011,16 @@
            }
            return 'USDT';
          },
-         getMontoItemSocio(item) {
-           const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
-           const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
-           const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
+        getMontoItemSocio(item) {
+      const socioNom = (this.filtroSocio || '').trim().toUpperCase();
+      const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
+      const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
 
-           if (socioNom && s2 === socioNom && s1 !== socioNom) {
-             return parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
-           }
-           return parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
-         },
-         getTasaItemSocio(item) {
+      if (socioNom && s2 === socioNom && s1 !== socioNom) {
+        return parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
+      }
+      return parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
+    },         getTasaItemSocio(item) {
            const socioNom = (filtroSocio || sujetoAuditado || '').trim().toUpperCase();
            const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
            const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
@@ -1244,10 +1244,10 @@
                       <span x-text="item.banco || 'BANCO'"></span>
                     </td>
 
-                    <td style="padding: 4px 4px; font-family: monospace; font-size: 16px; font-weight: 900; text-align: right; vertical-align: middle;"
-                        :class="getMontoItemSocio(item) < 0 ? 'text-rose-600' : 'text-emerald-700'"
-                        x-text="(getMontoItemSocio(item) >= 0 ? '+' : '') + formatMonto(getMontoItemSocio(item))">
-                    </td>
+                   <td style="padding: 4px 4px; font-family: monospace; font-size: 16px; font-weight: 900; text-align: right; vertical-align: middle;"
+    :class="getMontoItemSocio(item) < 0 ? 'text-rose-600' : 'text-emerald-700'"
+    x-text="(getMontoItemSocio(item) >= 0 ? '+' : '') + formatMonto(getMontoItemSocio(item))">
+</td>
                   </tr>
                 </template>
               </tbody>
