@@ -17,23 +17,45 @@ function normalizarMapTasas(tasasObj) {
   const rawMap = typeof tasasObj === 'string' ? JSON.parse(tasasObj || '{}') : (tasasObj || {});
   const mapNormalizado = {};
   for (const [k, v] of Object.entries(rawMap)) {
-    if (k) mapNormalizado[k.toUpperCase().trim()] = parseFloat(v) || 1.0;
+    if (k) mapNormalizado[k.toUpperCase().trim()] = parseFloat(v) || 0;
   }
   return mapNormalizado;
 }
 
 /**
- * Obtiene la tasa base global de una divisa.
- * Garantiza que divisas dolarizadas retornen 1.0 si no están en el mapa.
+ * Obtiene la tasa base global de una divisa con soporte de alias.
+ * Garantiza que si la moneda base es PEN, busque PEN, SOL, PERU, etc.
  */
 function getTasaBaseMercado(mapa, code) {
   const c = (code || '').toUpperCase().trim();
-  if (mapa[c] !== undefined && parseFloat(mapa[c]) > 0) {
-    return parseFloat(mapa[c]);
-  }
+  
   if (['USD', 'USDT', 'PYUSD', 'ECU', 'PAN'].includes(c)) {
     return 1.0;
   }
+
+  // 1. Búsqueda directa en el mapa
+  if (mapa[c] !== undefined && parseFloat(mapa[c]) > 0) {
+    return parseFloat(mapa[c]);
+  }
+
+  // 2. Búsqueda por alias alternativos en el objeto de tasas
+  const aliasMap = {
+    'PEN': ['SOL', 'PERU', 'PER', 'PEN_USD'],
+    'VES': ['BOLIVAR', 'BS', 'VEF', 'VES_USD'],
+    'ARS': ['PESO_ARG', 'ARG', 'ARS_USD'],
+    'BRL': ['REAL', 'BRAZIL', 'BRL_USD'],
+    'COP': ['PESO_COL', 'COL', 'COP_USD'],
+    'CLP': ['PESO_CHL', 'CHL', 'CLP_USD']
+  };
+
+  if (aliasMap[c]) {
+    for (const alt of aliasMap[c]) {
+      if (mapa[alt] !== undefined && parseFloat(mapa[alt]) > 0) {
+        return parseFloat(mapa[alt]);
+      }
+    }
+  }
+
   return 1.0;
 }
 
@@ -82,13 +104,24 @@ async function obtenerSociosYProcesarTasas(options = null) {
   const tasasMercadoAnterior = normalizarMapTasas(loteAnterior.tasas);
   const correlativoTasa = loteActual.id_tasa || 'T001';
 
-  // 🟢 2. Obtener lista de socios desde PERFILES_GLAUKOV (solo los que tengan mostrar.tasas = true)
-  const sqlSocios = `
+  // 🟢 2. Obtener lista de socios desde PERFILES_GLAUKOV
+  // Si hay un filtro explícito por nombre, omitimos la restricción de mostrar.tasas
+  let sqlSocios = `
     SELECT * 
     FROM perfiles_glaukov 
     WHERE (mostrar->>'tasas')::boolean = TRUE;
   `;
-  const { rows } = await db.query(sqlSocios);
+  
+  if (filtroNombre) {
+    sqlSocios = `
+      SELECT * 
+      FROM perfiles_glaukov 
+      WHERE UPPER(nombre) LIKE UPPER($1);
+    `;
+  }
+
+  const queryArgs = filtroNombre ? [`%${filtroNombre.trim()}%`] : [];
+  const { rows } = await db.query(sqlSocios, queryArgs);
   const timeVE = obtenerFechaHoraVE();
   let listaSociosProcesados = [];
 
@@ -101,7 +134,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
-    // 🟢 CORRECCIÓN CLAVE: LECTURA MULTI-CAMPO DE LA MONEDA BASE DEL SOCIO (ej: PEN)
+    // 🟢 LECTURA DIRECTA Y SEGURA DE LA MONEDA BASE DEL SOCIO (ej: PEN)
     const monedaExtraida = String(socioData.moneda_base || socioData.moneda_socio || socioData.moneda || "USDT").toUpperCase().trim();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
 
@@ -127,8 +160,8 @@ async function obtenerSociosYProcesarTasas(options = null) {
       const nombreP = MAPA_MONEDAS[codeP] || Object.keys(MAPA_MONEDAS).find(k => MAPA_MONEDAS[k] === codeP) || codeP;
 
       // 🟢 1. LECTURA DE PORCENTAJES Y POLARIDAD (+) O (-) DESDE EL OBJETO
-      const pctD = configPais.porcentaje?.deposito || 0;
-      const pctP = configPais.porcentaje?.pago || 0;
+      const pctD = parseFloat(configPais.porcentaje?.deposito || 0);
+      const pctP = parseFloat(configPais.porcentaje?.pago || 0);
       const polaridad = configPais.polaridad || '+';
 
       // 🟢 2. CÁLCULO DE FACTORES RESPETANDO LA POLARIDAD
@@ -138,9 +171,11 @@ async function obtenerSociosYProcesarTasas(options = null) {
       // 🟢 3. CÁLCULO DE TASA CRUZADA (TRIANGULACIÓN REAL CONTRA LA MONEDA BASE DEL SOCIO)
       const tasaBaseDestino = getTasaBaseMercado(tasasMercado, codeP);
       const tasaBaseSocio   = getTasaBaseMercado(tasasMercado, monedaProcesada);
-      
-      // Si la moneda del socio es PEN (3.75) y Argentina es 1580: crossBaseActual = 1580 / 3.75 = 421.33
-      const crossBaseActual = tasaBaseSocio > 0 ? (tasaBaseDestino / tasaBaseSocio) : tasaBaseDestino;
+
+      // Si la moneda del socio es PEN (ej: 3.75) y Argentina es 1580: crossBaseActual = 1580 / 3.75 = 421.33
+      const crossBaseActual = (monedaProcesada !== 'USDT' && tasaBaseSocio > 0) 
+        ? (tasaBaseDestino / tasaBaseSocio) 
+        : tasaBaseDestino;
 
       const numCompraActual = crossBaseActual * factorD;
       const numVentaActual  = crossBaseActual * factorP;
@@ -148,7 +183,10 @@ async function obtenerSociosYProcesarTasas(options = null) {
       // 🟢 4. CÁLCULO HISTÓRICO PARA TENDENCIA
       const tasaBaseDestinoAnt = getTasaBaseMercado(tasasMercadoAnterior, codeP);
       const tasaBaseSocioAnt   = getTasaBaseMercado(tasasMercadoAnterior, monedaProcesada);
-      const crossBaseAnt = tasaBaseSocioAnt > 0 ? (tasaBaseDestinoAnt / tasaBaseSocioAnt) : tasaBaseDestinoAnt;
+      
+      const crossBaseAnt = (monedaProcesada !== 'USDT' && tasaBaseSocioAnt > 0) 
+        ? (tasaBaseDestinoAnt / tasaBaseSocioAnt) 
+        : tasaBaseDestinoAnt;
 
       const numCompraAnt = crossBaseAnt * factorD;
       const numVentaAnt  = crossBaseAnt * factorP;
@@ -179,11 +217,6 @@ async function obtenerSociosYProcesarTasas(options = null) {
       tarjetas_paises: tarjetasPaises,
       cartelera_paises: tarjetasPaises
     });
-  }
-
-  if (filtroNombre && typeof filtroNombre === 'string') {
-    const busqueda = filtroNombre.trim().toLowerCase();
-    listaSociosProcesados = listaSociosProcesados.filter(s => s.nombre_socio.toLowerCase().includes(busqueda));
   }
 
   return listaSociosProcesados;
