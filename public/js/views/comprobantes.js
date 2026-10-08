@@ -83,7 +83,7 @@ export function comprobantesView() {
       return (!isNaN(valTasa) && valTasa !== 0) ? valTasa : 1.0;
     },
 
-    // --- CÁLCULOS ME1 Y ME2 ORIGINALES (SIN TOCAR NI ROMPER) ---
+    // --- CÁLCULOS ME1 Y ME2 ORIGINALES RESTAURADOS ---
     obtenerME1(c) {
       if (!c) return 0;
       if (c.m1_socio !== undefined && c.m1_socio !== null && c.m1_socio !== '') {
@@ -208,7 +208,11 @@ export function comprobantesView() {
       return `[${tipo}-${hash}]`;
     },
 
-    // 🟢 ABRIR MODAL (Asigna monto_1 y monto_2 reales de la BD)
+    // 🟢 ALIAS Y ABRIR MODAL AUDITORÍA
+    abrirModal(item) {
+      this.abrirModalEdicion(item);
+    },
+
     abrirModalEdicion(item) {
       let dateInput = '';
       const ts = item.timestamp || item.timestamp_comprobante;
@@ -221,13 +225,12 @@ export function comprobantesView() {
       const loteSeleccionado = item.id_tasa || item.lote_tasa || item.lote_tasa_asignado || 'T052';
       const naturaleza = item.tipo_manual || item.tipo_op || item.tipo_op_1 || 'D';
 
-      // Tomamos la referencia real del objeto
-      let baseMonto = parseFloat(item.monto || item.monto_local || 0);
-      
+      const baseMonto = parseFloat(item.monto || item.monto_local || 0);
+
       let m1 = item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : baseMonto;
       let m2 = item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : baseMonto;
 
-      // REGLA PARA ABONO (A): Socio 1 (+), Socio 2 (-)
+      // 🟢 REGLA DE ABONO (A): Socio 1 (+) y Socio 2 (-)
       if (naturaleza === 'A') {
         m1 = Math.abs(parseFloat(m1) || 0);
         m2 = -Math.abs(parseFloat(m2) || 0);
@@ -247,7 +250,7 @@ export function comprobantesView() {
       this.modalEdicionAbierto = true;
     },
 
-    // 🟢 SI CAMBIA A "A (ABONO)", APLICA EL SIGNO SUGERIDO
+    // 🟢 RE-CALCULA SIGNOS AUTOMÁTICAMENTE AL CAMBIAR NATURALEZA A "A"
     actualizarSignosPorNaturaleza() {
       if (!this.itemEdicion) return;
 
@@ -256,12 +259,16 @@ export function comprobantesView() {
       let val2 = Math.abs(parseFloat(this.itemEdicion.monto_2) || 0);
 
       if (nat === 'A') {
-        this.itemEdicion.monto_1 = val1;
-        this.itemEdicion.monto_2 = -val2;
+        this.itemEdicion.monto_1 = val1;   // (+) Socio 1 suma
+        this.itemEdicion.monto_2 = -val2;  // (-) Socio 2 resta
       }
     },
 
-    // 🟢 GUARDAR EDICIÓN RESPETANDO LO EDITADO POR EL ADMIN
+    // 🟢 GUARDAR EDICIÓN MANIFESTANDO LO INGRESADO POR EL ADMIN
+    async guardarCambios() {
+      await this.guardarEdicionComprobante();
+    },
+
     async guardarEdicionComprobante() {
       if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
       try {
@@ -270,13 +277,19 @@ export function comprobantesView() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
+        const valM1 = this.itemEdicion.monto_1 !== '' ? parseFloat(this.itemEdicion.monto_1) : 0;
+        const valM2 = this.itemEdicion.monto_2 !== '' ? parseFloat(this.itemEdicion.monto_2) : 0;
+
         const payload = {
           ...this.itemEdicion,
           id_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
           lote_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
-          // Envía exactamente lo que está escrito en las casillas
-          monto_1: this.itemEdicion.monto_1 !== '' ? parseFloat(this.itemEdicion.monto_1) : 0,
-          monto_2: this.itemEdicion.monto_2 !== '' ? parseFloat(this.itemEdicion.monto_2) : 0
+          monto_1: valM1,
+          monto_2: valM2,
+          me1: valM1,
+          me2: valM2,
+          m1_socio: valM1,
+          m2_socio: valM2
         };
 
         await window.AteneaAPI.actualizarComprobante(payload.hash_largo, payload);
