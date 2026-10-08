@@ -83,19 +83,23 @@ export function comprobantesView() {
       return (!isNaN(valTasa) && valTasa !== 0) ? valTasa : 1.0;
     },
 
-    // 🟢 MONTO SOCIO 1 (PRESERVA SIGNOS NEGATIVOS)
+    // 🟢 MONTO SOCIO 1 (SUMA SIEMPRE SI ES ABONO)
     obtenerME1(c) {
       if (!c) return 0;
       
-      // Respetar edición manual o existente si viene definida
+      const nat = c.tipo_manual || c.tipo_op || 'D';
+
       if (c.monto_1 !== undefined && c.monto_1 !== null && c.monto_1 !== '') {
-        return parseFloat(c.monto_1) || 0;
+        let val = parseFloat(c.monto_1) || 0;
+        return nat === 'A' ? Math.abs(val) : val;
       }
       if (c.m1_socio !== undefined && c.m1_socio !== null && c.m1_socio !== '') {
-        return parseFloat(c.m1_socio) || 0;
+        let val = parseFloat(c.m1_socio) || 0;
+        return nat === 'A' ? Math.abs(val) : val;
       }
       if (c.me1 !== undefined && c.me1 !== null && c.me1 !== '') {
-        return parseFloat(c.me1) || 0;
+        let val = parseFloat(c.me1) || 0;
+        return nat === 'A' ? Math.abs(val) : val;
       }
 
       const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
@@ -106,8 +110,6 @@ export function comprobantesView() {
         ? (tasa > 0 ? montoOrigen * tasa : montoOrigen)
         : (tasa > 0 ? montoOrigen / tasa : montoOrigen);
 
-      // Si es Abono (A), Socio 1 siempre suma (+)
-      const nat = c.tipo_manual || c.tipo_op || 'D';
       if (nat === 'A') {
         equivalente = Math.abs(equivalente);
       }
@@ -115,19 +117,23 @@ export function comprobantesView() {
       return parseFloat(equivalente.toFixed(2));
     },
 
-    // 🟢 MONTO SOCIO 2 (PRESERVA SIGNOS NEGATIVOS EN ABONO)
+    // 🟢 MONTO SOCIO 2 (RESTA SIEMPRE EN TARJETA Y EN MODAL SI ES ABONO)
     obtenerME2(c) {
       if (!c) return 0;
 
-      // Respetar edición manual o existente si viene definida
+      const nat = c.tipo_manual || c.tipo_op || 'D';
+
       if (c.monto_2 !== undefined && c.monto_2 !== null && c.monto_2 !== '') {
-        return parseFloat(c.monto_2) || 0;
+        let val = parseFloat(c.monto_2) || 0;
+        return nat === 'A' ? -Math.abs(val) : val;
       }
       if (c.m2_socio !== undefined && c.m2_socio !== null && c.m2_socio !== '') {
-        return parseFloat(c.m2_socio) || 0;
+        let val = parseFloat(c.m2_socio) || 0;
+        return nat === 'A' ? -Math.abs(val) : val;
       }
       if (c.me2 !== undefined && c.me2 !== null && c.me2 !== '') {
-        return parseFloat(c.me2) || 0;
+        let val = parseFloat(c.me2) || 0;
+        return nat === 'A' ? -Math.abs(val) : val;
       }
 
       const montoOrigen = Math.abs(parseFloat(c.monto || c.monto_origen || 0));
@@ -138,8 +144,6 @@ export function comprobantesView() {
         ? (tasa > 0 ? montoOrigen * tasa : montoOrigen)
         : (tasa > 0 ? montoOrigen / tasa : montoOrigen);
 
-      // 🟢 REGLA DE ABONO (A): Socio 2 SIEMPRE resta (-)
-      const nat = c.tipo_manual || c.tipo_op || 'D';
       if (nat === 'A') {
         equivalente = -Math.abs(equivalente);
       }
@@ -267,7 +271,7 @@ export function comprobantesView() {
       this.modalAbierto = true;
     },
 
-    // 🟢 AJUSTA SIGNOS AL CAMBIAR NATURALEZA PERO PERMITE QUE EL ADMIN MANUALEÉ
+    // 🟢 AJUSTA SIGNOS AUTOMÁTICAMENTE AL CAMBIAR NATURALEZA
     actualizarSignosPorNaturaleza() {
       if (!this.itemEdicion) return;
 
@@ -281,7 +285,7 @@ export function comprobantesView() {
       }
     },
 
-    // 🟢 ALIAS Y GUARDAR COMPROBANTE
+    // 🟢 GUARDAR CAMBIOS Y CONGELAR
     async guardarCambios() {
       await this.guardarEdicionComprobante();
     },
@@ -294,13 +298,26 @@ export function comprobantesView() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
+        const nat = this.itemEdicion.tipo_manual || 'D';
+        let finalM1 = parseFloat(this.itemEdicion.monto_1) || 0;
+        let finalM2 = parseFloat(this.itemEdicion.monto_2) || 0;
+
+        // Si es Abono (A), asegurar que monto_2 mantenga el signo negativo
+        if (nat === 'A') {
+          finalM1 = Math.abs(finalM1);
+          finalM2 = -Math.abs(finalM2);
+        }
+
         const payload = {
           ...this.itemEdicion,
           id_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
           lote_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
-          // Mantiene los valores editados manualmente por el admin
-          monto_1: parseFloat(this.itemEdicion.monto_1) || 0,
-          monto_2: parseFloat(this.itemEdicion.monto_2) || 0
+          monto_1: finalM1,
+          monto_2: finalM2,
+          me1: finalM1,
+          me2: finalM2,
+          m1_socio: finalM1,
+          m2_socio: finalM2
         };
 
         await window.AteneaAPI.actualizarComprobante(payload.hash_largo, payload);
