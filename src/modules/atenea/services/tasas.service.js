@@ -101,8 +101,8 @@ async function obtenerSociosYProcesarTasas(options = null) {
     const valorFecha = timeVE.fechaStr;
     const valorHora = timeVE.horaStr;
 
-    // 🟢 MONEDA NATIVA EXACTA DEL SOCIO
-    const monedaExtraida = String(socioData.moneda_base || "USDT").toUpperCase().trim();
+    // 🟢 CORRECCIÓN CLAVE: LECTURA MULTI-CAMPO DE LA MONEDA BASE DEL SOCIO (ej: PEN)
+    const monedaExtraida = String(socioData.moneda_base || socioData.moneda_socio || socioData.moneda || "USDT").toUpperCase().trim();
     const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
 
     // 🟢 OBJETO MONEDAS EN FORMATO JSONB LIMPIO
@@ -126,20 +126,21 @@ async function obtenerSociosYProcesarTasas(options = null) {
 
       const nombreP = MAPA_MONEDAS[codeP] || Object.keys(MAPA_MONEDAS).find(k => MAPA_MONEDAS[k] === codeP) || codeP;
 
-      // 🟢 1. LECTURA DE PORCENTAJES (%) DESDE EL NUEVO OBJETO
+      // 🟢 1. LECTURA DE PORCENTAJES Y POLARIDAD (+) O (-) DESDE EL OBJETO
       const pctD = configPais.porcentaje?.deposito || 0;
       const pctP = configPais.porcentaje?.pago || 0;
+      const polaridad = configPais.polaridad || '+';
 
-      // 🟢 2. CONVERSIÓN A FACTOR MULTIPLICADOR COMERCIAL
-      // En precio de cartelera: El depósito suma al precio base (1 + pct)
-      // En precio de cartelera: El pago resta al precio base (1 - pct)
-      const factorD = pctD !== null && !isNaN(pctD) ? 1 + (pctD / 100) : (FACTORES_RESPALDO[codeP]?.D ?? 1.0);
-      const factorP = pctP !== null && !isNaN(pctP) ? 1 - (pctP / 100) : (FACTORES_RESPALDO[codeP]?.P ?? 0.95);
+      // 🟢 2. CÁLCULO DE FACTORES RESPETANDO LA POLARIDAD
+      const factorD = polaridad === '-' ? 1 - (pctD / 100) : 1 + (pctD / 100);
+      const factorP = polaridad === '-' ? 1 + (pctP / 100) : 1 - (pctP / 100);
 
-      // 🟢 3. CÁLCULO DE TASA CRUZADA
+      // 🟢 3. CÁLCULO DE TASA CRUZADA (TRIANGULACIÓN REAL CONTRA LA MONEDA BASE DEL SOCIO)
       const tasaBaseDestino = getTasaBaseMercado(tasasMercado, codeP);
       const tasaBaseSocio   = getTasaBaseMercado(tasasMercado, monedaProcesada);
-      const crossBaseActual = tasaBaseDestino / tasaBaseSocio;
+      
+      // Si la moneda del socio es PEN (3.75) y Argentina es 1580: crossBaseActual = 1580 / 3.75 = 421.33
+      const crossBaseActual = tasaBaseSocio > 0 ? (tasaBaseDestino / tasaBaseSocio) : tasaBaseDestino;
 
       const numCompraActual = crossBaseActual * factorD;
       const numVentaActual  = crossBaseActual * factorP;
@@ -147,7 +148,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
       // 🟢 4. CÁLCULO HISTÓRICO PARA TENDENCIA
       const tasaBaseDestinoAnt = getTasaBaseMercado(tasasMercadoAnterior, codeP);
       const tasaBaseSocioAnt   = getTasaBaseMercado(tasasMercadoAnterior, monedaProcesada);
-      const crossBaseAnt = tasaBaseDestinoAnt / tasaBaseSocioAnt;
+      const crossBaseAnt = tasaBaseSocioAnt > 0 ? (tasaBaseDestinoAnt / tasaBaseSocioAnt) : tasaBaseDestinoAnt;
 
       const numCompraAnt = crossBaseAnt * factorD;
       const numVentaAnt  = crossBaseAnt * factorP;
@@ -162,11 +163,10 @@ async function obtenerSociosYProcesarTasas(options = null) {
         venta: valVentaStr,
         trend_compra: (factorD > 0) ? getTrend(numCompraActual, numCompraAnt) : 'stable',
         trend_venta:  (factorP > 0) ? getTrend(numVentaActual, numVentaAnt)   : 'stable',
-        orden: configPais.orden || 99 // Por si eventualmente le añades un campo de orden al JSONB
+        orden: configPais.orden || 99
       });
     }
     
-    // Opcional: ordenar la cartelera según el código si no hay un orden numérico
     tarjetasPaises.sort((a, b) => a.orden - b.orden || a.nombre_pais.localeCompare(b.nombre_pais));
 
     listaSociosProcesados.push({
@@ -177,7 +177,7 @@ async function obtenerSociosYProcesarTasas(options = null) {
       hora_actualizacion: valorHora,
       tasa_base_ref: `${valorTasa} ${valorFecha}`,
       tarjetas_paises: tarjetasPaises,
-      cartelera_paises: tarjetasPaises // Mantenemos esta llave por compatibilidad con el renderizador EJS de la imagen
+      cartelera_paises: tarjetasPaises
     });
   }
 
