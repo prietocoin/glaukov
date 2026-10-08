@@ -1,68 +1,271 @@
-/**
- * @file comprobantesFilterService.js
- * @path public/js/modules/comprobantes/services/comprobantesFilterService.js
- * @description Servicio atómico de filtrado estricto por socio sin alterar el estado.
- */
+const db = require('../../../config/db');
+const { truncarTasaOficial, obtenerFechaHoraVE, extractJid } = require('../../../utils/formatters');
+const { BANDERAS_MAP, MAPA_MONEDAS, FACTORES_RESPALDO } = require('./mapper.service');
+const { Queue } = require('bullmq');
+const redisConnection = require('../../../config/redis');
 
-export function limpiarFiltro(val) {
-  if (!val) return '';
-  const str = String(val).trim().toUpperCase();
-  return (str === 'TODOS' || str === 'TODOS LOS SOCIOS' || str === 'GENERAL') ? '' : val;
+const tasasQueue = new Queue('cola-tasas', { connection: redisConnection });
+
+tasasQueue.on('error', (err) => {
+  console.error('❌ [BullMQ tasasQueue] Error en la cola de Redis:', err.message);
+});
+
+/**
+ * Normaliza las llaves de un objeto de tasas a MAYÚSCULAS para evitar undefined
+ */
+function normalizarMapTasas(tasasObj) {
+  const rawMap = typeof tasasObj === 'string' ? JSON.parse(tasasObj || '{}') : (tasasObj || {});
+  const mapNormalizado = {};
+  for (const [k, v] of Object.entries(rawMap)) {
+    if (k) mapNormalizado[k.toUpperCase().trim()] = parseFloat(v) || 0;
+  }
+  return mapNormalizado;
 }
 
 /**
- * Auxiliar atómico para extraer el nombre real del socio descartando
- * valores nulos, genéricos o titularidades bancarias.
+ * Obtiene la tasa base global de una divisa con soporte de alias.
+ * Garantiza que si la moneda base es PEN, busque PEN, SOL, PERU, etc.
  */
-function extraerNombreSocioLimpio(valor) {
-  if (!valor || typeof valor !== 'string') return '';
-  const limpio = valor.trim().toUpperCase();
-  if (!limpio || limpio === 'GENERAL' || limpio === 'NO DEFINIDO' || limpio === 'N/A' || limpio === '-') {
-    return '';
-  }
-  return limpio;
-}
+function getTasaBaseMercado(mapa, code) {
+  if (!code) return 1.0;
+  const c = String(code).toUpperCase().trim();
 
-/**
- * Filtra comprobantes comparando de forma estricta contra Socio 1 o Socio 2,
- * imitando la cláusula SQL original de PostgreSQL por coincidencia exacta.
- */
-export function filtrarComprobantesPorSocio(listaBase = [], directorio = [], filtroSocio = '') {
-  if (!Array.isArray(listaBase) || listaBase.length === 0) return [];
-
-  const socioBuscado = limpiarFiltro(filtroSocio).toUpperCase();
-
-  // Si no hay filtro o es global, devuelve toda la lista
-  if (!socioBuscado) {
-    return listaBase;
+  // 1. Si la moneda es dolarizada, su tasa base siempre es 1.0
+  if (['USD', 'USDT', 'PYUSD', 'ECU', 'PAN'].includes(c)) {
+    return 1.0;
   }
 
-  // 1. Mapear socios válidos (incluyendo herencias de la tabla nombres_fb si existen)
-  const sociosValidos = new Set([socioBuscado]);
-  if (Array.isArray(directorio) && directorio.length > 0) {
-    directorio.forEach(d => {
-      const padre = String(d.padre || d.herencia || '').trim().toUpperCase();
-      const nombre = String(d.nombre || '').trim().toUpperCase();
-      if (padre === socioBuscado || nombre === socioBuscado) {
-        if (d.nombre) sociosValidos.add(String(d.nombre).trim().toUpperCase());
+  // 2. Búsqueda directa en el mapa normalizado
+  if (mapa && mapa[c] !== undefined) {
+    const val = parseFloat(mapa[c]);
+    if (!isNaN(val) && val > 0) return val;
+  }
+
+  // 3. Búsqueda por alias alternativos si la clave directa no existe
+  const aliasMap = {
+    'PEN': ['SOL', 'PERU', 'PER', 'PEN_USD'],
+    'VES': ['BOLIVAR', 'BS', 'VEF', 'VES_USD'],
+    'ARS': ['PESO_ARG', 'ARG', 'ARS_USD'],
+    'BRL': ['REAL', 'BRAZIL', 'BRL_USD'],
+    'COP': ['PESO_COL', 'COL', 'COP_USD'],
+    'CLP': ['PESO_CHL', 'CHL', 'CLP_USD']
+  };
+
+  if (aliasMap[c]) {
+    for (const alt of aliasMap[c]) {
+      if (mapa && mapa[alt] !== undefined) {
+        const valAlt = parseFloat(mapa[alt]);
+        if (!isNaN(valAlt) && valAlt > 0) return valAlt;
       }
+    }
+  }
+
+  return 1.0;
+}
+
+async function obtenerSociosYProcesarTasas(options = null) {
+  let filtroNombre = null;
+  let idTasaRequerida = null;
+
+  // 🟢 Normalización de parámetros: acepta tanto string como objeto de opciones
+  if (typeof options === 'string') {
+    filtroNombre = options;
+  } else if (typeof options === 'object' && options !== null) {
+    filtroNombre = options.filtroNombre || options.socio || null;
+    idTasaRequerida = options.id_tasa || options.lote_tasa || options.idTasa || null;
+  }
+
+  // 🟢 1. Obtener la tasa correspondiente (específica por id_tasa o fallback a la más reciente)
+  let loteActual, loteAnterior;
+
+  if (idTasaRequerida) {
+    const sqlTasaEspecífica = `
+      SELECT id_tasa, tasas, created_at 
+      FROM tasas_glaukov 
+      WHERE id_tasa = $1 
+      LIMIT 1;
+    `;
+    const resEspecífica = await db.query(sqlTasaEspecífica, [idTasaRequerida]);
+    if (resEspecífica.rows.length > 0) {
+      loteActual = resEspecífica.rows[0];
+      loteAnterior = loteActual;
+    }
+  }
+
+  if (!loteActual) {
+    const sqlTasas = `
+      SELECT id_tasa, tasas, created_at 
+      FROM tasas_glaukov 
+      ORDER BY created_at DESC, id DESC 
+      LIMIT 2;
+    `;
+    const resTasas = await db.query(sqlTasas);
+    loteActual = resTasas.rows[0] || { id_tasa: 'T001', tasas: {} };
+    loteAnterior = resTasas.rows[1] || loteActual;
+  }
+
+  const tasasMercado = normalizarMapTasas(loteActual.tasas);
+  const tasasMercadoAnterior = normalizarMapTasas(loteAnterior.tasas);
+  const correlativoTasa = loteActual.id_tasa || 'T001';
+
+  // 🟢 2. Obtener lista de socios desde PERFILES_GLAUKOV
+  // Si hay un filtro explícito por nombre, omitimos la restricción de mostrar.tasas
+  let sqlSocios = `
+    SELECT * 
+    FROM perfiles_glaukov 
+    WHERE (mostrar->>'tasas')::boolean = TRUE;
+  `;
+  
+  if (filtroNombre) {
+    sqlSocios = `
+      SELECT * 
+      FROM perfiles_glaukov 
+      WHERE UPPER(nombre) LIKE UPPER($1);
+    `;
+  }
+
+  const queryArgs = filtroNombre ? [`%${filtroNombre.trim()}%`] : [];
+  const { rows } = await db.query(sqlSocios, queryArgs);
+  const timeVE = obtenerFechaHoraVE();
+  let listaSociosProcesados = [];
+
+  for (const socioData of rows) {
+    const nombre = socioData.nombre || "SOCIO";
+    if (!nombre || nombre.toUpperCase() === 'NOMBRE' || nombre.toUpperCase() === 'GENERAL') continue;
+
+    const whatsappJid = extractJid(socioData.id_grupo);
+    const valorTasa = correlativoTasa;
+    const valorFecha = timeVE.fechaStr;
+    const valorHora = timeVE.horaStr;
+
+    // 🟢 LECTURA DIRECTA Y SEGURA DE LA MONEDA BASE DEL SOCIO (ej: PEN)
+    const monedaExtraida = String(socioData.moneda_base || socioData.moneda_socio || socioData.moneda || "USDT").toUpperCase().trim();
+    const monedaProcesada = (monedaExtraida === "USD") ? "USDT" : monedaExtraida;
+
+    // 🟢 OBJETO MONEDAS EN FORMATO JSONB LIMPIO
+    const monedasConfig = typeof socioData.monedas === 'object' && socioData.monedas !== null
+      ? socioData.monedas 
+      : {};
+
+    const tarjetasPaises = [];
+
+    const getTrend = (actualNum, antNum) => {
+      const a = parseFloat(actualNum.toFixed(4));
+      const b = parseFloat(antNum.toFixed(4));
+      if (a > b) return "up";
+      if (a < b) return "down";
+      return "stable";
+    };
+
+    // Iteramos directamente sobre las llaves de las monedas configuradas para el socio
+    for (const [codeP, configPais] of Object.entries(monedasConfig)) {
+      if (!configPais.activo) continue; // Si la moneda está desactivada, la saltamos
+
+      const nombreP = MAPA_MONEDAS[codeP] || Object.keys(MAPA_MONEDAS).find(k => MAPA_MONEDAS[k] === codeP) || codeP;
+
+      // 🟢 1. LECTURA DE PORCENTAJES Y POLARIDAD (+) O (-) DESDE EL OBJETO
+      const pctD = parseFloat(configPais.porcentaje?.deposito || 0);
+      const pctP = parseFloat(configPais.porcentaje?.pago || 0);
+      const polaridad = configPais.polaridad || '+';
+
+      // 🟢 2. CÁLCULO DE FACTORES RESPETANDO LA POLARIDAD
+      const factorD = polaridad === '-' ? 1 - (pctD / 100) : 1 + (pctD / 100);
+      const factorP = polaridad === '-' ? 1 + (pctP / 100) : 1 - (pctP / 100);
+
+      // 🟢 3. CÁLCULO DE TASA CRUZADA (TRIANGULACIÓN REAL CONTRA LA MONEDA BASE DEL SOCIO)
+      const tasaBaseDestino = getTasaBaseMercado(tasasMercado, codeP);
+      const tasaBaseSocio   = getTasaBaseMercado(tasasMercado, monedaProcesada);
+
+      // Si la moneda del socio es PEN (3.44) y Argentina es 1599: crossBaseActual = 1599 / 3.44 = 464.82
+      const crossBaseActual = (monedaProcesada !== 'USDT' && tasaBaseSocio > 0) 
+        ? (tasaBaseDestino / tasaBaseSocio) 
+        : tasaBaseDestino;
+
+      const numCompraActual = crossBaseActual * factorD;
+      const numVentaActual  = crossBaseActual * factorP;
+
+      // 🟢 4. CÁLCULO HISTÓRICO PARA TENDENCIA
+      const tasaBaseDestinoAnt = getTasaBaseMercado(tasasMercadoAnterior, codeP);
+      const tasaBaseSocioAnt   = getTasaBaseMercado(tasasMercadoAnterior, monedaProcesada);
+      
+      const crossBaseAnt = (monedaProcesada !== 'USDT' && tasaBaseSocioAnt > 0) 
+        ? (tasaBaseDestinoAnt / tasaBaseSocioAnt) 
+        : tasaBaseDestinoAnt;
+
+      const numCompraAnt = crossBaseAnt * factorD;
+      const numVentaAnt  = crossBaseAnt * factorP;
+
+      const valCompraStr = (factorD > 0) ? truncarTasaOficial(numCompraActual) : "-";
+      const valVentaStr  = (factorP > 0) ? truncarTasaOficial(numVentaActual)  : "-";
+
+      tarjetasPaises.push({
+        bandera: BANDERAS_MAP[codeP] || '🌐',
+        nombre_pais: `${nombreP} (${codeP})`,
+        compra: valCompraStr,
+        venta: valVentaStr,
+        trend_compra: (factorD > 0) ? getTrend(numCompraActual, numCompraAnt) : 'stable',
+        trend_venta:  (factorP > 0) ? getTrend(numVentaActual, numVentaAnt)   : 'stable',
+        orden: configPais.orden || 99
+      });
+    }
+    
+    tarjetasPaises.sort((a, b) => a.orden - b.orden || a.nombre_pais.localeCompare(b.nombre_pais));
+
+    listaSociosProcesados.push({
+      nombre_socio: nombre,
+      moneda_socio: monedaProcesada,
+      remoteJid: whatsappJid,
+      lote_tasa: correlativoTasa,
+      hora_actualizacion: valorHora,
+      tasa_base_ref: `${valorTasa} ${valorFecha}`,
+      tarjetas_paises: tarjetasPaises,
+      cartelera_paises: tarjetasPaises
     });
   }
 
-  // 2. Compara EXCLUSIVAMENTE sobre las propiedades reales de Socio 1 y Socio 2
-  return listaBase.filter(item => {
-    if (!item) return false;
-
-    // Extracción limpia y sanitizada de Socio 1 y Socio 2 (Descarta Titular)
-    const s1 = extraerNombreSocioLimpio(item.nombre_socio_1) || 
-               extraerNombreSocioLimpio(item.socio_1) || 
-               extraerNombreSocioLimpio(item.fb_socio_1);
-
-    const s2 = extraerNombreSocioLimpio(item.nombre_socio_2) || 
-               extraerNombreSocioLimpio(item.socio_2) || 
-               extraerNombreSocioLimpio(item.fb_socio_2);
-
-    // Solo aprueba si Socio 1 o Socio 2 coinciden exactamente con la lista de socios válidos
-    return sociosValidos.has(s1) || sociosValidos.has(s2);
-  });
+  return listaSociosProcesados;
 }
+
+// 🟢 ENCOLADO A BULLMQ
+async function encolarNotificacionesTasas(options = null) {
+  let optionsObj = options;
+  if (typeof options === 'string') {
+    optionsObj = { filtroNombre: options };
+  }
+
+  const jidOverride = optionsObj?.jidOverride || optionsObj?.destinationJid || null;
+
+  const socios = await obtenerSociosYProcesarTasas(optionsObj);
+  console.log(`[Glaukov Atenea 🚀] Encolando ${socios.length} socio(s) para renderizado...`);
+  
+  let encoladosConExito = 0;
+
+  for (const socio of socios) {
+    const targetJid = (jidOverride && String(jidOverride).trim().length > 0) 
+      ? String(jidOverride).trim() 
+      : socio.remoteJid;
+
+    const payloadJob = {
+      ...socio,
+      remoteJid: targetJid,
+      jidOverride: targetJid,
+      destinationJid: targetJid
+    };
+
+    try {
+      await tasasQueue.add('render-tasa-socio', payloadJob, { removeOnComplete: true, attempts: 3 });
+      encoladosConExito++;
+    } catch (qErr) {
+      console.error(`❌ Error al encolar tasa en Redis para socio ${socio.nombre_socio}:`, qErr.message);
+    }
+  }
+
+  return { totalEncolados: encoladosConExito, socios: socios.map(s => s.nombre_socio) };
+}
+
+module.exports = { 
+  obtenerSociosYProcesarTasas,
+  obtenerCarteleraConsolidada: obtenerSociosYProcesarTasas,
+  encolarNotificacionesTasas,
+  dispararPublicacionCartelera: encolarNotificacionesTasas
+};
