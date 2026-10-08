@@ -939,30 +939,26 @@
               </div>
             </div>
 
-            <!-- 🟢 INPUTS EDITABLES PARA MONTO_1 Y MONTO_2 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-blue-900/40 mt-2">
-              <div>
-                <label class="block text-[8px] font-bold text-cyan-300 uppercase mb-0.5">Monto Socio 1 (MONTO_1)</label>
-                <input type="number" 
-                       step="any" 
-                       x-model.number="itemEdicion.monto_1" 
-                       placeholder="Ej: 106.61" 
-                       class="w-full bg-[#030611] border border-cyan-500/50 rounded-xl px-2 py-1.5 text-xs text-cyan-300 font-bold font-mono outline-none focus:border-amber-400">
-              </div>
+            <!-- 🟢 CASILLAS PARA EDITAR MONTO_1 Y MONTO_2 -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-blue-900/40 mt-2">
+  <div>
+    <label class="block text-[8px] font-bold text-cyan-300 uppercase mb-0.5">Monto Socio 1 (monto_1)</label>
+    <input type="text" 
+           x-model="itemEdicion.monto_1" 
+           placeholder="Ej: 106.61" 
+           class="w-full bg-[#030611] border border-cyan-500/50 rounded-xl px-2 py-1.5 text-xs text-cyan-300 font-bold font-mono outline-none focus:border-amber-400">
+  </div>
 
-              <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL'">
-                <div>
-                  <label class="block text-[8px] font-bold text-pink-300 uppercase mb-0.5">Monto Socio 2 (MONTO_2)</label>
-                  <input type="number" 
-                         step="any" 
-                         x-model.number="itemEdicion.monto_2" 
-                         placeholder="Ej: -106.61" 
-                         class="w-full bg-[#030611] border border-pink-500/50 rounded-xl px-2 py-1.5 text-xs text-pink-300 font-bold font-mono outline-none focus:border-amber-400">
-                </div>
-              </template>
-            </div>
-          </div>
-
+  <template x-if="itemEdicion.nombre_socio_2 && itemEdicion.nombre_socio_2 !== 'GENERAL'">
+    <div>
+      <label class="block text-[8px] font-bold text-pink-300 uppercase mb-0.5">Monto Socio 2 (monto_2)</label>
+      <input type="text" 
+             x-model="itemEdicion.monto_2" 
+             placeholder="Ej: -106.61" 
+             class="w-full bg-[#030611] border border-pink-500/50 rounded-xl px-2 py-1.5 text-xs text-pink-300 font-bold font-mono outline-none focus:border-amber-400">
+    </div>
+  </template>
+</div>
           <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center pt-2 border-t border-blue-900/60 gap-2">
             <div class="flex gap-1.5">
               <button type="button" @click="eliminarComprobante(itemEdicion.hash_largo)" class="flex-1 sm:flex-none px-3 py-2 bg-rose-950/80 border border-rose-500/40 text-rose-300 rounded-xl font-bold active:scale-95 transition-all text-center">🗑 Eliminar</button>
