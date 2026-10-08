@@ -83,9 +83,10 @@ export function comprobantesView() {
       return (!isNaN(valTasa) && valTasa !== 0) ? valTasa : 1.0;
     },
 
-    // --- CÁLCULOS ME1 Y ME2 ORIGINALES RESTAURADOS ---
+    // 🟢 ME1: MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 1 - ORIGINAL INTACTO)
     obtenerME1(c) {
       if (!c) return 0;
+      
       if (c.m1_socio !== undefined && c.m1_socio !== null && c.m1_socio !== '') {
         return Math.abs(parseFloat(c.m1_socio) || 0);
       }
@@ -107,8 +108,10 @@ export function comprobantesView() {
       return parseFloat(Math.abs(equivalente).toFixed(2));
     },
 
+    // 🟢 ME2: MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2 - ORIGINAL INTACTO)
     obtenerME2(c) {
       if (!c) return 0;
+
       if (c.m2_socio !== undefined && c.m2_socio !== null && c.m2_socio !== '') {
         return Math.abs(parseFloat(c.m2_socio) || 0);
       }
@@ -135,21 +138,21 @@ export function comprobantesView() {
 
       if (this.filtroSocio) {
         const socioNorm = this.filtroSocio.trim().toUpperCase();
-        const s1 = String(c.socio_1 || c.socio || '').trim().toUpperCase();
-        const s2 = String(c.socio_2 || '').trim().toUpperCase();
+        const s1 = String(c.socio_1 || c.socio || c.nombre_socio_1 || '').trim().toUpperCase();
+        const s2 = String(c.socio_2 || c.nombre_socio_2 || '').trim().toUpperCase();
 
         if (socioNorm === s2) {
-          return this.obtenerME2(c);
+          return parseFloat(c.monto_2 ?? c.m2_socio ?? this.obtenerME2(c)) || 0;
         }
         if (socioNorm === s1) {
-          return this.obtenerME1(c);
+          return parseFloat(c.monto_1 ?? c.m1_socio ?? this.obtenerME1(c)) || 0;
         }
         if (c.monto_socio_final !== undefined && c.monto_socio_final !== null) {
-          return Math.abs(parseFloat(c.monto_socio_final) || 0);
+          return parseFloat(c.monto_socio_final) || 0;
         }
       }
 
-      return this.obtenerME1(c);
+      return parseFloat(c.monto_1 ?? c.m1_socio ?? this.obtenerME1(c)) || 0;
     },
 
     // --- CÁLCULOS Y ORDENAMIENTO DE COMPROBANTES ---
@@ -208,7 +211,7 @@ export function comprobantesView() {
       return `[${tipo}-${hash}]`;
     },
 
-    // 🟢 ALIAS Y ABRIR MODAL AUDITORÍA
+    // 🟢 ABRIR MODAL
     abrirModal(item) {
       this.abrirModalEdicion(item);
     },
@@ -247,7 +250,7 @@ export function comprobantesView() {
         monto_2: m2
       };
       
-      this.modalEdicionAbierto = true;
+      this.modalAbierto = true;
     },
 
     // 🟢 RE-CALCULA SIGNOS AUTOMÁTICAMENTE AL CAMBIAR NATURALEZA A "A"
@@ -264,7 +267,7 @@ export function comprobantesView() {
       }
     },
 
-    // 🟢 GUARDAR EDICIÓN MANIFESTANDO LO INGRESADO POR EL ADMIN
+    // 🟢 GUARDAR EDICIÓN
     async guardarCambios() {
       await this.guardarEdicionComprobante();
     },
@@ -286,14 +289,12 @@ export function comprobantesView() {
           lote_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
           monto_1: valM1,
           monto_2: valM2,
-          me1: valM1,
-          me2: valM2,
           m1_socio: valM1,
           m2_socio: valM2
         };
 
         await window.AteneaAPI.actualizarComprobante(payload.hash_largo, payload);
-        this.modalEdicionAbierto = false;
+        this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
         alert('Error al guardar comprobante: ' + err.message);
@@ -304,7 +305,7 @@ export function comprobantesView() {
       if (!confirm('¿Deseas eliminar este comprobante de la base de datos?')) return;
       try {
         await window.AteneaAPI.eliminarComprobante(hashLargo);
-        this.modalEdicionAbierto = false;
+        this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
         alert('Error al eliminar comprobante: ' + err.message);
