@@ -657,7 +657,7 @@ function registrarAppAlpine() {
     },
 
     // 🟢 GUARDADO CORREGIDO (Transmite monto_1 y monto_2 reales a la API)
-    async guardarCambios() {
+   async guardarCambios() {
       if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
       try {
         if (this.itemEdicion.fecha_hora_input) {
@@ -670,13 +670,14 @@ function registrarAppAlpine() {
         const loteSeleccionado = (this.itemEdicion.lote_tasa_asignado || this.itemEdicion.lote_tasa || this.loteActivo || 'T052').toUpperCase().trim();
 
         let valM1 = this.itemEdicion.monto_1 !== '' ? parseFloat(this.itemEdicion.monto_1) : 0;
-let valM2 = this.itemEdicion.monto_2 !== '' ? parseFloat(this.itemEdicion.monto_2) : 0;
+        let valM2 = this.itemEdicion.monto_2 !== '' ? parseFloat(this.itemEdicion.monto_2) : 0;
 
-// 🟢 REGLA DE ABONO (A): Socio 1 (+), Socio 2 (-)
-if ((this.itemEdicion.tipo_manual || 'P') === 'A') {
-  valM1 = Math.abs(valM1);
-  valM2 = -Math.abs(valM2);
-}
+        // 🟢 SI ES ABONO (A): FORZA M1 POSITIVO Y M2 NEGATIVO
+        if ((this.itemEdicion.tipo_manual || 'P') === 'A') {
+          valM1 = Math.abs(valM1);
+          valM2 = -Math.abs(valM2);
+        }
+
         const payload = {
           monto: montoEditado,
           moneda: divisaEditada,
@@ -711,6 +712,7 @@ if ((this.itemEdicion.tipo_manual || 'P') === 'A') {
       }
     },
 
+    
     async eliminarComprobante(hashLargo) {
       if (!hashLargo || !confirm('¿Deseas eliminar este comprobante?')) return;
       try {
