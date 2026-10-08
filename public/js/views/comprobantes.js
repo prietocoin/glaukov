@@ -19,7 +19,7 @@ export function comprobantesView() {
     soloDuplicados: false,
 
     // Modales de auditoría y vista previa
-    modalEdicionAbierto: false,
+    modalAbierto: false,
     itemEdicion: null,
     modalVistaPreviaAbierto: false,
     enviandoReporte: false,
@@ -43,7 +43,6 @@ export function comprobantesView() {
           soloDuplicados: this.soloDuplicados
         };
 
-        // 🟢 Sincroniza saldo inicial del socio desde perfiles_glaukov
         if (this.filtroSocio) {
           const socioNorm = this.filtroSocio.trim().toUpperCase();
           const reg = this.directorio.find(d => d.nombre && d.nombre.trim().toUpperCase() === socioNorm);
@@ -84,10 +83,11 @@ export function comprobantesView() {
       return (!isNaN(valTasa) && valTasa !== 0) ? valTasa : 1.0;
     },
 
-    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 1)
+    // 🟢 MONTO SOCIO 1 (PRESERVA SIGNOS NEGATIVOS)
     obtenerME1(c) {
       if (!c) return 0;
       
+      // Respetar edición manual o existente si viene definida
       if (c.monto_1 !== undefined && c.monto_1 !== null && c.monto_1 !== '') {
         return parseFloat(c.monto_1) || 0;
       }
@@ -102,20 +102,24 @@ export function comprobantesView() {
       const tasa = Math.abs(this.obtenerTasaSocioCalculada(c, 1));
       const moneda = String(c.moneda || c.moneda_comprobante || 'USDT').toUpperCase().trim();
 
-      let equivalente = 0;
-      if (['USD', 'USDT', 'PYUSD'].includes(moneda)) {
-        equivalente = tasa > 0 ? (montoOrigen * tasa) : montoOrigen;
-      } else {
-        equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
+      let equivalente = ['USD', 'USDT', 'PYUSD'].includes(moneda)
+        ? (tasa > 0 ? montoOrigen * tasa : montoOrigen)
+        : (tasa > 0 ? montoOrigen / tasa : montoOrigen);
+
+      // Si es Abono (A), Socio 1 siempre suma (+)
+      const nat = c.tipo_manual || c.tipo_op || 'D';
+      if (nat === 'A') {
+        equivalente = Math.abs(equivalente);
       }
 
       return parseFloat(equivalente.toFixed(2));
     },
 
-    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2)
+    // 🟢 MONTO SOCIO 2 (PRESERVA SIGNOS NEGATIVOS EN ABONO)
     obtenerME2(c) {
       if (!c) return 0;
 
+      // Respetar edición manual o existente si viene definida
       if (c.monto_2 !== undefined && c.monto_2 !== null && c.monto_2 !== '') {
         return parseFloat(c.monto_2) || 0;
       }
@@ -130,11 +134,14 @@ export function comprobantesView() {
       const tasa = Math.abs(this.obtenerTasaSocioCalculada(c, 2));
       const moneda = String(c.moneda || c.moneda_comprobante || 'USDT').toUpperCase().trim();
 
-      let equivalente = 0;
-      if (['USD', 'USDT', 'PYUSD'].includes(moneda)) {
-        equivalente = tasa > 0 ? (montoOrigen * tasa) : montoOrigen;
-      } else {
-        equivalente = tasa > 0 ? (montoOrigen / tasa) : montoOrigen;
+      let equivalente = ['USD', 'USDT', 'PYUSD'].includes(moneda)
+        ? (tasa > 0 ? montoOrigen * tasa : montoOrigen)
+        : (tasa > 0 ? montoOrigen / tasa : montoOrigen);
+
+      // 🟢 REGLA DE ABONO (A): Socio 2 SIEMPRE resta (-)
+      const nat = c.tipo_manual || c.tipo_op || 'D';
+      if (nat === 'A') {
+        equivalente = -Math.abs(equivalente);
       }
 
       return parseFloat(equivalente.toFixed(2));
@@ -218,7 +225,11 @@ export function comprobantesView() {
       return `[${tipo}-${hash}]`;
     },
 
-    // --- MODALES DE EDICIÓN / AUDITORÍA ---
+    // 🟢 ALIAS Y ABRIR MODAL AUDITORÍA
+    abrirModal(item) {
+      this.abrirModalEdicion(item);
+    },
+
     abrirModalEdicion(item) {
       let dateInput = '';
       const ts = item.timestamp || item.timestamp_comprobante;
@@ -252,10 +263,11 @@ export function comprobantesView() {
         monto_1: m1,
         monto_2: m2
       };
-      this.modalEdicionAbierto = true;
+      
+      this.modalAbierto = true;
     },
 
-    // 🟢 RE-CALCULA SIGNOS AUTOMÁTICAMENTE AL CAMBIAR DE NATURALEZA
+    // 🟢 AJUSTA SIGNOS AL CAMBIAR NATURALEZA PERO PERMITE QUE EL ADMIN MANUALEÉ
     actualizarSignosPorNaturaleza() {
       if (!this.itemEdicion) return;
 
@@ -267,6 +279,11 @@ export function comprobantesView() {
         this.itemEdicion.monto_1 = val1;   // (+) Socio 1 suma
         this.itemEdicion.monto_2 = -val2;  // (-) Socio 2 resta
       }
+    },
+
+    // 🟢 ALIAS Y GUARDAR COMPROBANTE
+    async guardarCambios() {
+      await this.guardarEdicionComprobante();
     },
 
     async guardarEdicionComprobante() {
@@ -281,12 +298,13 @@ export function comprobantesView() {
           ...this.itemEdicion,
           id_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
           lote_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
+          // Mantiene los valores editados manualmente por el admin
           monto_1: parseFloat(this.itemEdicion.monto_1) || 0,
           monto_2: parseFloat(this.itemEdicion.monto_2) || 0
         };
 
         await window.AteneaAPI.actualizarComprobante(payload.hash_largo, payload);
-        this.modalEdicionAbierto = false;
+        this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
         alert('Error al guardar comprobante: ' + err.message);
@@ -297,7 +315,7 @@ export function comprobantesView() {
       if (!confirm('¿Deseas eliminar este comprobante de la base de datos?')) return;
       try {
         await window.AteneaAPI.eliminarComprobante(hashLargo);
-        this.modalEdicionAbierto = false;
+        this.modalAbierto = false;
         await this.cargarComprobantes();
       } catch (err) {
         alert('Error al eliminar comprobante: ' + err.message);
