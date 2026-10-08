@@ -368,11 +368,21 @@ function registrarAppAlpine() {
       }
     },
 
+    // 🟢 CALCULAR TASA EN VIVO CON TRIANGULACIÓN DE MONEDA BASE
     calcularTasaEnVivo(code, pct, esResta = false) {
-      const base = parseFloat(this.tasasProduccion[code]) || 1.0;
+      const tasaPaisBase = parseFloat(this.tasasProduccion[code]) || 1.0;
+      const monedaSocio = (this.socioConfigEdit?.moneda_socio || 'USDT').toUpperCase().trim();
+      
+      let tasaMonedaSocio = 1.0;
+      if (!['USDT', 'USD', 'PYUSD'].includes(monedaSocio)) {
+        tasaMonedaSocio = parseFloat(this.tasasProduccion[monedaSocio]) || 1.0;
+      }
+
+      const baseRelativa = tasaPaisBase / tasaMonedaSocio;
       const p = parseFloat(pct) || 0;
       const factor = esResta ? (1 - (p / 100)) : (1 + (p / 100));
-      const res = base * factor;
+      const res = baseRelativa * factor;
+
       if (res === 0) return '0';
       if (res > 99.99) return Math.trunc(res).toLocaleString('en-US');
       return (Math.trunc(res * 100) / 100).toFixed(2);
@@ -581,7 +591,6 @@ function registrarAppAlpine() {
       return { label: `Talla: L [${count}]`, color: 'border-purple-500/40 text-purple-300 bg-purple-950/40' };
     },
 
-    // 🟢 APERTURA DE MODAL CORREGIDA (Carga real de monto_1 y monto_2 con signo de Abono A)
     abrirModal(item) {
       if (!item) return;
       let dateInput = '';
@@ -601,7 +610,6 @@ function registrarAppAlpine() {
       let m1 = item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio ?? fallbackMonto);
       let m2 = item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio ?? fallbackMonto);
 
-      // Si es Abono (A), el Socio 1 es (+) y el Socio 2 es (-)
       if (tipoOpBruto === 'A') {
         m1 = Math.abs(parseFloat(m1) || 0);
         m2 = -Math.abs(parseFloat(m2) || 0);
@@ -629,7 +637,6 @@ function registrarAppAlpine() {
       this.modalAbierto = true;
     },
 
-    // 🟢 CAMBIO DE NATURALEZA A "A" EN TIEMPO REAL
     actualizarSignosPorNaturaleza() {
       if (!this.itemEdicion) return;
       const nat = this.itemEdicion.tipo_manual;
@@ -637,8 +644,8 @@ function registrarAppAlpine() {
       let val2 = Math.abs(parseFloat(this.itemEdicion.monto_2) || 0);
 
       if (nat === 'A') {
-        this.itemEdicion.monto_1 = val1;   // (+) Socio 1 suma
-        this.itemEdicion.monto_2 = -val2;  // (-) Socio 2 resta
+        this.itemEdicion.monto_1 = val1;
+        this.itemEdicion.monto_2 = -val2;
       }
     },
 
@@ -656,8 +663,7 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 GUARDADO CORREGIDO (Transmite monto_1 y monto_2 reales a la API)
-   async guardarCambios() {
+    async guardarCambios() {
       if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
       try {
         if (this.itemEdicion.fecha_hora_input) {
@@ -672,7 +678,6 @@ function registrarAppAlpine() {
         let valM1 = this.itemEdicion.monto_1 !== '' ? parseFloat(this.itemEdicion.monto_1) : 0;
         let valM2 = this.itemEdicion.monto_2 !== '' ? parseFloat(this.itemEdicion.monto_2) : 0;
 
-        // 🟢 SI ES ABONO (A): FORZA M1 POSITIVO Y M2 NEGATIVO
         if ((this.itemEdicion.tipo_manual || 'P') === 'A') {
           valM1 = Math.abs(valM1);
           valM2 = -Math.abs(valM2);
@@ -712,7 +717,6 @@ function registrarAppAlpine() {
       }
     },
 
-    
     async eliminarComprobante(hashLargo) {
       if (!hashLargo || !confirm('¿Deseas eliminar este comprobante?')) return;
       try {
