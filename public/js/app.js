@@ -114,7 +114,7 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 NUEVO TOGGLE RÁPIDO PARA HERENCIA DE SOCIO
+    // 🟢 TOGGLE RÁPIDO PARA HERENCIA DE SOCIO
     async toggleHerenciaSocio(socio) {
       if (!socio) return;
       try {
@@ -378,7 +378,6 @@ function registrarAppAlpine() {
       return (Math.trunc(res * 100) / 100).toFixed(2);
     },
 
-    // 🟢 APERTURA DE MODAL ADAPTADA A JSONB 'herencia' Y 'monedas' DE PERFILES_GLAUKOV
     abrirConfigSocio(socioObj) {
       let monedasConfig = socioObj.monedas;
       if (typeof monedasConfig === 'string') {
@@ -478,7 +477,6 @@ function registrarAppAlpine() {
       });
     },
 
-    // 🟢 GUARDADO CORREGIDO
     async guardarConfigSocioModal() {
       if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
         alert('Por favor especifica el nombre del socio.');
@@ -583,6 +581,7 @@ function registrarAppAlpine() {
       return { label: `Talla: L [${count}]`, color: 'border-purple-500/40 text-purple-300 bg-purple-950/40' };
     },
 
+    // 🟢 APERTURA DE MODAL CORREGIDA (Carga real de monto_1 y monto_2 con signo de Abono A)
     abrirModal(item) {
       if (!item) return;
       let dateInput = '';
@@ -597,7 +596,16 @@ function registrarAppAlpine() {
       const tipoOpBruto = (item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0];
       const fallbackSocio1 = item.nombre_socio_1 || item.socio_1 || item.fb_socio_1 || 'GENERAL';
       const fallbackSocio2 = item.nombre_socio_2 || item.socio_2 || item.fb_socio_2 || 'GENERAL';
-      const fallbackMonto = Math.abs(parseFloat(item.monto || item.monto_local || item.m1_socio || item.monto_1 || 0));
+      const fallbackMonto = Math.abs(parseFloat(item.monto || item.monto_local || 0));
+
+      let m1 = item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio ?? fallbackMonto);
+      let m2 = item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio ?? fallbackMonto);
+
+      // Si es Abono (A), el Socio 1 es (+) y el Socio 2 es (-)
+      if (tipoOpBruto === 'A') {
+        m1 = Math.abs(parseFloat(m1) || 0);
+        m2 = -Math.abs(parseFloat(m2) || 0);
+      }
 
       this.itemEdicion = { 
         ...item,
@@ -609,6 +617,8 @@ function registrarAppAlpine() {
         tipo_manual: tipoOpBruto,
         moneda: (item.moneda || item.moneda_local || 'COP').toUpperCase(),
         monto: fallbackMonto,
+        monto_1: m1,
+        monto_2: m2,
         tasa_1: truncarTasaComercial(item.tasa_1 || 1.0),
         me1: item.me1 !== undefined && item.me1 !== null ? item.me1 : fallbackMonto,
         tasa_2: truncarTasaComercial(item.tasa_2 || 1.0),
@@ -617,6 +627,19 @@ function registrarAppAlpine() {
         fecha_hora_input: dateInput
       };
       this.modalAbierto = true;
+    },
+
+    // 🟢 CAMBIO DE NATURALEZA A "A" EN TIEMPO REAL
+    actualizarSignosPorNaturaleza() {
+      if (!this.itemEdicion) return;
+      const nat = this.itemEdicion.tipo_manual;
+      let val1 = Math.abs(parseFloat(this.itemEdicion.monto_1) || 0);
+      let val2 = Math.abs(parseFloat(this.itemEdicion.monto_2) || 0);
+
+      if (nat === 'A') {
+        this.itemEdicion.monto_1 = val1;   // (+) Socio 1 suma
+        this.itemEdicion.monto_2 = -val2;  // (-) Socio 2 resta
+      }
     },
 
     async releerIAModal() {
@@ -633,6 +656,7 @@ function registrarAppAlpine() {
       }
     },
 
+    // 🟢 GUARDADO CORREGIDO (Transmite monto_1 y monto_2 reales a la API)
     async guardarCambios() {
       if (!this.itemEdicion || !this.itemEdicion.hash_largo) return;
       try {
@@ -645,6 +669,9 @@ function registrarAppAlpine() {
         const divisaEditada = (this.itemEdicion.moneda || 'USDT').toUpperCase();
         const loteSeleccionado = (this.itemEdicion.lote_tasa_asignado || this.itemEdicion.lote_tasa || this.loteActivo || 'T052').toUpperCase().trim();
 
+        const valM1 = this.itemEdicion.monto_1 !== '' ? parseFloat(this.itemEdicion.monto_1) : 0;
+        const valM2 = this.itemEdicion.monto_2 !== '' ? parseFloat(this.itemEdicion.monto_2) : 0;
+
         const payload = {
           monto: montoEditado,
           moneda: divisaEditada,
@@ -656,6 +683,10 @@ function registrarAppAlpine() {
           socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
           nombre_socio_2: this.itemEdicion.nombre_socio_2 || 'GENERAL',
           socio_2: this.itemEdicion.nombre_socio_2 || 'GENERAL',
+          monto_1: valM1,
+          monto_2: valM2,
+          m1_socio: valM1,
+          m2_socio: valM2,
           lote_tasa_asignado: loteSeleccionado,
           lote_tasa: loteSeleccionado,
           id_tasa: loteSeleccionado
