@@ -416,8 +416,8 @@
                     <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T1: ' + (item.tasa_1 || '1.00')"></span>
                   </div>
                   <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
-                        :class="parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
-                        x-text="formatMonto(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
+                        :class="obtenerME1(item) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
+                        x-text="formatMonto(obtenerME1(item)) + ' ' + (item.moneda_socio_1 || 'USDT')"></span>
                 </div>
                 
                 <!-- 🟢 SOCIO 2 CON INDICADOR DE HERENCIA ↳ -->
@@ -429,8 +429,8 @@
                       <span class="px-1 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[8px] md:text-[9px] font-mono border border-purple-500/30 whitespace-nowrap" x-text="'T2: ' + (item.tasa_2 || '1.00')"></span>
                     </div>
                     <span class="col-span-5 font-mono font-bold text-right truncate text-[11px]" 
-                          :class="parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
-                          x-text="formatMonto(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
+                          :class="obtenerME2(item) < 0 ? 'text-rose-400' : 'text-emerald-400'" 
+                          x-text="formatMonto(obtenerME2(item)) + ' ' + (item.moneda_socio_2 || 'USDT')"></span>
                   </div>
                 </template>
               </div>
@@ -470,10 +470,10 @@
 
                   <div class="flex flex-col gap-0.5 mt-auto">
                     <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
-                         x-text="'ME1:' + formatMonto(item.me1 !== undefined && item.me1 !== null ? item.me1 : (item.monto_1 || item.monto || 0))"></div>
+                         x-text="'ME1:' + formatMonto(obtenerME1(item))"></div>
                     <template x-if="item.nombre_socio_2 && item.nombre_socio_2 !== 'GENERAL'">
                       <div class="w-full text-center py-0.5 rounded bg-slate-900/90 text-slate-200 font-mono text-[9px] md:text-[10px] font-bold border border-slate-700/60 shadow truncate px-0.5" 
-                           x-text="'ME2:' + formatMonto(item.me2 !== undefined && item.me2 !== null ? item.me2 : (item.monto_2 || 0))"></div>
+                           x-text="'ME2:' + formatMonto(obtenerME2(item))"></div>
                     </template>
                   </div>
 
