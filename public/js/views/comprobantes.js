@@ -84,10 +84,13 @@ export function comprobantesView() {
       return (!isNaN(valTasa) && valTasa !== 0) ? valTasa : 1.0;
     },
 
-    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 1 - SIEMPRE POSITIVO)
+    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 1)
     obtenerME1(c) {
       if (!c) return 0;
       
+      if (c.monto_1 !== undefined && c.monto_1 !== null && c.monto_1 !== '') {
+        return Math.abs(parseFloat(c.monto_1) || 0);
+      }
       if (c.m1_socio !== undefined && c.m1_socio !== null && c.m1_socio !== '') {
         return Math.abs(parseFloat(c.m1_socio) || 0);
       }
@@ -109,10 +112,13 @@ export function comprobantesView() {
       return parseFloat(Math.abs(equivalente).toFixed(2));
     },
 
-    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2 - SIEMPRE POSITIVO)
+    // 🟢 MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2)
     obtenerME2(c) {
       if (!c) return 0;
 
+      if (c.monto_2 !== undefined && c.monto_2 !== null && c.monto_2 !== '') {
+        return Math.abs(parseFloat(c.monto_2) || 0);
+      }
       if (c.m2_socio !== undefined && c.m2_socio !== null && c.m2_socio !== '') {
         return Math.abs(parseFloat(c.m2_socio) || 0);
       }
@@ -139,8 +145,8 @@ export function comprobantesView() {
 
       if (this.filtroSocio) {
         const socioNorm = this.filtroSocio.trim().toUpperCase();
-        const s1 = String(c.socio_1 || c.socio || '').trim().toUpperCase();
-        const s2 = String(c.socio_2 || '').trim().toUpperCase();
+        const s1 = String(c.socio_1 || c.socio || c.nombre_socio_1 || '').trim().toUpperCase();
+        const s2 = String(c.socio_2 || c.nombre_socio_2 || '').trim().toUpperCase();
 
         if (socioNorm === s2) {
           return this.obtenerME2(c);
@@ -224,13 +230,19 @@ export function comprobantesView() {
 
       const loteSeleccionado = item.id_tasa || item.lote_tasa || item.lote_tasa_asignado || 'T052';
 
+      // 🟢 Carga explícita de monto_1 y monto_2
+      const valMonto1 = item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio ?? item.monto ?? 0);
+      const valMonto2 = item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio ?? 0);
+
       this.itemEdicion = {
         ...item,
         id_tasa: loteSeleccionado,
         lote_tasa: loteSeleccionado,
         lote_tasa_asignado: loteSeleccionado,
         tipo_manual: item.tipo_op || item.tipo_op_1 || 'D',
-        fecha_hora_input: dateInput
+        fecha_hora_input: dateInput,
+        monto_1: parseFloat(valMonto1) || 0,
+        monto_2: parseFloat(valMonto2) || 0
       };
       this.modalEdicionAbierto = true;
     },
@@ -243,10 +255,13 @@ export function comprobantesView() {
           if (!isNaN(ts) && ts > 0) this.itemEdicion.timestamp = ts;
         }
 
+        // 🟢 Incluye monto_1 y monto_2 en el payload
         const payload = {
           ...this.itemEdicion,
           id_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
-          lote_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052'
+          lote_tasa: this.itemEdicion.id_tasa || this.itemEdicion.lote_tasa_asignado || 'T052',
+          monto_1: parseFloat(this.itemEdicion.monto_1) || 0,
+          monto_2: parseFloat(this.itemEdicion.monto_2) || 0
         };
 
         await window.AteneaAPI.actualizarComprobante(payload.hash_largo, payload);
