@@ -48,7 +48,7 @@ function truncarMontoSeguro(valor) {
 
 /**
  * Calcula el snapshot financiero resolviendo las reglas de Abono Imperativo,
- * Herencia de FUNDDA y Ancla de Polaridad.
+ * Herencia de FUNDDA y Polaridad Estricta de perfiles_glaukov.
  * 
  * @param {Object} funddaData - El perfil de FUNDDA (requerido para la herencia)
  */
@@ -94,36 +94,29 @@ function calcularSnapshotFinanciero(raw, socio1Data, socio2Data, tasaLote, fundd
   const cfg1 = getSocioConfig(socio1Data);
   const cfg2 = getSocioConfig(socio2Data);
 
-  // --- FASE 2: RESOLVER POLARIDAD NATURAL ---
-  const getSignoNatural = (cfg, tipoOp) => {
-    if (!cfg.activo) return 1;
-    if (tipoOp === 'A') return 1; // Un Abono [A] siempre es positivo
-    
-    const depositoSuma = cfg.confDivisa.polaridad === '+' || cfg.confDivisa.polaridad === undefined;
-    return tipoOp === 'D' ? (depositoSuma ? 1 : -1) : (depositoSuma ? -1 : 1);
-  };
+  // --- FASE 2: ASIGNACIÓN DE POLARIDAD ESTRICTA ---
+  let signo1 = 1;
+  let signo2 = 1;
 
-  let signo1 = getSignoNatural(cfg1, tipoOpBase);
-  let signo2 = getSignoNatural(cfg2, tipoOpBase);
-
-  // --- FASE 3: REGLA DE PRECEDENCIA (ANCLA DE POLARIDAD) ---
-  // Si ambos son activos, manda el contrato del socio directo (el que NO hereda).
-  if (cfg1.activo && cfg2.activo) {
-    if (cfg1.hereda && !cfg2.hereda) {
-      signo1 = -1 * signo2; // Socio 2 es Ancla, Socio 1 es espejo
-    } else if (cfg2.hereda && !cfg1.hereda) {
-      signo2 = -1 * signo1; // Socio 1 es Ancla, Socio 2 es espejo
-    }
-    // Si ambos heredan o ninguno hereda, mantienen su polaridad natural.
+  if (tipoOpBase === 'A') {
+    // Abono: Socio 1 es SIEMPRE (+), Socio 2 es SIEMPRE (-)
+    signo1 = 1;
+    signo2 = -1;
+  } else {
+    // Depósitos ('D') y Pagos ('P'):
+    // Siguen ESTRICTAMENTE la polaridad del perfil ('+' => +1, '-' => -1)
+    signo1 = (cfg1.confDivisa?.polaridad === '-') ? -1 : 1;
+    signo2 = (cfg2.confDivisa?.polaridad === '-') ? -1 : 1;
   }
 
-  // --- FASE 4: APLICAR MATEMÁTICAS ---
+  // --- FASE 3: APLICAR MATEMÁTICAS ---
   const calcularLado = (cfg, signoFinal) => {
     if (!cfg.activo) return { mNominal: 0, meUSDT: 0, tasaEfectiva: 1.0 };
 
     const pctD = Math.abs(cfg.confDivisa.porcentaje?.deposito || 0);
     const pctP = Math.abs(cfg.confDivisa.porcentaje?.pago || 0);
-    // Para el spread, el Abono 'A' se comporta como Depósito 'D'
+
+    // Para el spread, 'D' y 'A' aplican depósito, 'P' aplica pago
     const factorAbs = (tipoOpBase === 'D' || tipoOpBase === 'A') ? (1 + (pctD / 100)) : (1 - (pctP / 100));
 
     const tasaBaseSocioUSDT = parseFloat(mapaTasas[cfg.monedaSocio] || 1.0);
