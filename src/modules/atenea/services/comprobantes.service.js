@@ -253,20 +253,17 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
         tasa2Calculada = truncarTasaComercial(cross2);
 
-        // 🟢 FASE 3: POLARIDADES NATURALES
-        const polSocio1EsSuma = conf1.polaridad === '+' || conf1.polaridad === undefined;
-        let signo1 = tipoOpLetra === 'A' ? 1 : (tipoOpLetra === 'D' ? (polSocio1EsSuma ? 1 : -1) : (polSocio1EsSuma ? -1 : 1));
+        // 🟢 FASE 3: POLARIDAD SEGÚN REGLA RÍGIDA DE BASE DE DATOS
+        let signo1 = 1;
+        let signo2 = 1;
 
-        const polSocio2EsSuma = conf2.polaridad === '+' || conf2.polaridad === undefined;
-        let signo2 = tipoOpLetra === 'A' ? 1 : (tipoOpLetra === 'D' ? (polSocio2EsSuma ? 1 : -1) : (polSocio2EsSuma ? -1 : 1));
-
-        // 🟢 FASE 4: ANCLA DE POLARIDAD Y CESIÓN
-        if (socio1Final !== 'GENERAL' && socio2Final && socio2Final !== 'GENERAL') {
-          if (hereda1 && !hereda2) {
-            signo1 = -1 * signo2;
-          } else if (hereda2 && !hereda1) {
-            signo2 = -1 * signo1;
-          }
+        if (tipoOpLetra === 'A') {
+          signo1 = 1;  // Abono: Socio 1 SIEMPRE +
+          signo2 = -1; // Abono: Socio 2 SIEMPRE -
+        } else {
+          // 'D' y 'P': Estricto según la columna polaridad en perfiles_glaukov
+          signo1 = conf1.polaridad === '-' ? -1 : 1;
+          signo2 = conf2.polaridad === '-' ? -1 : 1;
         }
 
         m1Calculado = tasa1Calculada > 0 ? (signo1 * montoAbsoluto / tasa1Calculada) : (signo1 * montoAbsoluto);
