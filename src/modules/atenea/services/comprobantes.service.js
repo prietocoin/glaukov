@@ -211,15 +211,32 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
       const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
 
-      // 🟢 FASE 2: REGLA 1 (ABONO IMPERATIVO)
-      let tipoOpLetra = conf1.tipo || 'D';
-      if (monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
+      // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN
+      let tipoOpLetra = 'D';
+      if (r.tipo_op1) {
+        tipoOpLetra = String(r.tipo_op1).split('-')[0].toUpperCase();
+      } else if (monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
         tipoOpLetra = 'A';
+      } else {
+        tipoOpLetra = conf1.tipo || 'D';
       }
 
       const tipoOpTag = `${tipoOpLetra}-${divisaRecibo}`;
       const tipoOp1Final = r.tipo_op1 || tipoOpTag;
       const tipoOp2Final = r.tipo_op2 || tipoOpTag;
+
+      // 🟢 FASE 3: ASIGNACIÓN AUTOMÁTICA DE POLARIDAD SEGÚN REGLAS
+      let signo1 = 1;
+      let signo2 = 1;
+
+      if (tipoOpLetra === 'A') {
+        signo1 = 1;  // Abono: Socio 1 SIEMPRE (+)
+        signo2 = -1; // Abono: Socio 2 SIEMPRE (-)
+      } else {
+        // 'D' y 'P': Lee estrictamente la 'polaridad' del objeto de perfiles_glaukov
+        signo1 = conf1.polaridad === '-' ? -1 : 1;
+        signo2 = conf2.polaridad === '-' ? -1 : 1;
+      }
 
       let tasa1Calculada = 1.0, tasa2Calculada = 1.0;
       let m1Calculado = 0, m2Calculado = 0;
@@ -228,10 +245,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       if (estaLiquidado) {
         tasa1Calculada = r.tasa_1 !== null && !isNaN(parseFloat(r.tasa_1)) ? parseFloat(r.tasa_1) : 1.0;
         tasa2Calculada = r.tasa_2 !== null && !isNaN(parseFloat(r.tasa_2)) ? parseFloat(r.tasa_2) : 1.0;
-        m1Calculado = parseFloat(r.monto_1 || 0);
-        m2Calculado = parseFloat(r.monto_2 || 0);
-        me1Calculado = parseFloat(r.me1 || 0);
-        me2Calculado = parseFloat(r.me2 || 0);
+        
+        // 🟢 PROYECCIÓN EN VIVO: Aplica la polaridad de perfiles_glaukov sobre la magnitud
+        m1Calculado = signo1 * Math.abs(parseFloat(r.monto_1 || 0));
+        m2Calculado = signo2 * Math.abs(parseFloat(r.monto_2 || 0));
+        me1Calculado = signo1 * Math.abs(parseFloat(r.me1 || 0));
+        me2Calculado = signo2 * Math.abs(parseFloat(r.me2 || 0));
       } else {
         const tasasMap = typeof r.tasas_lote === 'string' ? JSON.parse(r.tasas_lote) : (r.tasas_lote || {});
         
@@ -252,22 +271,6 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
         const cross2 = (tasaBaseDivisa / (tasaBaseS2 > 0 ? tasaBaseS2 : 1.0)) * factor2;
         tasa2Calculada = truncarTasaComercial(cross2);
-
-        // 🟢 FASE 3: POLARIDADES NATURALES
-        const polSocio1EsSuma = conf1.polaridad === '+' || conf1.polaridad === undefined;
-        let signo1 = tipoOpLetra === 'A' ? 1 : (tipoOpLetra === 'D' ? (polSocio1EsSuma ? 1 : -1) : (polSocio1EsSuma ? -1 : 1));
-
-        const polSocio2EsSuma = conf2.polaridad === '+' || conf2.polaridad === undefined;
-        let signo2 = tipoOpLetra === 'A' ? 1 : (tipoOpLetra === 'D' ? (polSocio2EsSuma ? 1 : -1) : (polSocio2EsSuma ? -1 : 1));
-
-        // 🟢 FASE 4: ANCLA DE POLARIDAD Y CESIÓN
-        if (socio1Final !== 'GENERAL' && socio2Final && socio2Final !== 'GENERAL') {
-          if (hereda1 && !hereda2) {
-            signo1 = -1 * signo2;
-          } else if (hereda2 && !hereda1) {
-            signo2 = -1 * signo1;
-          }
-        }
 
         m1Calculado = tasa1Calculada > 0 ? (signo1 * montoAbsoluto / tasa1Calculada) : (signo1 * montoAbsoluto);
         me1Calculado = m1Calculado / (tasaBaseS1 > 0 ? tasaBaseS1 : 1.0);
