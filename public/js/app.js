@@ -103,13 +103,12 @@ function registrarAppAlpine() {
       socio.mostrar = mostrarObj;
     },
 
-   async toggleEstadoSocio(socio) {
+    async toggleEstadoSocio(socio) {
       if (!socio) return;
       try {
         let mostrarObj = typeof socio.mostrar === 'string' ? JSON.parse(socio.mostrar || '{}') : (socio.mostrar || {});
         mostrarObj = (typeof mostrarObj === 'object' && mostrarObj !== null) ? mostrarObj : {};
 
-        // Invierte el estado actual de tasas
         const nuevoEstado = !Boolean(mostrarObj.tasas ?? socio.activo ?? true);
 
         socio.activo = nuevoEstado;
@@ -117,7 +116,7 @@ function registrarAppAlpine() {
         socio.mostrar = mostrarObj;
 
         await window.AteneaAPI.patchEstadoSocio(socio.nombre, nuevoEstado);
-        await this.cargarDirectorio(); // Refresca para mantener sincronizados interfaz y BD
+        await this.cargarDirectorio();
       } catch (err) {
         console.error('[Glaukov UI ❌ Error al cambiar estado socio WA]', err);
       }
@@ -289,7 +288,6 @@ function registrarAppAlpine() {
       }
     },
 
-    // 🟢 FUNCIÓN ACTUALIZADA: Acepta 'fuerzaModoPrueba' explícito (true/false) desde el modal
     async enviarTasaIndividual(socioObj, fuerzaModoPrueba = null) {
       if (!this.loteActivo) {
         alert('No hay un lote activo en producción para enviar.');
@@ -352,12 +350,11 @@ function registrarAppAlpine() {
       }
     },
 
-   async cargarDirectorio() {
+    async cargarDirectorio() {
       try {
         const res = await window.AteneaAPI.getDirectorio();
         const rawList = Array.isArray(res) ? res : [];
 
-        // 🟢 Normaliza 'mostrar.tasas' de PostgreSQL hacia 'socio.activo' en Alpine.js
         this.directorio = rawList.map(s => {
           let mostrarObj = s.mostrar;
           if (typeof mostrarObj === 'string') {
@@ -596,6 +593,35 @@ function registrarAppAlpine() {
       return { label: `Talla: L [${count}]`, color: 'border-purple-500/40 text-purple-300 bg-purple-950/40' };
     },
 
+    // 🟢 LÓGICA CENTRAL DE POLARIDAD REQUERIDA
+    obtenerMontoConPolaridad(montoRaw, tipoOp, esSocio2, nombreSocio, monedaCode) {
+      const val = Math.abs(parseFloat(montoRaw) || 0);
+      const nat = String(tipoOp || 'D').toUpperCase().trim().split('-')[0];
+
+      // 1. REGLA ABONO 'A': Socio 1 (+), Socio 2 (-)
+      if (nat === 'A') {
+        return esSocio2 ? -val : val;
+      }
+
+      // 2. REGLA 'D' Y 'P': Lee la polaridad explícita de perfiles_glaukov (directorio)
+      const socioNom = String(nombreSocio || '').trim().toUpperCase();
+      const perfilFound = (this.directorio || []).find(d => String(d.nombre || '').trim().toUpperCase() === socioNom);
+
+      let polaridad = '+';
+      if (perfilFound && perfilFound.monedas) {
+        let monedasObj = perfilFound.monedas;
+        if (typeof monedasObj === 'string') {
+          try { monedasObj = JSON.parse(monedasObj); } catch (e) { monedasObj = {}; }
+        }
+        const mCode = String(monedaCode || 'USDT').toUpperCase();
+        if (monedasObj && monedasObj[mCode] && monedasObj[mCode].polaridad) {
+          polaridad = monedasObj[mCode].polaridad;
+        }
+      }
+
+      return polaridad === '-' ? -val : val;
+    },
+
     abrirModal(item) {
       if (!item) return;
       let dateInput = '';
@@ -611,6 +637,23 @@ function registrarAppAlpine() {
       const fallbackSocio1 = item.nombre_socio_1 || item.socio_1 || item.fb_socio_1 || 'GENERAL';
       const fallbackSocio2 = item.nombre_socio_2 || item.socio_2 || item.fb_socio_2 || 'GENERAL';
       const fallbackMonto = Math.abs(parseFloat(item.monto || item.monto_local || item.m1_socio || item.monto_1 || 0));
+      const divisa = (item.moneda || item.moneda_local || 'COP').toUpperCase();
+
+      const m1Val = this.obtenerMontoConPolaridad(
+        item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio ?? fallbackMonto),
+        tipoOpBruto,
+        false,
+        fallbackSocio1,
+        divisa
+      );
+
+      const m2Val = this.obtenerMontoConPolaridad(
+        item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio ?? fallbackMonto),
+        tipoOpBruto,
+        true,
+        fallbackSocio2,
+        divisa
+      );
 
       this.itemEdicion = { 
         ...item,
@@ -620,8 +663,10 @@ function registrarAppAlpine() {
         nombre_socio_1: fallbackSocio1,
         nombre_socio_2: fallbackSocio2,
         tipo_manual: tipoOpBruto,
-        moneda: (item.moneda || item.moneda_local || 'COP').toUpperCase(),
+        moneda: divisa,
         monto: fallbackMonto,
+        monto_1: m1Val,
+        monto_2: m2Val,
         tasa_1: truncarTasaComercial(item.tasa_1 || 1.0),
         me1: item.me1 !== undefined && item.me1 !== null ? item.me1 : fallbackMonto,
         tasa_2: truncarTasaComercial(item.tasa_2 || 1.0),
@@ -630,6 +675,28 @@ function registrarAppAlpine() {
         fecha_hora_input: dateInput
       };
       this.modalAbierto = true;
+    },
+
+    actualizarSignosPorNaturaleza() {
+      if (!this.itemEdicion) return;
+      const nat = this.itemEdicion.tipo_manual || 'D';
+      const mCode = this.itemEdicion.moneda || 'USDT';
+
+      this.itemEdicion.monto_1 = this.obtenerMontoConPolaridad(
+        this.itemEdicion.monto_1 !== undefined && this.itemEdicion.monto_1 !== '' ? this.itemEdicion.monto_1 : this.itemEdicion.monto,
+        nat,
+        false,
+        this.itemEdicion.nombre_socio_1,
+        mCode
+      );
+
+      this.itemEdicion.monto_2 = this.obtenerMontoConPolaridad(
+        this.itemEdicion.monto_2 !== undefined && this.itemEdicion.monto_2 !== '' ? this.itemEdicion.monto_2 : this.itemEdicion.monto,
+        nat,
+        true,
+        this.itemEdicion.nombre_socio_2,
+        mCode
+      );
     },
 
     async releerIAModal() {
@@ -657,6 +724,23 @@ function registrarAppAlpine() {
         const montoEditado = Math.abs(parseFloat(this.itemEdicion.monto || 0));
         const divisaEditada = (this.itemEdicion.moneda || 'USDT').toUpperCase();
         const loteSeleccionado = (this.itemEdicion.lote_tasa_asignado || this.itemEdicion.lote_tasa || this.loteActivo || 'T052').toUpperCase().trim();
+        const nat = (this.itemEdicion.tipo_manual || 'P').toUpperCase().trim();
+
+        const valM1 = this.obtenerMontoConPolaridad(
+          this.itemEdicion.monto_1 !== undefined && this.itemEdicion.monto_1 !== '' ? this.itemEdicion.monto_1 : montoEditado,
+          nat,
+          false,
+          this.itemEdicion.nombre_socio_1,
+          divisaEditada
+        );
+
+        const valM2 = this.obtenerMontoConPolaridad(
+          this.itemEdicion.monto_2 !== undefined && this.itemEdicion.monto_2 !== '' ? this.itemEdicion.monto_2 : montoEditado,
+          nat,
+          true,
+          this.itemEdicion.nombre_socio_2,
+          divisaEditada
+        );
 
         const payload = {
           monto: montoEditado,
@@ -664,11 +748,15 @@ function registrarAppAlpine() {
           banco: this.itemEdicion.banco,
           referencia: this.itemEdicion.referencia,
           titular: this.itemEdicion.titular,
-          tipo_manual: this.itemEdicion.tipo_manual || 'P',
+          tipo_manual: nat,
           nombre_socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
           socio_1: this.itemEdicion.nombre_socio_1 || 'GENERAL',
           nombre_socio_2: this.itemEdicion.nombre_socio_2 || 'GENERAL',
           socio_2: this.itemEdicion.nombre_socio_2 || 'GENERAL',
+          monto_1: valM1,
+          monto_2: valM2,
+          m1_socio: valM1,
+          m2_socio: valM2,
           lote_tasa_asignado: loteSeleccionado,
           lote_tasa: loteSeleccionado,
           id_tasa: loteSeleccionado
