@@ -221,7 +221,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const tipoOp1Final = r.tipo_op1 || tipoOpTag;
       const tipoOp2Final = r.tipo_op2 || tipoOpTag;
 
-      // 🟢 FASE 3: ASIGNACIÓN DE SIGNOS SEGÚN REGLA DE NEGOCIO Y BD
+      // 🟢 FASE 3: ASIGNACIÓN GLOBAL DE POLARIDAD (DISPONIBLE PARA AMBOS BLOQUES)
       let signo1 = 1;
       let signo2 = 1;
 
@@ -242,7 +242,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         tasa1Calculada = r.tasa_1 !== null && !isNaN(parseFloat(r.tasa_1)) ? parseFloat(r.tasa_1) : 1.0;
         tasa2Calculada = r.tasa_2 !== null && !isNaN(parseFloat(r.tasa_2)) ? parseFloat(r.tasa_2) : 1.0;
         
-        // 🟢 FORZAR EL SIGNO DE POLARIDAD SOBRE LOS VALORES CONGELADOS DE LA BD
+        // 🟢 FORZAR EL SIGNO DE POLARIDAD SOBRE LOS VALORES DE BD
         m1Calculado = signo1 * Math.abs(parseFloat(r.monto_1 || 0));
         m2Calculado = signo2 * Math.abs(parseFloat(r.monto_2 || 0));
         me1Calculado = signo1 * Math.abs(parseFloat(r.me1 || 0));
