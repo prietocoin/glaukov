@@ -332,6 +332,38 @@ function registrarAppAlpine() {
       this.cargarComprobantes();
     },
 
+    // 🟢 LÓGICA CENTRAL DE POLARIDAD (Base de datos vs Abono A)
+    obtenerMontoConPolaridad(montoRaw, tipoOp, esSocio2, nombreSocio, monedaCode) {
+      const val = Math.abs(parseFloat(montoRaw) || 0);
+      const nat = String(tipoOp || 'D').toUpperCase().trim().split('-')[0];
+
+      // 1. REGLA ABONO 'A': Socio 1 (+), Socio 2 (-)
+      if (nat === 'A') {
+        return esSocio2 ? -val : val;
+      }
+
+      // 2. REGLA 'D' Y 'P': Consulta perfiles_glaukov (directorio) de forma insensible a mayúsculas
+      const socioNom = String(nombreSocio || '').trim().toUpperCase();
+      const perfilFound = (this.directorio || []).find(d => String(d.nombre || '').trim().toUpperCase() === socioNom);
+
+      let polaridad = '+';
+      if (perfilFound && perfilFound.monedas) {
+        let monedasObj = perfilFound.monedas;
+        if (typeof monedasObj === 'string') {
+          try { monedasObj = JSON.parse(monedasObj); } catch (e) { monedasObj = {}; }
+        }
+        const mCode = String(monedaCode || 'USDT').toUpperCase().trim();
+        if (monedasObj && typeof monedasObj === 'object') {
+          const matchKey = Object.keys(monedasObj).find(k => k.toUpperCase().trim() === mCode);
+          if (matchKey && monedasObj[matchKey] && monedasObj[matchKey].polaridad) {
+            polaridad = String(monedasObj[matchKey].polaridad).trim();
+          }
+        }
+      }
+
+      return polaridad === '-' ? -val : val;
+    },
+
     async cargarComprobantes(silencioso = false) {
       try {
         const params = {};
@@ -343,7 +375,30 @@ function registrarAppAlpine() {
         if (this.ordenarPor) params.orden = this.ordenarPor;
 
         const res = await window.AteneaAPI.getComprobantes(params);
-        this.comprobantes = Array.isArray(res) ? res : [];
+        const rawList = Array.isArray(res) ? res : [];
+
+        // 🟢 Normaliza montos aplicando la regla de polaridad al cargar
+        this.comprobantes = rawList.map(item => {
+          const nat = (item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0];
+          const divisa = (item.moneda || item.moneda_local || 'COP').toUpperCase().trim();
+          const s1 = item.nombre_socio_1 || item.socio_1 || item.fb_socio_1 || 'GENERAL';
+          const s2 = item.nombre_socio_2 || item.socio_2 || item.fb_socio_2 || 'GENERAL';
+
+          const fallbackMonto = Math.abs(parseFloat(item.monto || item.monto_local || 0));
+          const rawM1 = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : fallbackMonto)) || 0;
+          const rawM2 = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
+
+          const valM1 = this.obtenerMontoConPolaridad(rawM1, nat, false, s1, divisa);
+          const valM2 = this.obtenerMontoConPolaridad(rawM2, nat, true, s2, divisa);
+
+          return {
+            ...item,
+            monto_1: valM1,
+            m1_socio: valM1,
+            monto_2: valM2,
+            m2_socio: valM2
+          };
+        });
       } catch (err) {
         if (!silencioso) console.error('[Glaukov UI ❌]', err);
         this.comprobantes = [];
@@ -593,35 +648,6 @@ function registrarAppAlpine() {
       return { label: `Talla: L [${count}]`, color: 'border-purple-500/40 text-purple-300 bg-purple-950/40' };
     },
 
-    // 🟢 LÓGICA CENTRAL DE POLARIDAD ESTRICTA (Basada en la base de datos)
-    obtenerMontoConPolaridad(montoRaw, tipoOp, esSocio2, nombreSocio, monedaCode) {
-      const val = Math.abs(parseFloat(montoRaw) || 0);
-      const nat = String(tipoOp || 'D').toUpperCase().trim().split('-')[0];
-
-      // 1. REGLA ABONO 'A': Socio 1 (+), Socio 2 (-) (Inquebrantable)
-      if (nat === 'A') {
-        return esSocio2 ? -val : val;
-      }
-
-      // 2. REGLA 'D' Y 'P': Lee la polaridad explícita de perfiles_glaukov (directorio)
-      const socioNom = String(nombreSocio || '').trim().toUpperCase();
-      const perfilFound = (this.directorio || []).find(d => String(d.nombre || '').trim().toUpperCase() === socioNom);
-
-      let polaridad = '+'; // Default a suma si no hay configuración
-      if (perfilFound && perfilFound.monedas) {
-        let monedasObj = perfilFound.monedas;
-        if (typeof monedasObj === 'string') {
-          try { monedasObj = JSON.parse(monedasObj); } catch (e) { monedasObj = {}; }
-        }
-        const mCode = String(monedaCode || 'USDT').toUpperCase();
-        if (monedasObj && monedasObj[mCode] && monedasObj[mCode].polaridad) {
-          polaridad = monedasObj[mCode].polaridad; // Se toma estricto '-' o '+'
-        }
-      }
-
-      return polaridad === '-' ? -val : val;
-    },
-
     abrirModal(item) {
       if (!item) return;
       let dateInput = '';
@@ -639,7 +665,6 @@ function registrarAppAlpine() {
       const fallbackMonto = Math.abs(parseFloat(item.monto || item.monto_local || item.m1_socio || item.monto_1 || 0));
       const divisa = (item.moneda || item.moneda_local || 'COP').toUpperCase();
 
-      // Recalcula en tiempo de apertura con la polaridad de la BD
       const m1Val = this.obtenerMontoConPolaridad(
         item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio ?? fallbackMonto),
         tipoOpBruto,
@@ -727,7 +752,6 @@ function registrarAppAlpine() {
         const loteSeleccionado = (this.itemEdicion.lote_tasa_asignado || this.itemEdicion.lote_tasa || this.loteActivo || 'T052').toUpperCase().trim();
         const nat = (this.itemEdicion.tipo_manual || 'P').toUpperCase().trim();
 
-        // Forza la polaridad al guardar a BD
         const valM1 = this.obtenerMontoConPolaridad(
           this.itemEdicion.monto_1 !== undefined && this.itemEdicion.monto_1 !== '' ? this.itemEdicion.monto_1 : montoEditado,
           nat,
@@ -809,7 +833,6 @@ function registrarAppAlpine() {
       return this.filtroSocio ? this.filtroSocio.toUpperCase() : 'TODOS LOS SOCIOS';
     },
 
-    // 🟢 Fuerza la polaridad estricta al calcular saldos
     get movimientoFiltradoTotal() {
       if (!Array.isArray(this.comprobantes)) return 0;
       const socioTarget = (this.filtroSocio || '').trim().toUpperCase();
@@ -817,16 +840,12 @@ function registrarAppAlpine() {
       return this.comprobantes.reduce((sum, item) => {
         const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
         const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
-        const tipoOp = (item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0];
-        const divisa = (item.moneda || item.moneda_local || 'COP').toUpperCase();
 
         let val = 0;
         if (socioTarget && s2 === socioTarget && s1 !== socioTarget) {
-            const rawM2 = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : item.monto)) || 0;
-            val = this.obtenerMontoConPolaridad(rawM2, tipoOp, true, s2, divisa);
+            val = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
         } else if (!socioTarget || s1 === socioTarget || (s1 === 'GENERAL' && s2 === 'GENERAL')) {
-            const rawM1 = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
-            val = this.obtenerMontoConPolaridad(rawM1, tipoOp, false, s1, divisa);
+            val = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
         }
         return sum + val;
       }, 0);
@@ -903,16 +922,12 @@ function registrarAppAlpine() {
           const movimientoHistorico = compFiltrados.reduce((acc, item) => {
             const s1 = (item.nombre_socio_1 || item.socio_1 || '').trim().toUpperCase();
             const s2 = (item.nombre_socio_2 || item.socio_2 || '').trim().toUpperCase();
-            const tipoOp = (item.tipo_op1 || item.tipo_op_socio || item.tipo_op || item.tipo_manual || 'D').split('-')[0];
-            const divisa = (item.moneda || item.moneda_local || 'COP').toUpperCase();
 
             if (s1 === nombreUpper) {
-              const rawM1 = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
-              const val1 = this.obtenerMontoConPolaridad(rawM1, tipoOp, false, s1, divisa);
+              const val1 = parseFloat(item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : (item.m1_socio !== undefined ? item.m1_socio : item.monto)) || 0;
               return acc + val1;
             } else if (s2 === nombreUpper) {
-              const rawM2 = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : item.monto)) || 0;
-              const val2 = this.obtenerMontoConPolaridad(rawM2, tipoOp, true, s2, divisa);
+              const val2 = parseFloat(item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : (item.m2_socio !== undefined ? item.m2_socio : 0)) || 0;
               return acc + val2;
             }
             return acc;
