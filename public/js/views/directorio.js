@@ -46,7 +46,7 @@ export function directorioView() {
       }
     },
 
-    // 🟢 NUEVO MÉTODO PARA CAMBIAR EL ESTADO DE HERENCIA (ON/OFF)
+    // 🟢 MÉTODO PARA CAMBIAR EL ESTADO DE HERENCIA (ON/OFF)
     async toggleHerencia(socio) {
       try {
         const nuevaHerencia = !Boolean(socio.herencia);
