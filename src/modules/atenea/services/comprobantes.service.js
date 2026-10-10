@@ -16,6 +16,21 @@ function truncarTasaComercial(valor) {
 }
 
 /**
+ * Auxiliar determinista para resolver la polaridad ('+' o '-') 
+ * leyendo polar_D o polar_P según la naturaleza de la operación.
+ */
+function resolverPolaridadPorNaturaleza(confMoneda, tipoLetra, esSocio1 = true) {
+  if (tipoLetra === 'A') {
+    return esSocio1 ? '+' : '-';
+  }
+  if (tipoLetra === 'P') {
+    return confMoneda.polar_P !== undefined ? confMoneda.polar_P : '-';
+  }
+  // Por defecto o Tipo 'D'
+  return confMoneda.polar_D !== undefined ? confMoneda.polar_D : '+';
+}
+
+/**
  * Consulta de lectura optimizada con cálculo comercial dinámico en vivo
  * Alineada con la tabla unificada 'perfiles_glaukov' y 'tasas_glaukov'
  */
@@ -208,8 +223,8 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const monedas1 = hereda1 ? funddaMonedas : (typeof socio1Row.monedas === 'object' && socio1Row.monedas !== null ? socio1Row.monedas : {});
       const monedas2 = hereda2 ? funddaMonedas : (typeof socio2Row.monedas === 'object' && socio2Row.monedas !== null ? socio2Row.monedas : {});
 
-      const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
-      const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polaridad: '+', porcentaje: { deposito: 0, pago: 0 } };
+      const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
+      const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
 
       // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN
       let tipoOpLetra = 'D';
@@ -225,18 +240,12 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const tipoOp1Final = r.tipo_op1 || tipoOpTag;
       const tipoOp2Final = r.tipo_op2 || tipoOpTag;
 
-      // 🟢 FASE 3: ASIGNACIÓN AUTOMÁTICA DE POLARIDAD SEGÚN REGLAS
-      let signo1 = 1;
-      let signo2 = 1;
+      // 🟢 FASE 3: ASIGNACIÓN AUTOMÁTICA DE POLARIDAD SEGÚN REGLAS EXPLICITAS polar_D / polar_P
+      const strPolaridad1 = resolverPolaridadPorNaturaleza(conf1, tipoOpLetra, true);
+      const strPolaridad2 = resolverPolaridadPorNaturaleza(conf2, tipoOpLetra, false);
 
-      if (tipoOpLetra === 'A') {
-        signo1 = 1;  // Abono: Socio 1 SIEMPRE (+)
-        signo2 = -1; // Abono: Socio 2 SIEMPRE (-)
-      } else {
-        // 'D' y 'P': Lee estrictamente la 'polaridad' del objeto de perfiles_glaukov
-        signo1 = conf1.polaridad === '-' ? -1 : 1;
-        signo2 = conf2.polaridad === '-' ? -1 : 1;
-      }
+      const signo1 = strPolaridad1 === '-' ? -1 : 1;
+      const signo2 = strPolaridad2 === '-' ? -1 : 1;
 
       let tasa1Calculada = 1.0, tasa2Calculada = 1.0;
       let m1Calculado = 0, m2Calculado = 0;
