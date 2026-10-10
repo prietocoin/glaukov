@@ -487,57 +487,65 @@ function registrarAppAlpine() {
       });
     },
 
-    async guardarConfigSocioModal() {
-      if (!this.socioConfigEdit || !this.socioConfigEdit.nombre.trim()) {
-        alert('Por favor especifica el nombre del socio.');
-        return;
-      }
+    /**
+ * Guarda los cambios del modal Directorio enviando polar_D y polar_P actualizados
+ */
+async function guardarConfigSocioModal() {
+  if (!this.socioConfigEdit) return;
 
-      try {
-        const monedasFinales = {};
+  try {
+    const objetoMonedasJSON = {};
 
-        this.socioConfigEdit.paises.forEach(p => {
-          const code = p.code.toUpperCase();
-          const pctD = Math.abs(parseFloat(p.pctD) || 0);
-          const pctP = Math.abs(parseFloat(p.pctP) || 0);
+    // Reconstruir el JSONB leyendo polar_D y polar_P de cada tarjeta
+    (this.socioConfigEdit.paises || []).forEach(p => {
+      if (!p.code) return;
+      const codeUpper = p.code.toUpperCase().trim();
 
-          monedasFinales[code] = {
-            activo: Boolean(p.activo),
-            tipo: p.naturaleza || 'D',
-            polaridad: p.polaridadSuma ? '+' : '-',
-            porcentaje: {
-              deposito: pctD,
-              pago: pctP
-            }
-          };
-        });
+      objetoMonedasJSON[codeUpper] = {
+        tipo: p.naturaleza || 'D',
+        activo: true,
+        // 🟢 LEER POLARIDADES INDEPENDIENTES DEL ESTADO DE LOS BOTONES
+        polar_D: p.polar_D || (p.polaridadSuma ? '+' : '-'),
+        polar_P: p.polar_P || (p.polaridadSuma ? '-' : '+'),
+        porcentaje: {
+          deposito: Number(p.pctD || 0),
+          pago: Number(p.pctP || 0)
+        }
+      };
+    });
 
-        const payload = {
-          nombre: this.socioConfigEdit.nombre,
-          rol: this.socioConfigEdit.roles,
-          moneda_base: String(this.socioConfigEdit.moneda_socio || 'USDT').toUpperCase().trim(),
-          id_grupo: this.socioConfigEdit.whatsapp,
-          saldo_inicial: parseFloat(this.socioConfigEdit.saldo_anterior) || 0,
-          herencia: Boolean(this.socioConfigEdit.herencia),
-          mostrar: {
-            tasas: Boolean(this.socioConfigEdit.activo),
-            dashboard: Boolean(this.socioConfigEdit.mostrar_dashboard)
-          },
-          monedas: monedasFinales
-        };
+    const payload = {
+      nombre: String(this.socioConfigEdit.nombre || '').toUpperCase().trim(),
+      rol: 'SOCIO',
+      moneda_base: String(this.socioConfigEdit.moneda_socio || 'USDT').toUpperCase().trim(),
+      id_grupo: this.socioConfigEdit.whatsapp || '',
+      saldo_inicial: Number(this.socioConfigEdit.saldo_anterior || 0),
+      mostrar: {
+        tasas: Boolean(this.socioConfigEdit.mostrar_tasas),
+        dashboard: Boolean(this.socioConfigEdit.mostrar_dashboard)
+      },
+      monedas: objetoMonedasJSON,
+      herencia: Boolean(this.socioConfigEdit.herencia)
+    };
 
-        await window.AteneaAPI.guardarSocioConfig(payload);
-        
-        this.modalConfigSocioAbierto = false;
+    const res = await window.AteneaAPI.guardarSocioConfig(payload);
+
+    if (res && (res.success || res.status === 'OK' || res.perfil)) {
+      this.modalConfigSocioAbierto = false;
+      // Refrescar lista de directorio
+      if (typeof this.cargarDirectorio === 'function') {
         await this.cargarDirectorio();
-        await this.cargarSocios();
-        await this.cargarComprobantes();
-        alert('✅ Configuración del socio guardada con éxito.');
-      } catch (err) {
-        console.error('Error al guardar socio:', err);
-        alert('Error guardando socio: ' + err.message);
+      } else {
+        window.location.reload();
       }
-    },
+    } else {
+      alert('⚠️ No se pudieron guardar los cambios en el servidor.');
+    }
+  } catch (err) {
+    console.error('❌ [Error al guardar modal directorio]:', err);
+    alert('❌ Error de red/servidor al guardar: ' + err.message);
+  }
+},
 
     async apagarTodosSocios() {
       if (!confirm('¿Deseas apagar/desactivar todas las carteleras de los socios?')) return;
