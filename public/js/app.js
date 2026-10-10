@@ -419,7 +419,9 @@ function registrarAppAlpine() {
             activo: config.activo ?? true,
             pctD: config.porcentaje?.deposito || 0,
             pctP: config.porcentaje?.pago || 0,
-            polaridadSuma: config.polaridad === '+' || config.polaridad === undefined,
+            // 🟢 SOPORTE DIRECTO DE polar_D Y polar_P
+            polar_D: config.polar_D !== undefined ? config.polar_D : (config.polaridad || '+'),
+            polar_P: config.polar_P !== undefined ? config.polar_P : (config.polaridad === '+' ? '-' : '+'),
             naturaleza: config.tipo || 'D' 
           });
         } else {
@@ -430,7 +432,8 @@ function registrarAppAlpine() {
             activo: false,
             pctD: 0,
             pctP: 0,
-            polaridadSuma: true,
+            polar_D: '+',
+            polar_P: '-',
             naturaleza: 'D'
           });
         }
@@ -471,7 +474,8 @@ function registrarAppAlpine() {
         activo: true,
         pctD: 0,
         pctP: 0,
-        polaridadSuma: true,
+        polar_D: '+',
+        polar_P: '-',
         naturaleza: 'D'
       });
     },
@@ -487,65 +491,57 @@ function registrarAppAlpine() {
       });
     },
 
-    /**
- * Guarda los cambios del modal Directorio enviando polar_D y polar_P actualizados
- */
-async function guardarConfigSocioModal() {
-  if (!this.socioConfigEdit) return;
+    // 🟢 SINTAXIS MÉTODICA VÁLIDA DENTRO DE ALPINE DATA
+    async guardarConfigSocioModal() {
+      if (!this.socioConfigEdit) return;
 
-  try {
-    const objetoMonedasJSON = {};
+      try {
+        const objetoMonedasJSON = {};
 
-    // Reconstruir el JSONB leyendo polar_D y polar_P de cada tarjeta
-    (this.socioConfigEdit.paises || []).forEach(p => {
-      if (!p.code) return;
-      const codeUpper = p.code.toUpperCase().trim();
+        (this.socioConfigEdit.paises || []).forEach(p => {
+          if (!p.code) return;
+          const codeUpper = p.code.toUpperCase().trim();
 
-      objetoMonedasJSON[codeUpper] = {
-        tipo: p.naturaleza || 'D',
-        activo: true,
-        // 🟢 LEER POLARIDADES INDEPENDIENTES DEL ESTADO DE LOS BOTONES
-        polar_D: p.polar_D || (p.polaridadSuma ? '+' : '-'),
-        polar_P: p.polar_P || (p.polaridadSuma ? '-' : '+'),
-        porcentaje: {
-          deposito: Number(p.pctD || 0),
-          pago: Number(p.pctP || 0)
+          objetoMonedasJSON[codeUpper] = {
+            tipo: p.naturaleza || 'D',
+            activo: true,
+            // 🟢 PERSISTENCIA EXPLICITA DE polar_D Y polar_P
+            polar_D: p.polar_D || '+',
+            polar_P: p.polar_P || '-',
+            porcentaje: {
+              deposito: Number(p.pctD || 0),
+              pago: Number(p.pctP || 0)
+            }
+          };
+        });
+
+        const payload = {
+          nombre: String(this.socioConfigEdit.nombre || '').toUpperCase().trim(),
+          rol: 'SOCIO',
+          moneda_base: String(this.socioConfigEdit.moneda_socio || 'USDT').toUpperCase().trim(),
+          id_grupo: this.socioConfigEdit.whatsapp || '',
+          saldo_inicial: Number(this.socioConfigEdit.saldo_anterior || 0),
+          mostrar: {
+            tasas: Boolean(this.socioConfigEdit.activo),
+            dashboard: Boolean(this.socioConfigEdit.mostrar_dashboard)
+          },
+          monedas: objetoMonedasJSON,
+          herencia: Boolean(this.socioConfigEdit.herencia)
+        };
+
+        const res = await window.AteneaAPI.guardarSocioConfig(payload);
+
+        if (res && (res.success || res.status === 'OK' || res.perfil)) {
+          this.modalConfigSocioAbierto = false;
+          await this.cargarDirectorio();
+        } else {
+          alert('⚠️ No se pudieron guardar los cambios en el servidor.');
         }
-      };
-    });
-
-    const payload = {
-      nombre: String(this.socioConfigEdit.nombre || '').toUpperCase().trim(),
-      rol: 'SOCIO',
-      moneda_base: String(this.socioConfigEdit.moneda_socio || 'USDT').toUpperCase().trim(),
-      id_grupo: this.socioConfigEdit.whatsapp || '',
-      saldo_inicial: Number(this.socioConfigEdit.saldo_anterior || 0),
-      mostrar: {
-        tasas: Boolean(this.socioConfigEdit.mostrar_tasas),
-        dashboard: Boolean(this.socioConfigEdit.mostrar_dashboard)
-      },
-      monedas: objetoMonedasJSON,
-      herencia: Boolean(this.socioConfigEdit.herencia)
-    };
-
-    const res = await window.AteneaAPI.guardarSocioConfig(payload);
-
-    if (res && (res.success || res.status === 'OK' || res.perfil)) {
-      this.modalConfigSocioAbierto = false;
-      // Refrescar lista de directorio
-      if (typeof this.cargarDirectorio === 'function') {
-        await this.cargarDirectorio();
-      } else {
-        window.location.reload();
+      } catch (err) {
+        console.error('❌ [Error al guardar modal directorio]:', err);
+        alert('❌ Error de red/servidor al guardar: ' + err.message);
       }
-    } else {
-      alert('⚠️ No se pudieron guardar los cambios en el servidor.');
-    }
-  } catch (err) {
-    console.error('❌ [Error al guardar modal directorio]:', err);
-    alert('❌ Error de red/servidor al guardar: ' + err.message);
-  }
-},
+    },
 
     async apagarTodosSocios() {
       if (!confirm('¿Deseas apagar/desactivar todas las carteleras de los socios?')) return;
