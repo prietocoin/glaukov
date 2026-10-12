@@ -226,23 +226,33 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
       const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
 
-      // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN (CORREGIDO PARA PROVEEDOR)
+      // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN (CORREGIDA PARA PROVEEDORES)
       let tipoOpLetra = 'D';
       const rolS1 = String(r.rol_socio_1 || 'SOCIO').toUpperCase().trim();
+      const letraOriginal = r.tipo_op1 ? String(r.tipo_op1).split('-')[0].toUpperCase() : null;
 
-      if (r.tipo_op1) {
-        tipoOpLetra = String(r.tipo_op1).split('-')[0].toUpperCase();
-      } else if (rolS1 !== 'PROVEEDOR' && monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
-        // Auto Abono 'A' SOLO si el socio 1 NO tiene el rol de PROVEEDOR
-        tipoOpLetra = 'A';
+      // SI EL SOCIO 1 ES PROVEEDOR
+      if (rolS1 === 'PROVEEDOR') {
+        // Ignora 'A' si vino de un proceso automático previo y usa la del perfil (ej. 'D')[cite: 7]
+        if (letraOriginal && letraOriginal !== 'A') {
+          tipoOpLetra = letraOriginal;
+        } else {
+          tipoOpLetra = conf1.tipo || 'D';
+        }
       } else {
-        // Si ES PROVEEDOR o la moneda es distinta a su base, toma la naturaleza del perfil (conf1.tipo)
-        tipoOpLetra = conf1.tipo || 'D';
+        // SI ES SOCIO NORMAL
+        if (letraOriginal) {
+          tipoOpLetra = letraOriginal;
+        } else if (monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
+          tipoOpLetra = 'A';
+        } else {
+          tipoOpLetra = conf1.tipo || 'D';
+        }
       }
 
       const tipoOpTag = `${tipoOpLetra}-${divisaRecibo}`;
-      const tipoOp1Final = r.tipo_op1 || tipoOpTag;
-      const tipoOp2Final = r.tipo_op2 || tipoOpTag;
+      const tipoOp1Final = tipoOpTag;
+      const tipoOp2Final = `${tipoOpLetra}-${divisaRecibo}`;
 
       // 🟢 FASE 3: ASIGNACIÓN AUTOMÁTICA DE POLARIDAD SEGÚN REGLAS EXPLICITAS polar_D / polar_P
       const strPolaridad1 = resolverPolaridadPorNaturaleza(conf1, tipoOpLetra, true);
@@ -587,7 +597,7 @@ async function actualizarComprobante(hashLargo, datos = {}) {
     const resFundda = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = 'FUNDDA' LIMIT 1`);
     if (resFundda.rows.length > 0) funddaData = resFundda.rows[0];
 
-    // 5. Preparar el payload y calcular el nuevo snapshot financiero (CORREGIDO PARA GUARDADO)
+    // 5. Preparar el payload y calcular el nuevo snapshot financiero
     const rawData = {
       hash_largo: targetHash,
       monto: valMonto || datos.monto || 0,
