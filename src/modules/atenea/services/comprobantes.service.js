@@ -226,23 +226,22 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
       const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
 
-      // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN (CORREGIDA PARA PROVEEDORES)
+      // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN (AJUSTE CLAVE PROVEEDOR)
       let tipoOpLetra = 'D';
       const rolS1 = String(r.rol_socio_1 || 'SOCIO').toUpperCase().trim();
-      const letraOriginal = r.tipo_op1 ? String(r.tipo_op1).split('-')[0].toUpperCase() : null;
+      const letraGuardada = r.tipo_op1 ? String(r.tipo_op1).split('-')[0].toUpperCase() : null;
 
-      // SI EL SOCIO 1 ES PROVEEDOR
       if (rolS1 === 'PROVEEDOR') {
-        // Ignora 'A' si vino de un proceso automático previo y usa la del perfil (ej. 'D')[cite: 7]
-        if (letraOriginal && letraOriginal !== 'A') {
-          tipoOpLetra = letraOriginal;
+        // Para PROVEEDOR: si tenía 'A' guardada automáticamente por error, la reemplaza por conf1.tipo de su perfil (ej. 'D')
+        if (letraGuardada && letraGuardada !== 'A') {
+          tipoOpLetra = letraGuardada;
         } else {
           tipoOpLetra = conf1.tipo || 'D';
         }
       } else {
-        // SI ES SOCIO NORMAL
-        if (letraOriginal) {
-          tipoOpLetra = letraOriginal;
+        // Para SOCIO normal
+        if (letraGuardada) {
+          tipoOpLetra = letraGuardada;
         } else if (monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
           tipoOpLetra = 'A';
         } else {
@@ -252,7 +251,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
 
       const tipoOpTag = `${tipoOpLetra}-${divisaRecibo}`;
       const tipoOp1Final = tipoOpTag;
-      const tipoOp2Final = `${tipoOpLetra}-${divisaRecibo}`;
+      const tipoOp2Final = tipoOpTag;
 
       // 🟢 FASE 3: ASIGNACIÓN AUTOMÁTICA DE POLARIDAD SEGÚN REGLAS EXPLICITAS polar_D / polar_P
       const strPolaridad1 = resolverPolaridadPorNaturaleza(conf1, tipoOpLetra, true);
@@ -553,12 +552,10 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       targetHash
     ]);
 
-    // 2. PRIORIZAR EL LOTE SELECCIONADO EN EL MODAL DE CORRECCIÓN
     const idLote = datos.lote_tasa_asignado || datos.lote_tasa || datos.id_tasa || 'T052';
     const socio1Nombre = datos.nombre_socio_1 || datos.socio_1 || datos.socio1 || 'GENERAL';
     const socio2Nombre = datos.nombre_socio_2 || datos.socio_2 || datos.socio2 || 'GENERAL';
 
-    // 3. Obtener el lote de tasa específico seleccionado
     let tasaLote = null;
     try {
       if (typeof obtenerTasaPorId === 'function') {
@@ -572,7 +569,6 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       tasaLote = await obtenerUltimasTasas();
     }
 
-    // 4. Buscar datos de socios en perfiles_glaukov
     let socio1Data = { nombre: socio1Nombre, moneda_base: 'USDT' };
     let socio2Data = { nombre: socio2Nombre, moneda_base: 'USDT' };
 
@@ -592,12 +588,11 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       if (res2.rows.length > 0) socio2Data = res2.rows[0];
     }
 
-    // Obtener perfil de FUNDDA para herencia
     let funddaData = null;
     const resFundda = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = 'FUNDDA' LIMIT 1`);
     if (resFundda.rows.length > 0) funddaData = resFundda.rows[0];
 
-    // 5. Preparar el payload y calcular el nuevo snapshot financiero
+    // 🟢 5. CÁLCULO DEL SNAPSHOT BASE
     const rawData = {
       hash_largo: targetHash,
       monto: valMonto || datos.monto || 0,
@@ -610,7 +605,22 @@ async function actualizarComprobante(hashLargo, datos = {}) {
 
     const snapshot = calcularSnapshotFinanciero(rawData, socio1Data, socio2Data, tasaLote, funddaData);
 
-    // 6. Sobrescribir/Congelar el snapshot en la tabla comprobantes_liq
+    // 🟢 6. SOBRESCRIBIR LA NATURALEZA Y MONTOS CON LO ELEGIDO EN EL MODAL DE AUDITORÍA
+    const natElegida = String(datos.tipo_manual || datos.tipo_op1 || 'P').split('-')[0].toUpperCase();
+    const divisaActual = datos.moneda || datos.moneda_recibo || 'COP';
+    const tagTipo = `${natElegida}-${divisaActual}`;
+
+    snapshot.tipo_op1 = tagTipo;
+    snapshot.tipo_op2 = tagTipo;
+
+    if (datos.monto_1 !== undefined && datos.monto_1 !== null) {
+      snapshot.monto_1 = parseFloat(datos.monto_1) || 0;
+    }
+    if (datos.monto_2 !== undefined && datos.monto_2 !== null) {
+      snapshot.monto_2 = parseFloat(datos.monto_2) || 0;
+    }
+
+    // 🟢 7. Guardar de forma definitiva en comprobantes_liq
     await liquidarComprobante(snapshot);
 
     return { success: true };
