@@ -75,6 +75,28 @@ export function comprobantesView() {
       }
     },
 
+    // 🟢 EVALUACIÓN DE NATURALEZA CON REGLA EXCLUSIVA PARA PROVEEDOR
+    evaluarNaturalezaOperacion(socioObj, monedaComprobante, naturalezaManual = null) {
+      if (naturalezaManual) return naturalezaManual;
+
+      const rol = (socioObj?.rol || socioObj?.roles || 'SOCIO').trim().toUpperCase();
+      const monedaBase = (socioObj?.moneda_base || socioObj?.moneda_socio || 'USDT').trim().toUpperCase();
+      const monedaComp = (monedaComprobante || '').trim().toUpperCase();
+
+      // 1. REGLA AUTO-ABONO (A): NO APLICA SI ES PROVEEDOR
+      if (rol !== 'PROVEEDOR' && monedaBase && monedaComp && monedaBase === monedaComp) {
+        return 'A';
+      }
+
+      // 2. REGLA POR PAÍS DE SU PERFIL (Aplica tanto para SOCIO como para PROVEEDOR)
+      const reglaPais = (socioObj?.paises || []).find(p => (p.code || '').trim().toUpperCase() === monedaComp);
+      if (reglaPais && reglaPais.naturaleza) {
+        return reglaPais.naturaleza.trim().toUpperCase();
+      }
+
+      return 'D';
+    },
+
     // --- CÁLCULO DE TASAS POR SOCIO ---
     obtenerTasaSocioCalculada(c, numSocio = 1) {
       if (!c) return 1.0;
@@ -83,7 +105,7 @@ export function comprobantesView() {
       return (!isNaN(valTasa) && valTasa !== 0) ? valTasa : 1.0;
     },
 
-    // 🟢 ME1: MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 1 - ORIGINAL INTACTO)
+    // 🟢 ME1: MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 1)
     obtenerME1(c) {
       if (!c) return 0;
       
@@ -108,7 +130,7 @@ export function comprobantesView() {
       return parseFloat(Math.abs(equivalente).toFixed(2));
     },
 
-    // 🟢 ME2: MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2 - ORIGINAL INTACTO)
+    // 🟢 ME2: MONTO EQUIVALENTE A DÓLAR (VOLUMEN SOCIO 2)
     obtenerME2(c) {
       if (!c) return 0;
 
@@ -211,7 +233,7 @@ export function comprobantesView() {
       return `[${tipo}-${hash}]`;
     },
 
-    // 🟢 ABRIR MODAL
+    // 🟢 ABRIR MODAL CON EVALUACIÓN DE NATURALEZA
     abrirModal(item) {
       this.abrirModalEdicion(item);
     },
@@ -226,14 +248,17 @@ export function comprobantesView() {
       }
 
       const loteSeleccionado = item.id_tasa || item.lote_tasa || item.lote_tasa_asignado || 'T052';
-      const naturaleza = item.tipo_manual || item.tipo_op || item.tipo_op_1 || 'D';
+      const s1Nombre = item.nombre_socio_1 || item.socio_1 || item.socio;
+      const socioObj = this.directorio.find(d => d.nombre && d.nombre.trim().toUpperCase() === String(s1Nombre).trim().toUpperCase());
+
+      // Evalúa la naturaleza respetando las reglas de Proveedor / País
+      const naturaleza = this.evaluarNaturalezaOperacion(socioObj, item.moneda || item.moneda_comprobante, item.tipo_manual || item.tipo_op);
 
       const baseMonto = parseFloat(item.monto || item.monto_local || 0);
 
       let m1 = item.monto_1 !== undefined && item.monto_1 !== null ? item.monto_1 : baseMonto;
       let m2 = item.monto_2 !== undefined && item.monto_2 !== null ? item.monto_2 : baseMonto;
 
-      // 🟢 REGLA DE ABONO (A): Socio 1 (+) y Socio 2 (-)
       if (naturaleza === 'A') {
         m1 = Math.abs(parseFloat(m1) || 0);
         m2 = -Math.abs(parseFloat(m2) || 0);
@@ -253,7 +278,7 @@ export function comprobantesView() {
       this.modalAbierto = true;
     },
 
-    // 🟢 RE-CALCULA SIGNOS AUTOMÁTICAMENTE AL CAMBIAR NATURALEZA A "A"
+    // 🟢 RE-CALCULA SIGNOS AL CAMBIAR NATURALEZA A "A"
     actualizarSignosPorNaturaleza() {
       if (!this.itemEdicion) return;
 
