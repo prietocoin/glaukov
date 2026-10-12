@@ -226,13 +226,17 @@ async function obtenerComprobantesAuditados(filtros = {}) {
       const conf1 = monedas1[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
       const conf2 = monedas2[divisaRecibo] || { tipo: 'D', polar_D: '+', polar_P: '-', porcentaje: { deposito: 0, pago: 0 } };
 
-      // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN
+      // 🟢 FASE 2: RESOLUCIÓN DINÁMICA DE LA NATURALEZA DE OPERACIÓN (CORREGIDO PARA PROVEEDOR)
       let tipoOpLetra = 'D';
+      const rolS1 = String(r.rol_socio_1 || 'SOCIO').toUpperCase().trim();
+
       if (r.tipo_op1) {
         tipoOpLetra = String(r.tipo_op1).split('-')[0].toUpperCase();
-      } else if (monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
+      } else if (rolS1 !== 'PROVEEDOR' && monedaSocio1 === divisaRecibo && socio1Final !== 'GENERAL') {
+        // Auto Abono 'A' SOLO si el socio 1 NO tiene el rol de PROVEEDOR
         tipoOpLetra = 'A';
       } else {
+        // Si ES PROVEEDOR o la moneda es distinta a su base, toma la naturaleza del perfil (conf1.tipo)
         tipoOpLetra = conf1.tipo || 'D';
       }
 
@@ -255,7 +259,7 @@ async function obtenerComprobantesAuditados(filtros = {}) {
         tasa1Calculada = r.tasa_1 !== null && !isNaN(parseFloat(r.tasa_1)) ? parseFloat(r.tasa_1) : 1.0;
         tasa2Calculada = r.tasa_2 !== null && !isNaN(parseFloat(r.tasa_2)) ? parseFloat(r.tasa_2) : 1.0;
         
-        // 🟢 PROYECCIÓN EN VIVO: Aplica la polaridad de perfiles_glaukov sobre la magnitud
+        // PROYECCIÓN EN VIVO: Aplica la polaridad de perfiles_glaukov sobre la magnitud
         m1Calculado = signo1 * Math.abs(parseFloat(r.monto_1 || 0));
         m2Calculado = signo2 * Math.abs(parseFloat(r.monto_2 || 0));
         me1Calculado = signo1 * Math.abs(parseFloat(r.me1 || 0));
@@ -451,7 +455,7 @@ async function liquidarAutomaticoPorOmision(hashLargo) {
       if (res2.rows.length > 0) socio2Data = res2.rows[0];
     }
 
-    // 🟢 Obtener perfil de FUNDDA para herencia
+    // Obtener perfil de FUNDDA para herencia
     let funddaData = null;
     const resFundda = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = 'FUNDDA' LIMIT 1`);
     if (resFundda.rows.length > 0) funddaData = resFundda.rows[0];
@@ -578,17 +582,19 @@ async function actualizarComprobante(hashLargo, datos = {}) {
       if (res2.rows.length > 0) socio2Data = res2.rows[0];
     }
 
-    // 🟢 Obtener perfil de FUNDDA para herencia
+    // Obtener perfil de FUNDDA para herencia
     let funddaData = null;
     const resFundda = await db.query(`SELECT * FROM perfiles_glaukov WHERE UPPER(TRIM(nombre)) = 'FUNDDA' LIMIT 1`);
     if (resFundda.rows.length > 0) funddaData = resFundda.rows[0];
 
-    // 5. Preparar el payload y calcular el nuevo snapshot financiero
+    // 5. Preparar el payload y calcular el nuevo snapshot financiero (CORREGIDO PARA GUARDADO)
     const rawData = {
       hash_largo: targetHash,
       monto: valMonto || datos.monto || 0,
       moneda: datos.moneda || datos.moneda_recibo || 'COP',
-      tipo_manual: datos.tipo_manual || datos.tipo_op || datos.tipo_op1 || 'P',
+      tipo_manual: datos.tipo_manual || datos.tipo_op1 || datos.tipo_op || 'D',
+      monto_1: datos.monto_1 !== undefined ? datos.monto_1 : datos.m1_socio,
+      monto_2: datos.monto_2 !== undefined ? datos.monto_2 : datos.m2_socio,
       id_tasa: idLote
     };
 
